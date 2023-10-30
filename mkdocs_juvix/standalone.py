@@ -50,7 +50,7 @@ def render(src: str, language: str, class_name: str, options: dict, md: mk.Markd
                    "--only-source",
                    "--only-code",
                    "--no-path",
-                   "--prefix-url=X",
+                   "--prefix-url=",
                    ("--prefix-id=%s" % modname),
                    fname]
         cd = subprocess.run(htmlCmd, cwd=moduleFolder, capture_output=True)

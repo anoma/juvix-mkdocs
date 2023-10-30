@@ -46,8 +46,8 @@ class JuvixPlugin(BasePlugin):
             log.info("> Juvix module name: %s", modname)
 
             check = ["juvix", "typecheck", fpath]
-            runCheck = subprocess.run(check, 
-                                      cwd=docsPath, 
+            runCheck = subprocess.run(check,
+                                      cwd=docsPath,
                                       capture_output=True)
 
             if runCheck.returncode != 0:
