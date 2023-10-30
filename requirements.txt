@@ -1,1 +1,3 @@
 mkdocs
+pyYaml
+pymdown-extensions

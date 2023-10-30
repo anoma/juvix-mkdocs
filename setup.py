@@ -7,14 +7,15 @@ setup(
     description='A plugin to render Juvix code blocks in MkDocs.',
     long_description='',
     keywords='mkdocs',
-    url='',
+    url='https//github.com/anoma/juvix-mkdocs',
     author='Jonathan Prieto-Cubides',
-    author_email='jonathan@uib.no',
+    author_email='jonathan.cubides@uib.no',
     license='MIT',
     python_requires='>=3.11',
     install_requires=[
-        'mkdocs'
+        'mkdocs >= 1.5.0',
     ],
+    keywords="mkdocs, custom_fences, pymdownx, markdown extension, markdown, juvix",
     classifiers=[
         'Intended Audience :: Developers',
         'Intended Audience :: Information Technology',
@@ -23,7 +24,7 @@ setup(
     packages=find_packages(),
     entry_points={
         'mkdocs.plugins': [
-            'juvix = mkdocs_juvix.plugin:JuvixPlugin'
+            'juvix = mkdocs_juvix.plugin:JuvixPlugin',
             'juvix-standalone = mkdocs_juvix.standalone:render'
         ]
     }
