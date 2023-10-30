@@ -58,7 +58,7 @@ class JuvixPlugin(BasePlugin):
                 "juvix",
                 "markdown",
                 "--no-path",
-                "--stdout",
+                "--output-dir=" + str(juvixMdFolder),
                 fpath
             ]
             cd = subprocess.run(cmd, cwd=docsPath, capture_output=True)
@@ -66,11 +66,10 @@ class JuvixPlugin(BasePlugin):
                 log.error("> Juvix-plugin Error: %s",
                           cd.stderr.decode("utf-8"))
                 raise Exception(cd.stderr.decode("utf-8"))
-            stdout = cd.stdout.decode("utf-8")
-            juvixMdFolder.mkdir(parents=True, exist_ok=True)
-            with open(mdPath, "w") as f:
-                f.write(stdout)
-            return stdout
+            genMdfile = juvixMdFolder.joinpath(mdFile)
+            with open(genMdfile, "r") as f:
+                md = f.read()
+                return md
         return ""
 
     def on_page_markdown(self, markdown, page, config, files: Files):
