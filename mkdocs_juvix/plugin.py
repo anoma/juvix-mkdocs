@@ -26,7 +26,6 @@ except Exception:
     log.error("Juvix is not installed and it's required for this plugin.")
     raise
 
-
 class JuvixPlugin(BasePlugin):
 
     config_scheme = (
@@ -58,7 +57,7 @@ class JuvixPlugin(BasePlugin):
                 "juvix",
                 "markdown",
                 "--no-path",
-                "--output-dir=" + str(juvixMdFolder),
+                "--stdout",
                 fpath
             ]
             cd = subprocess.run(cmd, cwd=docsPath, capture_output=True)
@@ -66,11 +65,12 @@ class JuvixPlugin(BasePlugin):
                 log.error("> Juvix-plugin Error: %s",
                           cd.stderr.decode("utf-8"))
                 raise Exception(cd.stderr.decode("utf-8"))
-            genMdfile = juvixMdFolder.joinpath(mdFile)
-            with open(genMdfile, "r") as f:
-                md = f.read()
-                return md
-        return ""
+            stdout = cd.stdout.decode("utf-8")
+            juvixMdFolder.mkdir(parents=True, exist_ok=True)
+            with open(mdPath, "w") as f:
+                f.write(stdout)
+            return stdout
+        return page.content
 
     def on_page_markdown(self, markdown, page, config, files: Files):
         if page.file.name.endswith(".juvix"):

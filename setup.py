@@ -3,11 +3,11 @@ from setuptools import setup, find_packages
 
 setup(
     name='mkdocs-juvix-plugin',
-    version='0.1.0',
+    version='0.1.2',
     description='A plugin to render Juvix code blocks in MkDocs.',
     long_description='',
     keywords='mkdocs',
-    url='https//github.com/anoma/juvix-mkdocs',
+    # url='https//github.com/anoma/juvix-mkdocs/',
     author='Jonathan Prieto-Cubides',
     author_email='jonathan.cubides@uib.no',
     license='MIT',
@@ -15,7 +15,6 @@ setup(
     install_requires=[
         'mkdocs >= 1.5.0',
     ],
-    keywords="mkdocs, custom_fences, pymdownx, markdown extension, markdown, juvix",
     classifiers=[
         'Intended Audience :: Developers',
         'Intended Audience :: Information Technology',
