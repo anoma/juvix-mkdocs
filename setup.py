@@ -3,7 +3,7 @@ from setuptools import setup, find_packages
 
 setup(
     name='mkdocs-juvix-plugin',
-    version='0.1.2',
+    version='0.1.3',
     description='A plugin to render Juvix code blocks in MkDocs.',
     long_description='',
     keywords='mkdocs',

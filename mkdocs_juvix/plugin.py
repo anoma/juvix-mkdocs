@@ -19,17 +19,22 @@ log = logging.getLogger('mkdocs')
 docsPath = Path("./docs")
 juvixMdFolder = Path("./.juvix-mkdocs")
 
-
 try:
     subprocess.check_output(["juvix", "--numeric-version"])
 except Exception:
     log.error("Juvix is not installed and it's required for this plugin.")
     raise
 
+
 class JuvixPlugin(BasePlugin):
 
     config_scheme = (
         ('param', config_options.Type(str, default='')),
+        ('typecheck', config_options.Type(bool, default=False)),
+        ('debug', config_options.Type(bool, default=False)),
+        ('mdflags', config_options.Type(str,
+                                        default="--no-path --stdout")),
+        ('globalflags', config_options.Type(str, default="--no-colors")),
     )
 
     def __init__(self):
@@ -41,35 +46,39 @@ class JuvixPlugin(BasePlugin):
             modname = os.path.basename(fpath).replace(".juvix.md", "")
             mdFile = modname + ".md"
             mdPath = juvixMdFolder.joinpath(mdFile)
-            log.info("> Juvix file path: %s", fpath)
-            log.info("> Juvix module name: %s", modname)
 
-            check = ["juvix", "typecheck", fpath]
-            runCheck = subprocess.run(check,
-                                      cwd=docsPath,
-                                      capture_output=True)
+            if self.config["debug"]:
+                log.info("> Juvix file: %s", fpath)
+                log.info("> Juvix module name: %s", modname)
 
-            if runCheck.returncode != 0:
-                log.error("> Error: %s", runCheck.stderr)
-                return """<code><div class="juvix-error">%s</div></code>""" % str(runCheck.stderr.decode("utf-8"))
+            # if the option `typecheck` is set to true, we run the typechecker
+            if self.config["typecheck"]:
+                check = ["juvix", "typecheck", fpath]
+                runCheck = subprocess.run(check,
+                                          cwd=docsPath,
+                                          capture_output=True)
 
-            cmd = [
-                "juvix",
-                "markdown",
-                "--no-path",
-                "--stdout",
-                fpath
-            ]
+                if runCheck.returncode != 0:
+                    log.error("> Error: %s", runCheck.stderr)
+                    return """<pre><code><div class="juvix-error">%s</div></code></pre>""" % str(runCheck.stderr.decode("utf-8"))
+
+            cmd = ["juvix", "markdown"] + \
+                self.config["mdflags"].split(" ") + [fpath] + \
+                self.config["globalflags"].split(" ")
+
             cd = subprocess.run(cmd, cwd=docsPath, capture_output=True)
+
             if cd.returncode != 0:
-                log.error("> Juvix-plugin Error: %s",
-                          cd.stderr.decode("utf-8"))
+                if self.config["debug"]:
+                    log.error("> Juvix-plugin Error: %s",
+                              cd.stderr.decode("utf-8"))
                 raise Exception(cd.stderr.decode("utf-8"))
             stdout = cd.stdout.decode("utf-8")
             juvixMdFolder.mkdir(parents=True, exist_ok=True)
             with open(mdPath, "w") as f:
                 f.write(stdout)
             return stdout
+
         return page.content
 
     def on_page_markdown(self, markdown, page, config, files: Files):
