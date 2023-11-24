@@ -1,7 +1,13 @@
 # Juvix MkDocs
 
 This is a plugin to be used with Mkdocs to build static websites and highlight
-Juvix codeblocks such as:
+Juvix codeblocks using [the Juvix Compiler](https://docs.juvix.org).
+
+To utilize this feature provided by the compiler, the file should have the
+`.juvix.md` extension. Within this file, any Markdown is valid; the compiler
+would only concern itself with *juvix code blocks*. 
+
+A Juvix code block in Markdown appears as follows: 
 
 <pre><code>
 ```juvix
@@ -12,9 +18,15 @@ main : IO := printStringLn "Hello!";
 ```
 </code></pre>
 
-which can be hidden if you use ```juvix hide``` as the code block header. 
+Juvix code blocks can be hidden from the final build if you use <pre>```juvix
+hide```</pre> as the code block header. 
 
-Or to include everything as one standalone module.
+
+A special addition, exclusive for MkDocs, is the *juvix-standalone files*. These
+are modules which are compiled as standalone modules/programs. One key advantage
+of these is that they can contain all the definitions which the module depends
+on within a HTML *details* environment. To define such blocks, use the
+`juvix-standalone` header.
 
 <pre><code>
 ```juvix-standalone
@@ -69,3 +81,10 @@ markdown_extensions:
           format: !!python/name:juvix-mkdocs.render.render
 ...
 ```
+
+One minimal example of this file configured to work with this plugin can be found
+[here](https://github.com/anoma/kudos-snippets/blob/main/mkdocs.yml) and the final
+output is as [on this page](https://anoma.github.io/kudos-snippets/kudos/).
+
+To setup your GitHub CI to replicate this, you can use as template [this
+example](https://github.com/anoma/kudos-snippets/blob/main/.github/workflows/ci.yml).
