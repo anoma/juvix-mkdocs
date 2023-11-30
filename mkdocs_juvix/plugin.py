@@ -93,18 +93,10 @@ class JuvixPlugin(BasePlugin):
             page.file.abs_dest_path = page.file.abs_dest_path.replace(
                 text, "")
 
-        if page.file.name.endswith(index):
+        if page.file.name == index:
             path_change(index)
-        elif page.file.name.endswith(readme):
+        elif page.file.name == readme:
             path_change(readme)
         elif page.file.name.endswith(juvix):
             path_change(juvix)
         return markdown
-
-    def on_nav(self, nav: Navigation, config: Config, files: Files):
-
-        for page in nav.pages:
-           if page.file.src_path.endswith("index.juvix.md"):
-            nav.homepage = page
-        return nav
-
