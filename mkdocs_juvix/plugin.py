@@ -83,6 +83,7 @@ class JuvixPlugin(BasePlugin):
 
     def on_page_markdown(self, markdown, page, config, files: Files):
         index = "index.juvix"
+        readme = "README.juvix"
         juvix = ".juvix"
 
         def path_change(text):
@@ -94,6 +95,8 @@ class JuvixPlugin(BasePlugin):
 
         if page.file.name.endswith(index):
             path_change(index)
+        elif page.file.name.endswith(readme):
+            path_change(readme)
         elif page.file.name.endswith(juvix):
             path_change(juvix)
         return markdown
