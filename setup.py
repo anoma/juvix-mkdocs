@@ -3,13 +3,13 @@ from setuptools import setup, find_packages
 
 setup(
     name='mkdocs-juvix-plugin',
-    version='0.1.3',
+    version='0.1.4',
     description='A plugin to render Juvix code blocks in MkDocs.',
     long_description='',
     keywords='mkdocs',
     # url='https//github.com/anoma/juvix-mkdocs/',
-    author='Jonathan Prieto-Cubides',
-    author_email='jonathan.cubides@uib.no',
+    author='Jonathan Prieto-Cubides, and GitHub contributors',
+    author_email='jonathan@heliax.dev',
     license='MIT',
     python_requires='>=3.11',
     install_requires=[
