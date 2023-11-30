@@ -82,10 +82,21 @@ class JuvixPlugin(BasePlugin):
         return page.content
 
     def on_page_markdown(self, markdown, page, config, files: Files):
-        if page.file.name.endswith(".juvix"):
-            page.file.name = page.file.name.replace(".juvix", "")
-            page.file.url = page.file.url.replace(".juvix", "")
-            page.file.dest_uri = page.file.dest_uri.replace(".juvix", "")
+        index = "index.juvix"
+        readme = "README.juvix"
+        juvix = ".juvix"
+
+        def path_change(text):
+            page.file.name = page.file.name.replace(text, "")
+            page.file.url = page.file.url.replace(text, "")
+            page.file.dest_uri = page.file.dest_uri.replace(text, "")
             page.file.abs_dest_path = page.file.abs_dest_path.replace(
-                ".juvix", "")
+                text, "")
+
+        if page.file.name == index:
+            path_change(index)
+        elif page.file.name == readme:
+            path_change(readme)
+        elif page.file.name.endswith(juvix):
+            path_change(juvix)
         return markdown
