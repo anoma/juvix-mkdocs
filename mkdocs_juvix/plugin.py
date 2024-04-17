@@ -15,7 +15,8 @@ from mkdocs.config.defaults import MkDocsConfig
 from mkdocs.plugins import BasePlugin
 from mkdocs.structure.files import Files
 from mkdocs.structure.pages import Page
-from utils import (
+
+from mkdocs_juvix.utils import (
     compute_hash_filepath,
     compute_sha_over_folder,
     fix_site_url,

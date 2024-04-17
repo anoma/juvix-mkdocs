@@ -2,18 +2,15 @@ from setuptools import find_packages, setup
 
 setup(
     name="mkdocs-juvix-plugin",
-    version="0.1.4",
+    version="0.2.0",
     description="A plugin to render Juvix code blocks in MkDocs.",
     long_description="",
     keywords="mkdocs",
-    # url='https//github.com/anoma/juvix-mkdocs/',
     author="Jonathan Prieto-Cubides, and GitHub contributors",
     author_email="jonathan@heliax.dev",
     license="MIT",
     python_requires=">=3.11",
-    install_requires=[
-        "mkdocs >= 1.5.0",
-    ],
+    install_requires=["mkdocs >= 1.5.0", "pyYaml", "pymdown-extensions"],
     classifiers=[
         "Intended Audience :: Developers",
         "Intended Audience :: Information Technology",

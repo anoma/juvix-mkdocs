@@ -1,11 +1,8 @@
 import hashlib
+import logging
 import os
 from functools import lru_cache
 from pathlib import Path
-from typing import Optional
-
-import logging
-import os
 from typing import Dict, Optional
 from urllib.parse import urljoin
 
