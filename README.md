@@ -5,9 +5,9 @@ Juvix codeblocks using [the Juvix Compiler](https://docs.juvix.org).
 
 To utilize this feature provided by the compiler, the file should have the
 `.juvix.md` extension. Within this file, any Markdown is valid; the compiler
-would only concern itself with *juvix code blocks*. 
+would only concern itself with *juvix code blocks*.
 
-A Juvix code block in Markdown appears as follows: 
+A Juvix code block in Markdown appears as follows:
 
 <pre><code>
 ```juvix
@@ -19,7 +19,7 @@ main : IO := printStringLn "Hello!";
 </code></pre>
 
 Juvix code blocks can be hidden from the final build if you use <pre>```juvix
-hide```</pre> as the code block header. 
+hide```</pre> as the code block header.
 
 
 A special addition, exclusive for MkDocs, is the *juvix-standalone files*. These

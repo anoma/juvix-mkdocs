@@ -1,10 +1,11 @@
 import hashlib
-import markdown as mk
-from pathlib import *
 import logging
 import subprocess
+from pathlib import *
 
-log = logging.getLogger('mkdocs')
+import markdown as mk
+
+log = logging.getLogger("mkdocs")
 
 try:
     subprocess.check_output(["juvix", "--numeric-version"])
@@ -17,9 +18,11 @@ snippetsPath = docsPath.joinpath("juvix-snippets")
 snippetsPath.mkdir(parents=True, exist_ok=True)
 
 
-def render(src: str, language: str, class_name: str, options: dict, md: mk.Markdown, **kwargs):
+def render(
+    src: str, language: str, class_name: str, options: dict, md: mk.Markdown, **kwargs
+):
     try:
-        modname = "M" + hashlib.md5(src.encode('utf-8')).hexdigest()[:5]
+        modname = "M" + hashlib.md5(src.encode("utf-8")).hexdigest()[:5]
         moduleFolder = snippetsPath.joinpath(modname)
         moduleFolder.mkdir(parents=True, exist_ok=True)
 
@@ -43,16 +46,20 @@ def render(src: str, language: str, class_name: str, options: dict, md: mk.Markd
 
         if runCheck.returncode != 0:
             log.error("> Error: %s", runCheck.stderr)
-            return """<code><div class="juvix-error">%s</div></code>""" % str(runCheck.stderr.decode("utf-8"))
+            return """<code><div class="juvix-error">%s</div></code>""" % str(
+                runCheck.stderr.decode("utf-8")
+            )
 
-        htmlCmd = ["juvix",
-                   "html",
-                   "--only-source",
-                   "--only-code",
-                   "--no-path",
-                   "--prefix-url=",
-                   ("--prefix-id=%s" % modname),
-                   fname]
+        htmlCmd = [
+            "juvix",
+            "html",
+            "--only-source",
+            "--only-code",
+            "--no-path",
+            "--prefix-url=",
+            ("--prefix-id=%s" % modname),
+            fname,
+        ]
         cd = subprocess.run(htmlCmd, cwd=moduleFolder, capture_output=True)
 
         if cd.returncode != 0:
@@ -64,24 +71,29 @@ def render(src: str, language: str, class_name: str, options: dict, md: mk.Markd
         moduleHtmlPath = htmlFolder.joinpath(htmlFile)
 
         with open(moduleHtmlPath, "r") as f:
-            moduleHtml = ''.join(f.readlines()[2:])
+            moduleHtml = "".join(f.readlines()[2:])
             mainOutput = "<pre><code><div>%s</div></code></pre>" % moduleHtml
             extraOutput = []
             if len(list(htmlFolder.iterdir())) > 2:
                 extraOutput += [
-                    "<details class='quote'><summary>Auxiliary definitions</summary>"]
+                    "<details class='quote'><summary>Auxiliary definitions</summary>"
+                ]
                 for f in htmlFolder.iterdir():
                     if f.is_file() and f.name + ".html" != htmlFile:
                         with open(f, "r") as m:
-                            fOut = ''.join(m.readlines())
-                            extraOutput += ["""
+                            fOut = "".join(m.readlines())
+                            extraOutput += [
+                                """
                                             <details class='quote'><summary>%s </summary>
                                             <pre><code><div>%s</div></code></pre>
-                                            </details>""" % (f.name, fOut)]
+                                            </details>"""
+                                % (f.name, fOut)
+                            ]
                 extraOutput += ["</details>"]
             return mainOutput + "\n".join(extraOutput)
 
     except Exception:
         import traceback
+
         print(traceback.format_exc())
         raise

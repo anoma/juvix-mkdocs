@@ -1,30 +1,29 @@
-from setuptools import setup, find_packages
-
+from setuptools import find_packages, setup
 
 setup(
-    name='mkdocs-juvix-plugin',
-    version='0.1.4',
-    description='A plugin to render Juvix code blocks in MkDocs.',
-    long_description='',
-    keywords='mkdocs',
+    name="mkdocs-juvix-plugin",
+    version="0.1.4",
+    description="A plugin to render Juvix code blocks in MkDocs.",
+    long_description="",
+    keywords="mkdocs",
     # url='https//github.com/anoma/juvix-mkdocs/',
-    author='Jonathan Prieto-Cubides, and GitHub contributors',
-    author_email='jonathan@heliax.dev',
-    license='MIT',
-    python_requires='>=3.11',
+    author="Jonathan Prieto-Cubides, and GitHub contributors",
+    author_email="jonathan@heliax.dev",
+    license="MIT",
+    python_requires=">=3.11",
     install_requires=[
-        'mkdocs >= 1.5.0',
+        "mkdocs >= 1.5.0",
     ],
     classifiers=[
-        'Intended Audience :: Developers',
-        'Intended Audience :: Information Technology',
-        'Programming Language :: Python',
+        "Intended Audience :: Developers",
+        "Intended Audience :: Information Technology",
+        "Programming Language :: Python",
     ],
     packages=find_packages(),
     entry_points={
-        'mkdocs.plugins': [
-            'juvix = mkdocs_juvix.plugin:JuvixPlugin',
-            'juvix-standalone = mkdocs_juvix.standalone:render'
+        "mkdocs.plugins": [
+            "juvix = mkdocs_juvix.plugin:JuvixPlugin",
+            "juvix-standalone = mkdocs_juvix.standalone:render",
         ]
-    }
+    },
 )
