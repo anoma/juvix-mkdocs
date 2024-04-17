@@ -15,6 +15,7 @@ from mkdocs.config.defaults import MkDocsConfig
 from mkdocs.plugins import BasePlugin
 from mkdocs.structure.files import Files
 from mkdocs.structure.pages import Page
+from watchdog.events import FileSystemEvent
 
 from mkdocs_juvix.utils import (
     compute_hash_filepath,
@@ -22,7 +23,6 @@ from mkdocs_juvix.utils import (
     fix_site_url,
     hash_file,
 )
-from watchdog.events import FileSystemEvent
 
 log: logging.Logger = logging.getLogger("mkdocs")
 
@@ -71,7 +71,7 @@ def create_cache_dirs():
 class JuvixPlugin(BasePlugin):
 
     def __init__(self):
-        pass
+        create_cache_dirs()
 
     def on_startup(self, command, dirty):
         if REMOVE_CACHE:
@@ -80,6 +80,7 @@ class JuvixPlugin(BasePlugin):
         return
 
     def on_config(self, config):
+        create_cache_dirs()
         config = fix_site_url(config)
         juvix = JuvixPreprocessor(config)
         config["juvix_preprocessor"] = juvix
