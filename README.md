@@ -72,19 +72,4 @@ you get after initializing the project using `mkdocs new myproject`.
 ...
 plugins:
   - juvix
-
-markdown_extensions:
-  pymdownx.superfences:
-      custom_fences:
-        - name: juvix
-          class: juvix
-          format: !!python/name:juvix-mkdocs.render.render
-...
 ```
-
-One minimal example of this file configured to work with this plugin can be found
-[here](https://github.com/anoma/kudos-snippets/blob/main/mkdocs.yml) and the final
-output is as [on this page](https://anoma.github.io/kudos-snippets/kudos/).
-
-To setup your GitHub CI to replicate this, you can use as template [this
-example](https://github.com/anoma/kudos-snippets/blob/main/.github/workflows/ci.yml).
