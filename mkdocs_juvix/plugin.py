@@ -27,17 +27,6 @@ from mkdocs_juvix.utils import (
 log: logging.Logger = logging.getLogger("mkdocs")
 
 
-def ifjuvix(func):
-    @wraps(func)
-    def wrapper(self, *args, **kwargs):
-        if getattr(self, "JUVIX_AVAILABLE", False):
-            return func(self, *args, **kwargs)
-        else:
-            return None
-
-    return wrapper
-
-
 class JuvixPlugin(BasePlugin):
 
     mkconfig: MkDocsConfig
@@ -60,7 +49,7 @@ class JuvixPlugin(BasePlugin):
     JUVIXCODE_HASH_FILE: Path
     HASH_DIR: Path
     HTML_CACHE_DIR: Path
-    FIRST_RUN: bool
+    FIRST_RUN: bool = True
 
     def on_config(self, config: MkDocsConfig, **kwargs) -> MkDocsConfig:
 
@@ -124,7 +113,6 @@ class JuvixPlugin(BasePlugin):
 
         return config
 
-    @ifjuvix
     def on_files(self, files: Files, *, config: MkDocsConfig) -> Optional[Files]:
         _files = []
         for file in files:
@@ -132,12 +120,15 @@ class JuvixPlugin(BasePlugin):
                 _files.append(file)
         return Files(_files)
 
-    @ifjuvix
     def on_page_read_source(self, page: Page, config: MkDocsConfig) -> Optional[str]:
 
         filepath = Path(page.file.abs_src_path)
 
-        if not filepath.as_posix().endswith(".juvix.md"):
+        if (
+            not filepath.as_posix().endswith(".juvix.md")
+            or not self.JUVIX_ENABLED
+            or not self.JUVIX_AVAILABLE
+        ):
             return None
 
         output = self.generate_markdown(filepath)
@@ -146,11 +137,10 @@ class JuvixPlugin(BasePlugin):
 
         return output
 
-    @ifjuvix
     def on_post_build(self, config: MkDocsConfig) -> None:
-        self.generate_html(generate=False, move_cache=True)
+        if self.JUVIX_ENABLED and self.JUVIX_AVAILABLE:
+            self.generate_html(generate=False, move_cache=True)
 
-    @ifjuvix
     def on_serve(self, server: Any, config: MkDocsConfig, builder: Any) -> None:
 
         gitignore = None
@@ -191,13 +181,12 @@ class JuvixPlugin(BasePlugin):
         )
         handler.on_any_event = callback_wrapper(handler.on_any_event)
 
-    @ifjuvix
     def on_page_markdown(
         self, markdown: str, page: Page, config: MkDocsConfig, files: Files
     ) -> Optional[str]:
-        path = page.file.abs_src_path
 
-        if not path.endswith(".juvix.md"):
+        path = page.file.abs_src_path
+        if path and not path.endswith(".juvix.md"):
             return markdown
 
         page.file.name = page.file.name.replace(".juvix", "")
@@ -207,7 +196,6 @@ class JuvixPlugin(BasePlugin):
 
         return markdown
 
-    @ifjuvix
     def move_html_cache_to_site_dir(self, filepath: Path, site_dir: Path) -> None:
 
         rel_to_docs = filepath.relative_to(self.DOCS_DIR)
@@ -243,7 +231,6 @@ class JuvixPlugin(BasePlugin):
         shutil.copytree(self.HTML_CACHE_DIR, dest_folder, dirs_exist_ok=True)
         return
 
-    @ifjuvix
     def new_or_changed_or_no_exist(self, filepath: Path) -> bool:
         content_hash = hash_file(filepath)
         path_hash = compute_hash_filepath(filepath, hash_dir=self.HASH_DIR)
@@ -253,18 +240,20 @@ class JuvixPlugin(BasePlugin):
         fresh_content_hash = path_hash.read_text()
         return content_hash != fresh_content_hash
 
-    @ifjuvix
     def on_pre_build(self, config: MkDocsConfig) -> None:
 
         if self.FIRST_RUN:
+            # if self.JUVIX_ENABLED and self.JUVIX_AVAILABLE:
             try:
-                log.info("Updating Juvix dependencies...")
                 subprocess.run(
                     [self.JUVIX_BIN, "dependencies", "update"], capture_output=True
                 )
 
             except Exception as e:
-                log.error(f"A problem occurred while updating Juvix dependencies: {e}")
+                if self.JUVIX_ENABLED and self.JUVIX_AVAILABLE:
+                    log.error(
+                        f"A problem occurred while updating Juvix dependencies: {e}"
+                    )
                 return
 
         for _file in self.DOCS_DIR.rglob("*.juvix.md"):
@@ -426,7 +415,6 @@ class JuvixPlugin(BasePlugin):
             return cache_path.read_text()
         return None
 
-    @ifjuvix
     def generate_markdown(self, filepath: Path) -> Optional[str]:
         if (
             not self.JUVIX_ENABLED
@@ -442,14 +430,12 @@ class JuvixPlugin(BasePlugin):
         log.debug(f"Reading cache for file: {filepath}")
         return self.read_cache(filepath)
 
-    @ifjuvix
     def unqualified_module_name(self, filepath: Path) -> Optional[str]:
         fposix: str = filepath.as_posix()
         if not fposix.endswith(".juvix.md"):
             return None
         return os.path.basename(fposix).replace(".juvix.md", "")
 
-    @ifjuvix
     def qualified_module_name(self, filepath: Path) -> Optional[str]:
         absolute_path = filepath.absolute()
         cmd = [self.JUVIX_BIN, "dev", "root", absolute_path.as_posix()]
@@ -475,12 +461,10 @@ class JuvixPlugin(BasePlugin):
 
         return qualified_name if qualified_name else None
 
-    @ifjuvix
     def md_filename(self, filepath: Path) -> Optional[str]:
         module_name = self.unqualified_module_name(filepath)
         return module_name + ".md" if module_name else None
 
-    @ifjuvix
     def run_juvix(self, _filepath: Path) -> Optional[str]:
 
         filepath = _filepath.absolute()
