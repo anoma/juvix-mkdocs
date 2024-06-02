@@ -9,7 +9,7 @@ setup(
     author="Jonathan Prieto-Cubides, and GitHub contributors",
     author_email="jonathan@heliax.dev",
     license="MIT",
-    python_requires=">=3.11",
+    python_requires=">=3.9",
     install_requires=["mkdocs >= 1.5.0", "pyYaml", "pymdown-extensions"],
     classifiers=[
         "Intended Audience :: Developers",
