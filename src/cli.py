@@ -4,8 +4,8 @@ from datetime import datetime
 from pathlib import Path
 
 import click
-from semver import Version
 import questionary
+from semver import Version
 
 MIN_JUVIX_VERSION = Version(0, 6, 6)
 SRC_PATH = Path(__file__).parent
