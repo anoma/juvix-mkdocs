@@ -25,6 +25,37 @@ from mkdocs_juvix.utils import (
 log: logging.Logger = logging.getLogger("mkdocs")
 
 
+def get_juvix_version(juvix_bin: str) -> Optional[str]:
+    try:
+        result = subprocess.run(
+            [juvix_bin, "--numeric-version"],
+            stdout=subprocess.PIPE,
+            check=True,
+            text=True,
+        )
+        return result.stdout.strip()
+    except subprocess.CalledProcessError as e:
+        log.error("Failed to get Juvix version: %s", e)
+        return None
+
+
+def generate_css_file(css_file: Path, version: Optional[str] = None) -> Optional[Path]:
+    css_file.parent.mkdir(parents=True, exist_ok=True)
+    css_file.write_text(
+        f"""
+code.juvix::after {{
+    font-family: var(--md-code-font-family);
+    content: "Juvix v{version}";
+    font-size: 10px;
+    color: var(--md-juvix-codeblock-footer);
+    float: right;
+}}
+"""
+    )
+    log.info("CSS file generated at %s.", css_file)
+    return css_file
+
+
 class JuvixPlugin(BasePlugin):
     mkconfig: MkDocsConfig
     juvix_md_files: List[Dict[str, Any]]
@@ -47,6 +78,9 @@ class JuvixPlugin(BasePlugin):
     HASH_DIR: Path
     HTML_CACHE_DIR: Path
     FIRST_RUN: bool = True
+
+    JUVIX_FOOTER_CSS_FILE: Path
+    CACHE_JUVIX_VERSION_FILE: Path
 
     def on_config(self, config: MkDocsConfig, **kwargs) -> MkDocsConfig:
         config_file = config.config_file_path
@@ -94,8 +128,20 @@ class JuvixPlugin(BasePlugin):
                     f"Using Juvix v{JUVIX_VERSION} to render Juvix Markdown files."
                 )
 
+        self.JUVIX_FOOTER_CSS_FILE = (
+            self.DOCS_DIR / "assets" / "css" / "juvix_codeblock_footer.css"
+        )
+        self.JUVIX_FOOTER_CSS_FILE.parent.mkdir(parents=True, exist_ok=True)
+
+        self.CACHE_JUVIX_VERSION_FILE = self.CACHE_DIR / ".juvix-version"
+
         config = fix_site_url(config)
         self.mkconfig = config
+
+        # Add CSS file to extra_css
+        config["extra_css"].append(
+            self.JUVIX_FOOTER_CSS_FILE.relative_to(self.DOCS_DIR).as_posix()
+        )
 
         self.juvix_md_files: List[Dict[str, Any]] = []
 
@@ -241,18 +287,39 @@ class JuvixPlugin(BasePlugin):
 
     def on_pre_build(self, config: MkDocsConfig) -> None:
         if self.FIRST_RUN:
-            # if self.JUVIX_ENABLED and self.JUVIX_AVAILABLE:
             try:
                 subprocess.run(
                     [self.JUVIX_BIN, "dependencies", "update"], capture_output=True
                 )
-
             except Exception as e:
                 if self.JUVIX_ENABLED and self.JUVIX_AVAILABLE:
                     log.error(
                         f"A problem occurred while updating Juvix dependencies: {e}"
                     )
                 return
+
+        # New code for CSS generation
+        version = get_juvix_version(self.JUVIX_BIN)
+        if version is None:
+            log.error(
+                "Cannot generate CSS file without Juvix version. Make sure Juvix is installed."
+            )
+        else:
+            need_to_write = (
+                not self.CACHE_JUVIX_VERSION_FILE.exists()
+                or not self.JUVIX_FOOTER_CSS_FILE.exists()
+            )
+            read_version = (
+                self.CACHE_JUVIX_VERSION_FILE.read_text().strip()
+                if not need_to_write
+                else None
+            )
+            if read_version != version:
+                self.CACHE_JUVIX_VERSION_FILE.parent.mkdir(parents=True, exist_ok=True)
+                self.CACHE_JUVIX_VERSION_FILE.write_text(version)
+                need_to_write = True
+            if need_to_write:
+                generate_css_file(self.JUVIX_FOOTER_CSS_FILE, version)
 
         for _file in self.DOCS_DIR.rglob("*.juvix.md"):
             file: Path = _file.absolute()
