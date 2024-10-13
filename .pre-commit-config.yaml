@@ -39,3 +39,4 @@ repos:
     rev: v0.13.0
     hooks:
       - id: yamlfmt
+        exclude: src/fixtures/.*
