@@ -179,10 +179,12 @@ def new(
         with mkdocs_file.open("a") as f:
             f.write("\n")
             f.write("extra_css:\n")
+        valid_css_files = ["juvix-material-style.css", "juvix-highlighting.css"]
         for file in (project_path / "docs" / "assets" / "css").iterdir():
             relative_path = file.relative_to(project_path / "docs")
-            with mkdocs_file.open("a") as f:
-                f.write(f"  - {relative_path}\n")
+            if file.name in valid_css_files:
+                with mkdocs_file.open("a") as f:
+                    f.write(f"  - {relative_path}\n")
         click.secho("Done.", fg="green")
 
         click.secho("Adding extra_javascript to mkdocs.yml...", nl=False)
@@ -190,10 +192,13 @@ def new(
             f.write("\n")
             f.write("extra_javascript:\n")
 
+        valid_js_files = ["highlight.js", "mathjax.js", "tex-svg.js"]
+
         for file in (project_path / "docs" / "assets" / "js").iterdir():
             relative_path = file.relative_to(project_path / "docs")
-            with mkdocs_file.open("a") as f:
-                f.write(f"  - {relative_path}\n")
+            if file.name in valid_js_files:
+                with mkdocs_file.open("a") as f:
+                    f.write(f"  - {relative_path}\n")
         click.secho("Done.", fg="green")
 
     # Create .gitignore if it doesn't exist
