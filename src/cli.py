@@ -45,6 +45,12 @@ def cli():
     help="Site author",
     show_default=True,
 )
+@click.option(
+    "--site-author-email",
+    default="site@domain.com",
+    help="Site author email",
+    show_default=True,
+)
 @click.option("--force", "-f", is_flag=True, help="Force overwrite existing files")
 @click.option("--no-juvix-package", is_flag=True, help="Skip Juvix package setup")
 @click.option("--no-everything", is_flag=True, help="Skip everything.juvix.md")
@@ -57,6 +63,7 @@ def new(
     theme,
     site_dir,
     site_author,
+    site_author_email,
     force,
     no_juvix_package,
     no_everything,
@@ -268,7 +275,7 @@ def new(
             .read_text()
             .format(
                 site_author=site_author,
-                site_author_email="site@domain.com",
+                site_author_email=site_author_email,
                 juvix_version=juvix_version,
                 project_name=project_name,
             )

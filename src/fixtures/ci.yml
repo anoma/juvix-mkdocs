@@ -5,11 +5,11 @@ name: Mkdocs+Juvix CI
       - main
 env:
   CI: true
-  GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  GH_TOKEN: ${{{{ secrets.GITHUB_TOKEN }}}}
   PYTHON_VERSION: 3.x
   POETRY_VERSION: 1.8.3
-  GIT_COMMITTER_EMAIL: {site_author_email: ''}
-  GIT_COMMITTER_NAME: {site_author: ''}
+  GIT_COMMITTER_EMAIL: {site_author_email}
+  GIT_COMMITTER_NAME: {site_author}
   BRANCH_NAME: ${{{{ github.head_ref || github.ref_name }}}}
 concurrency:
   group: "${{{{ github.workflow }}}}-${{{{ github.head_ref || github.run_id }}}}"
@@ -76,5 +76,5 @@ jobs:
         with:
           token: ${{{{ secrets.GITHUB_TOKEN }}}}
           clean: true
-          git-config-name: {site_author: ''}
-          git-config-email: {site_author_email: ''}
+          git-config-name: ${{{{ env.GIT_COMMITTER_NAME }}}}
+          git-config-email: ${{{{ env.GIT_COMMITTER_EMAIL }}}}
