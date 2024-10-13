@@ -3,15 +3,16 @@ import logging
 import os
 import shutil
 import subprocess
+import pathspec
+
 from functools import lru_cache
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Tuple
-from urllib.parse import urljoin
-from functools import wraps
 
-import pathspec
-from mkdocs.config import config_options as c
+from urllib.parse import urljoin
+
 from mkdocs.config.defaults import MkDocsConfig
+
 from mkdocs.plugins import BasePlugin
 from mkdocs.structure.files import Files
 from mkdocs.structure.pages import Page
@@ -116,12 +117,16 @@ class JuvixPlugin(BasePlugin):
     def on_files(self, files: Files, *, config: MkDocsConfig) -> Optional[Files]:
         _files = []
         for file in files:
-            if not (".juvix-build" in file.abs_src_path):
+            if not file.abs_src_path:
+                continue
+            if ".juvix-build" not in file.abs_src_path:
                 _files.append(file)
         return Files(_files)
 
     def on_page_read_source(self, page: Page, config: MkDocsConfig) -> Optional[str]:
-
+        if not page.file.abs_src_path:
+            return None
+    
         filepath = Path(page.file.abs_src_path)
 
         if (
@@ -144,21 +149,23 @@ class JuvixPlugin(BasePlugin):
     def on_serve(self, server: Any, config: MkDocsConfig, builder: Any) -> None:
 
         gitignore = None
-
-        with open(self.ROOT_DIR / ".gitignore") as file:
-            gitignore = pathspec.PathSpec.from_lines(
-                pathspec.patterns.GitWildMatchPattern, file  # type: ignore
+        if (gitignore_file := self.ROOT_DIR / ".gitignore").exists():
+            with open(gitignore_file) as file:
+                gitignore = pathspec.PathSpec.from_lines(
+                    pathspec.patterns.GitWildMatchPattern, file  # type: ignore
             )
 
         def callback_wrapper(
             callback: Callable[[FileSystemEvent], None]
         ) -> Callable[[FileSystemEvent], None]:
             def wrapper(event: FileSystemEvent) -> None:
-                if gitignore.match_file(
-                    Path(event.src_path).relative_to(config.docs_dir).as_posix()
+                
+                if gitignore and gitignore.match_file(
+                    Path(event.src_path).relative_to(config.docs_dir).as_posix() # type: ignore
                 ):
                     return
-                fpath: Path = Path(event.src_path).absolute()
+                
+                fpath: Path = Path(event.src_path).absolute() # type: ignore
                 fpathstr: str = fpath.as_posix()
 
                 if ".juvix-build" in fpathstr:
@@ -329,7 +336,10 @@ class JuvixPlugin(BasePlugin):
 
         if not everythingJuvix.exists():
             log.warning(
-                f"Consider creating a file named 'everything.juvix.md' or 'index.juvix.md' in the docs directory to generate the HTML for all Juvix Markdown file. Otherwise, the HTML will be generated for each Juvix Markdown file."
+                """Consider creating a file named 'everything.juvix.md' or \
+                'index.juvix.md' in the docs directory to generate the HTML \
+                for all Juvix Markdown file. Otherwise, the compiler will \
+                generate the HTML for each Juvix Markdown file on each run."""
             )
 
         files_to_process = (
@@ -394,20 +404,21 @@ class JuvixPlugin(BasePlugin):
         # in the generated HTML by Juvix.
 
         good_assets = self.DOCS_DIR / "assets"
+        good_assets.mkdir(parents=True, exist_ok=True)
+
         assets_in_html = self.HTML_CACHE_DIR / "assets"
 
         if assets_in_html.exists():
             shutil.rmtree(assets_in_html, ignore_errors=True)
 
-        shutil.copytree(good_assets, self.HTML_CACHE_DIR / "assets", dirs_exist_ok=True)
+        shutil.copytree(good_assets, assets_in_html, dirs_exist_ok=True)
 
     @lru_cache(maxsize=128)
     def path_juvix_md_cache(self, _filepath: Path) -> Optional[Path]:
         filepath = _filepath.absolute()
         md_filename = filepath.name.replace(".juvix.md", ".md")
         rel_to_docs = filepath.relative_to(self.DOCS_DIR)
-        cache_filepath = self.MARKDOWN_JUVIX_OUTPUT / rel_to_docs.parent / md_filename
-        return cache_filepath
+        return self.MARKDOWN_JUVIX_OUTPUT / rel_to_docs.parent / md_filename
 
     @lru_cache(maxsize=128)
     def read_cache(self, filepath: Path) -> Optional[str]:
@@ -527,7 +538,9 @@ class JuvixPlugin(BasePlugin):
         return md_output
 
     def update_hash_file(self, filepath: Path) -> Optional[Tuple[Path, str]]:
+
         path_hash = compute_hash_filepath(filepath, hash_dir=self.HASH_DIR)
+
         try:
 
             with open(path_hash, "w") as f:

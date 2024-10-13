@@ -1,9 +1,8 @@
 import hashlib
 import logging
 import subprocess
-from pathlib import *
-
-import markdown as mk
+from pathlib import Path
+from markdown import Markdown # type: ignore
 
 log = logging.getLogger("mkdocs")
 
@@ -14,12 +13,13 @@ except Exception:
     raise
 
 docsPath = Path("./docs")
+
 snippetsPath = docsPath.joinpath("juvix-snippets")
 snippetsPath.mkdir(parents=True, exist_ok=True)
 
 
 def render(
-    src: str, language: str, class_name: str, options: dict, md: mk.Markdown, **kwargs
+    src: str, language: str, class_name: str, options: dict, md: Markdown, **kwargs
 ):
     try:
         modname = "M" + hashlib.md5(src.encode("utf-8")).hexdigest()[:5]
