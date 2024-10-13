@@ -31,6 +31,12 @@ def cli():
     "--font-code", default="Source Code Pro", help="Font for code", show_default=True
 )
 @click.option("--theme", default="material", help="Theme to use", show_default=True)
+@click.option(
+    "--description",
+    default="A Juvix documentation project using MkDocs.",
+    help="Description of the project",
+    show_default=True,
+)
 @click.option("--site-dir", default="docs", help="Site directory", show_default=True)
 @click.option(
     "--site-author",
@@ -44,6 +50,7 @@ def cli():
 @click.option("--no-github-actions", is_flag=True, help="Skip GitHub Actions setup")
 def new(
     project_name,
+    description,
     font_text,
     font_code,
     theme,
@@ -106,6 +113,7 @@ def new(
     if not no_juvix_package:
         # Run 'juvix init -n' in the docs folder
         try:
+            click.secho("Initializing Juvix project...", nl=False)
             subprocess.run(["juvix", "init", "-n"], cwd=docs_path, check=True)
             juvixPackagePath = docs_path / "Package.juvix"
             click.secho("Checking if Juvix package exists...")
@@ -114,6 +122,7 @@ def new(
                     "Failed to initialize Juvix project. Please try again.", fg="red"
                 )
                 return
+            click.secho("Done.", fg="green")
             click.secho(f"Created {juvixPackagePath}.")
 
         except Exception as e:
@@ -123,7 +132,6 @@ def new(
             )
             return
 
-    click.secho("Creating mkdocs.yml...")
     # Create mkdocs.yml if it doesn't exist
     mkdocs_file = project_path / "mkdocs.yml"
     year = datetime.now().year
@@ -177,6 +185,51 @@ def new(
         gitignore_file.write_text((FIXTURES_PATH / ".gitignore").read_text())
         click.secho(f"Created {gitignore_file}.")
 
+    # Add README.md
+    readme_file = project_path / "README.md"
+    readme_file.write_text((FIXTURES_PATH / "README.md").read_text())
+    click.secho(f"Created {readme_file}.")
+
+    # Run poetry init and add mkdocs-juvix-plugin mkdocs-material
+    try:
+        click.secho("Initializing poetry project...", nl=False)
+        subprocess.run(
+            [
+                "poetry",
+                "init",
+                "-n",
+                f"--name={project_name}",
+                f"--description='{description}'",
+                f"--author={site_author}",
+                # f"--directory={project_path.as_posix()}",
+                # "-q",
+            ],
+            cwd=project_path,
+            check=True,
+        )
+        click.secho("Done.", fg="green")
+        click.secho("Installing mkdocs-juvix-plugin... ", nl=False)
+        subprocess.run(
+            ["poetry", "add", "mkdocs-juvix-plugin", "-q", "-n"],
+            cwd=project_path,
+            check=True,
+        )
+        click.secho("Done.", fg="green")
+        click.secho("Installing mkdocs-material... ", nl=False)
+        subprocess.run(
+            ["poetry", "add", "mkdocs-material", "-q", "-n"],
+            cwd=project_path,
+            check=True,
+        )
+        click.secho("Done.", fg="green")
+
+    except Exception as e:
+        click.secho(
+            f"Failed to add mkdocs-juvix-plugin and mkdocs-material. Error: {e}",
+            fg="red",
+        )
+        return
+
     # Create docs folder and subfolders
     assets_path = docs_path / "assets"
     if not assets_path.exists():
@@ -207,7 +260,7 @@ def new(
 
     if not no_github_actions:
         github_actions_file = project_path / ".github" / "workflows" / "ci.yml"
-        click.secho("Creating GitHub Actions workflow...")
+        click.secho("Creating GitHub Actions workflow...", nl=False)
         github_actions_file.parent.mkdir(parents=True, exist_ok=True)
         github_actions_file.write_text(
             (FIXTURES_PATH / "ci.yml")
@@ -219,6 +272,7 @@ def new(
                 project_name=project_name,
             )
         )
+        click.secho("Done.", fg="green")
         click.secho(f"Added {github_actions_file}.")
 
     click.secho(f"Project '{project_name}' initialized successfully!", fg="green")
