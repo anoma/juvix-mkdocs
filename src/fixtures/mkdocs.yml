@@ -13,9 +13,11 @@ nav:
 plugins:
   - search
   - juvix
+{bibtex}
 theme:
   name: !ENV [THEME, '{theme}']
   font:
     text: !ENV [FONT_TEXT, '{font_text}']
     code: !ENV [FONT_CODE, '{font_code}']
 {theme_features}
+{markdown_extensions}

@@ -56,6 +56,10 @@ def cli():
     help="Site author email",
     show_default=True,
 )
+@click.option(
+    "--bib-dir", default="docs/references", help="BibTeX directory", show_default=True
+)
+@click.option("--no-bibtex", is_flag=True, help="Skip BibTeX plugin setup")
 @click.option("--force", "-f", is_flag=True, help="Force overwrite existing files")
 @click.option("--no-juvix-package", is_flag=True, help="Skip Juvix package setup")
 @click.option("--no-everything", is_flag=True, help="Skip everything.juvix.md")
@@ -73,6 +77,8 @@ def new(
     site_dir,
     site_author,
     site_author_email,
+    bib_dir,
+    no_bibtex,
     force,
     no_juvix_package,
     no_everything,
@@ -190,6 +196,7 @@ def new(
                 font_text=font_text,
                 font_code=font_code,
                 juvix_version=juvix_version,
+                bibtex=("" if no_bibtex else f"  - bibtex:\n      bib_dir: {bib_dir}"),
                 theme_features=(
                     ""
                     if no_material
@@ -327,6 +334,36 @@ def new(
     except Exception as e:
         click.secho(
             f"Failed to add mkdocs-material using Poetry. Error: {e}",
+            fg="red",
+        )
+        return
+
+    try:
+        if not no_bibtex:
+            click.secho("Installing mkdocs-bibtex... ", nl=False)
+            subprocess.run(
+                ["poetry", "add", "mkdocs-bibtex", "-q", "-n"],
+                cwd=project_path,
+                check=True,
+            )
+            click.secho("Done.", fg="green")
+            ref_file = project_path / bib_dir / "ref.bib"
+            click.secho(
+                f"Adding {FIXTURES_PATH / 'ref.bib'} to {ref_file}...", nl=False
+            )
+            if not ref_file.exists():
+                ref_file.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy(FIXTURES_PATH / "ref.bib", ref_file)
+                click.secho("Done.", fg="green")
+            else:
+                click.secho(
+                    "File already exists. Use -f to force overwrite.", fg="yellow"
+                )
+        else:
+            click.secho("Skipping", fg="yellow")
+    except Exception as e:
+        click.secho(
+            f"Failed to add mkdocs-bibtex using Poetry. Error: {e}",
             fg="red",
         )
         return
