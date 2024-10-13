@@ -38,7 +38,12 @@ def cli():
     help="Description of the project",
     show_default=True,
 )
-@click.option("--site-dir", default="docs", help="Site directory", show_default=True)
+@click.option(
+    "--site-dir", default="site", help="Site directory as for MkDocs", show_default=True
+)
+@click.option(
+    "--docs-dir", default="docs", help="Docs directory as for MkDocs", show_default=True
+)
 @click.option(
     "--site-author",
     default="Tara",
@@ -56,12 +61,14 @@ def cli():
 @click.option("--no-everything", is_flag=True, help="Skip everything.juvix.md")
 @click.option("--no-github-actions", is_flag=True, help="Skip GitHub Actions setup")
 @click.option("--no-material", is_flag=True, help="Skip mkdocs-material installation")
+@click.option("--no-markdown-extensions", is_flag=True, help="Skip markdown extensions")
 @click.option("--no-assets", is_flag=True, help="Skip assets folder creation")
 def new(
     project_name,
     description,
     font_text,
     font_code,
+    docs_dir,
     theme,
     site_dir,
     site_author,
@@ -71,6 +78,7 @@ def new(
     no_everything,
     no_github_actions,
     no_material,
+    no_markdown_extensions,
     no_assets,
 ):
     """Create a new Juvix documentation project."""
@@ -98,7 +106,8 @@ def new(
     click.secho(f"Creating {project_path}.", nl=False)
     click.secho("Done.", fg="green")
 
-    docs_path = project_path / "docs"
+    docs_path = project_path / docs_dir
+
     if not docs_path.exists():
         docs_path.mkdir(exist_ok=True, parents=True)
         click.secho(f"Creating {docs_path}.", nl=False)
@@ -181,6 +190,16 @@ def new(
                 font_text=font_text,
                 font_code=font_code,
                 juvix_version=juvix_version,
+                theme_features=(
+                    ""
+                    if no_material
+                    else (FIXTURES_PATH / "material_features.yml").read_text()
+                ),
+                markdown_extensions=(
+                    ""
+                    if no_markdown_extensions
+                    else (FIXTURES_PATH / "markdown_extensions.yml").read_text()
+                ),
             )
         )
         click.secho("Done.", fg="green")
