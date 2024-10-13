@@ -1,0 +1,36 @@
+[tool.poetry]
+name = "mkdocs-juvix-plugin"
+version = "0.2.8"
+description = "Support for Juvix Markdown files in MkDocs"
+authors = ["Jonathan Prieto-Cubides, and GitHub contributors"]
+license = "MIT"
+readme = "README.md"
+package-mode = true
+
+classifiers = [
+    "Intended Audience :: Developers",
+    "Intended Audience :: Information Technology",
+    "Programming Language :: Python",
+]
+
+packages = [
+    { include = "mkdocs_juvix", from = "." }
+]
+
+# entry points for mkdocs
+[tool.poetry.plugins."mkdocs.plugins"]
+juvix = "mkdocs_juvix.plugin:JuvixPlugin"
+juvix-standalone = "mkdocs_juvix.standalone:render"
+
+[tool.poetry.dependencies]
+python = ">=3.9"
+mkdocs = "^1.6.1"
+
+[tool.poetry.group.dev.dependencies]
+ruff = "^0.6.9"
+pre-commit = "^4.0.1"
+twine = "^5.1.1"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
