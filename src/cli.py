@@ -56,6 +56,7 @@ def cli():
 @click.option("--no-everything", is_flag=True, help="Skip everything.juvix.md")
 @click.option("--no-github-actions", is_flag=True, help="Skip GitHub Actions setup")
 @click.option("--no-material", is_flag=True, help="Skip mkdocs-material installation")
+@click.option("--no-assets", is_flag=True, help="Skip assets folder creation")
 def new(
     project_name,
     description,
@@ -70,6 +71,7 @@ def new(
     no_everything,
     no_github_actions,
     no_material,
+    no_assets,
 ):
     """Create a new Juvix documentation project."""
 
@@ -101,6 +103,8 @@ def new(
         docs_path.mkdir(exist_ok=True, parents=True)
         click.secho(f"Creating {docs_path}.", nl=False)
         click.secho("Done.", fg="green")
+    else:
+        click.secho(f"Folder {docs_path} already exists.", fg="yellow")
 
     # Check if juvix is installed and retrieve the version
     try:
@@ -180,21 +184,24 @@ def new(
             )
         )
         click.secho("Done.", fg="green")
-        # copy the assets folder
         click.secho("Copying assets folder... ", nl=False)
-        try:
-            shutil.copytree(
-                FIXTURES_PATH / "assets",
-                project_path / "docs" / "assets",
-                dirs_exist_ok=force,
-            )
-            click.secho("Done.", fg="green")
-        except Exception as e:
-            click.secho(f"Failed to copy assets folder. Error: {e}", fg="red")
-            click.secho("Aborting. Use -f to force overwrite.", fg="red")
-            return
+        if not no_assets:
+            # copy the assets folder
+            try:
+                shutil.copytree(
+                    FIXTURES_PATH / "assets",
+                    project_path / "docs" / "assets",
+                    dirs_exist_ok=force,
+                )
+                click.secho("Done.", fg="green")
+            except Exception as e:
+                click.secho(f"Failed to copy assets folder. Error: {e}", fg="red")
+                click.secho("Aborting. Use -f to force overwrite.", fg="red")
+                return
+        else:
+            click.secho("Skipping.", fg="yellow")
 
-        click.secho("Adding extra_css to mkdocs.yml... ", nl=False)
+        click.secho("Updating `extra_css` section in mkdocs.yml... ", nl=False)
         valid_css_files = ["juvix-material-style.css", "juvix-highlighting.css"]
         if "extra_css:" not in mkdocs_file.read_text():
             with mkdocs_file.open("a") as f:
@@ -213,7 +220,7 @@ def new(
                 fg="yellow",
             )
 
-        click.secho("Adding extra_javascript to mkdocs.yml... ", nl=False)
+        click.secho("Updating `extra_javascript` section in mkdocs.yml... ", nl=False)
         valid_js_files = ["highlight.js", "mathjax.js", "tex-svg.js"]
         if "extra_javascript:" not in mkdocs_file.read_text():
             with mkdocs_file.open("a") as f:
