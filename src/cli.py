@@ -272,16 +272,22 @@ def new(
         click.secho(f"Created {js_path}.")
 
     # Create index.md
-    index_file = docs_path / "index.md"
-    index_file.write_text("# Welcome to Juvix Documentation\n")
+    click.secho("Creating index.juvix.md...", nl=False)
+    index_file = docs_path / "index.juvix.md"
+    index_file.write_text((FIXTURES_PATH / "index.juvix.md").read_text())
+    click.secho("Done.", fg="green")
 
+    click.secho("Creating test.juvix.md...", nl=False)
     test_file = docs_path / "test.juvix.md"
     test_file.write_text((FIXTURES_PATH / "test.juvix.md").read_text())
+    click.secho("Done.", fg="green")
 
     if not no_everything:
+        click.secho("Creating everything.juvix.md...", nl=False)
         everything_file = docs_path / "everything.juvix.md"
         everything_file.write_text((FIXTURES_PATH / "everything.juvix.md").read_text())
-
+        click.secho("Done.", fg="green")
+    
     if not no_github_actions:
         click.secho("Creating GitHub Actions workflow...", nl=False)
         github_actions_file = project_path / ".github" / "workflows" / "ci.yml"

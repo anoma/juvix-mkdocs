@@ -6,7 +6,7 @@ site_dir: !ENV [SITE_DIR, '{site_dir}']
 copyright: !ENV [COPYRIGHT, "&copy; {year} <a href=\"https://juvix.org\">Juvix</a>"]
 use_directory_urls: false
 nav:
-  - Home: index.md
+  - Home: index.juvix.md
   - Test: test.juvix.md
 plugins:
   - search
