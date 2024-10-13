@@ -1,6 +1,3 @@
-# asd
-
-import os
 import shutil
 import subprocess
 from datetime import datetime
@@ -8,6 +5,7 @@ from pathlib import Path
 
 import click
 from semver import Version
+import questionary
 
 MIN_JUVIX_VERSION = Version(0, 6, 6)
 SRC_PATH = Path(__file__).parent
@@ -67,6 +65,12 @@ def cli():
 @click.option("--no-material", is_flag=True, help="Skip mkdocs-material installation")
 @click.option("--no-markdown-extensions", is_flag=True, help="Skip markdown extensions")
 @click.option("--no-assets", is_flag=True, help="Skip assets folder creation")
+@click.option("--no-init-git", is_flag=True, help="Skip git repository initialization")
+@click.option("--no-typecheck", is_flag=True, help="Skip typechecking the test file")
+@click.option("--no-run-server", is_flag=True, help="Skip running mkdocs serve")
+@click.option(
+    "-n", "--no-interactive", is_flag=True, help="Run in non-interactive mode"
+)
 def new(
     project_name,
     description,
@@ -86,20 +90,85 @@ def new(
     no_material,
     no_markdown_extensions,
     no_assets,
+    no_init_git,
+    no_typecheck,
+    no_run_server,
+    no_interactive,
 ):
     """Create a new Juvix documentation project."""
 
+    if not no_interactive:
+        # Project Information
+        project_name = questionary.text("Project name:", default=project_name).ask()
+        description = questionary.text(
+            "Project description:", default=description
+        ).ask()
+        site_author = questionary.text("Site author:", default=site_author).ask()
+        site_author_email = questionary.text(
+            "Site author email:", default=site_author_email
+        ).ask()
+
+        # Directory Settings
+        docs_dir = questionary.text("Docs directory:", default=docs_dir).ask()
+        site_dir = questionary.text("Site directory:", default=site_dir).ask()
+
+        # Theme and Font Settings
+        theme = questionary.text("Theme to use:", default=theme).ask()
+        font_text = questionary.text("Font for text:", default=font_text).ask()
+        font_code = questionary.text("Font for code:", default=font_code).ask()
+
+        # Plugin and Feature Settings
+        no_material = not questionary.confirm(
+            "Install mkdocs-material? (recommended)", default=not no_material
+        ).ask()
+        no_markdown_extensions = not questionary.confirm(
+            "Set up markdown extensions? (recommended)",
+            default=not no_markdown_extensions,
+        ).ask()
+        no_bibtex = not questionary.confirm(
+            "Set up BibTeX plugin?", default=not no_bibtex
+        ).ask()
+        bib_dir = questionary.text("BibTeX directory:", default=bib_dir).ask()
+
+        # Juvix-specific Settings
+        no_juvix_package = not questionary.confirm(
+            f"Set up {docs_dir}/Package.juvix? (recommended)",
+            default=not no_juvix_package,
+        ).ask()
+        no_everything = not questionary.confirm(
+            f"Create {docs_dir}/everything.juvix.md? (recommended)",
+            default=not no_everything,
+        ).ask()
+
+        # Additional Settings
+        no_github_actions = not questionary.confirm(
+            "Set up GitHub Actions workflow? (.github/workflows/ci.yml)",
+            default=not no_github_actions,
+        ).ask()
+        no_assets = not questionary.confirm(
+            f"Create {docs_dir}/assets folder?", default=not no_assets
+        ).ask()
+
     project_path = Path(project_name)
     if project_path.exists() and not force:
-        click.secho(f"Directory {project_path.absolute()} already exists.", fg="red")
-        click.secho("Aborting.", fg="red")
-        click.secho("=" * 80, fg="white")
-        click.secho(
-            "Try a different project name or use -f to force overwrite.", fg="yellow"
-        )
-        return
+        if (
+            no_interactive
+            or not questionary.confirm(
+                f"Directory {project_path.absolute()} already exists. Overwrite?"
+            ).ask()
+        ):
+            click.secho(
+                f"Directory {project_path.absolute()} already exists.", fg="red"
+            )
+            click.secho("Aborting.", fg="red")
+            click.secho("=" * 80, fg="white")
+            click.secho(
+                "Try a different project name or use -f to force overwrite.",
+                fg="yellow",
+            )
+            return
 
-    if force:
+    if project_path.exists() and force:
         click.secho("Removing existing directory...", nl=False)
         try:
             shutil.rmtree(project_path)
@@ -437,12 +506,83 @@ def new(
 
     click.secho(f"Project '{project_name}' initialized successfully!", fg="green")
     click.secho("=" * 80, fg="white")
-    click.secho("Run `poetry run mkdocs serve` to start the server.", fg="yellow")
-    click.secho(
-        "Run `juvix typecheck docs/test.juvix.md` to typecheck the test file.",
-        fg="yellow",
-    )
-    click.secho("Run `git init` to initialize a git repository.", fg="yellow")
+    typecheck = not no_typecheck
+    if not no_interactive:
+        typecheck = questionary.confirm(
+            "Typecheck the test file?", default=typecheck
+        ).ask()
+
+    # Typecheck the test file
+    if typecheck:
+        click.secho("Typechecking the test file ...", nl=False)
+        try:
+            subprocess.run(
+                ["juvix", "typecheck", f"{docs_dir}/test.juvix.md"],
+                cwd=project_path,
+                check=True,
+                capture_output=True,
+            )
+            click.secho("All good.", fg="green")
+        except subprocess.CalledProcessError as e:
+            click.secho("Failed.", fg="red")
+            click.secho(f"Error: {e.stderr.decode().strip()}", fg="red")
+    else:
+        click.secho(
+            "Run `juvix typecheck {docs_dir}/test.juvix.md` to typecheck the test file.",
+            fg="yellow",
+        )
+
+    # Initialize git repository
+    init_git = not no_init_git
+    if not no_interactive:
+        init_git = questionary.confirm(
+            "Initialize git repository?", default=init_git
+        ).ask()
+
+    if init_git:
+        click.secho("Initializing git repository...", nl=False)
+        try:
+            subprocess.run(
+                ["git", "init", "-q"],
+                cwd=project_path,
+                check=True,
+                capture_output=True,
+            )
+            click.secho("Done.", fg="green")
+        except subprocess.CalledProcessError as e:
+            click.secho("Failed.", fg="red")
+            click.secho(f"Error: {e.stderr.decode().strip()}", fg="red")
+        except FileNotFoundError:
+            click.secho("Failed.", fg="red")
+            click.secho("Git is not installed or not in the system PATH.", fg="red")
+    else:
+        click.secho("Run `git init` to initialize a git repository.", fg="yellow")
+
+    run_server = not no_run_server
+    if not no_interactive:
+        run_server = questionary.confirm(
+            "Do you want to start the server now?", default=run_server
+        ).ask()
+
+    if run_server:
+        click.secho("Starting the server...", fg="yellow")
+        try:
+            subprocess.run(
+                ["poetry", "run", "mkdocs", "serve"], cwd=project_path, check=True
+            )
+        except subprocess.CalledProcessError as e:
+            click.secho("Failed to start the server.", fg="red")
+            click.secho(f"Error: {e}", fg="red")
+        except FileNotFoundError:
+            click.secho("Failed to start the server.", fg="red")
+            click.secho(
+                "Make sure Poetry is installed and in your system PATH.", fg="red"
+            )
+    else:
+        click.secho(
+            "Run `poetry run mkdocs serve` to start the server when you're ready.",
+            fg="yellow",
+        )
 
 
 if __name__ == "__main__":
