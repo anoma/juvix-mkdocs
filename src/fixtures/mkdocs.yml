@@ -5,19 +5,14 @@ site_url: !ENV [SITE_URL, 'https://juvix.org/docs']
 site_dir: !ENV [SITE_DIR, '{site_dir}']
 copyright: !ENV [COPYRIGHT, "&copy; {year} <a href=\"https://juvix.org\">Juvix</a>"]
 use_directory_urls: false
-
 nav:
   - Home: index.md
   - Test: test.juvix.md
-
 plugins:
   - search
   - juvix
-
 theme:
   name: !ENV [THEME, '{theme}']
   font:
     text: !ENV [FONT_TEXT, '{font_text}']
     code: !ENV [FONT_CODE, '{font_code}']
-
-

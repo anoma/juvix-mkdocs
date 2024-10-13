@@ -1,12 +1,13 @@
 # asd
 
-import click
 import os
-import subprocess
-from pathlib import Path
-from datetime import datetime
-from semver import Version
 import shutil
+import subprocess
+from datetime import datetime
+from pathlib import Path
+
+import click
+from semver import Version
 
 MIN_JUVIX_VERSION = Version(0, 6, 6)
 SRC_PATH = Path(__file__).parent

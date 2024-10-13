@@ -2,7 +2,8 @@ import hashlib
 import logging
 import subprocess
 from pathlib import Path
-from markdown import Markdown # type: ignore
+
+from markdown import Markdown  # type: ignore
 
 log = logging.getLogger("mkdocs")
 
