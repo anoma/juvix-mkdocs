@@ -33,11 +33,27 @@ poetry add mkdocs-juvix-plugin
 3. Create a new MkDocs project:
 
 ```shell
-mkdocs-juvix new
+juvix-mkdocs new
 ```
 
-4. Run the development server:
+This will create a new MkDocs project in the current directory where you execute
+the command, say `my-project`. Then navigate into the project directory:
+
+```shell
+cd my-project
+```
+
+and run the development server:
 
 ```shell
 poetry run mkdocs serve
 ```
+
+4. Otherwise, just add the plugin to your existing MkDocs project:
+
+```shell
+# mkdocs.yml
+plugins:
+  - juvix
+```
+
