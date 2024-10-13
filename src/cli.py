@@ -55,6 +55,7 @@ def cli():
 @click.option("--no-juvix-package", is_flag=True, help="Skip Juvix package setup")
 @click.option("--no-everything", is_flag=True, help="Skip everything.juvix.md")
 @click.option("--no-github-actions", is_flag=True, help="Skip GitHub Actions setup")
+@click.option("--no-material", is_flag=True, help="Skip mkdocs-material installation")
 def new(
     project_name,
     description,
@@ -68,11 +69,21 @@ def new(
     no_juvix_package,
     no_everything,
     no_github_actions,
+    no_material,
 ):
     """Create a new Juvix documentation project."""
 
     project_path = Path(project_name)
-    if force and project_path.exists():
+    if project_path.exists() and not force:
+        click.secho(f"Directory {project_path.absolute()} already exists.", fg="red")
+        click.secho("Aborting.", fg="red")
+        click.secho("=" * 80, fg="white")
+        click.secho(
+            "Try a different project name or use -f to force overwrite.", fg="yellow"
+        )
+        return
+
+    if force:
         click.secho("Removing existing directory...", nl=False)
         try:
             shutil.rmtree(project_path)
@@ -80,21 +91,16 @@ def new(
         except Exception as _:
             click.secho("Failed.", fg="red")
             return
-    elif project_path.exists():
-        click.secho(
-            f"Directory '{project_name}' already exists. Try -f to force overwrite.",
-            fg="yellow",
-        )
-        return
 
     project_path.mkdir(exist_ok=True, parents=True)
     click.secho(f"Creating {project_path}.", nl=False)
     click.secho("Done.", fg="green")
 
     docs_path = project_path / "docs"
-    docs_path.mkdir(exist_ok=True, parents=True)
-    click.secho(f"Creating {docs_path}.", nl=False)
-    click.secho("Done.", fg="green")
+    if not docs_path.exists():
+        docs_path.mkdir(exist_ok=True, parents=True)
+        click.secho(f"Creating {docs_path}.", nl=False)
+        click.secho("Done.", fg="green")
 
     # Check if juvix is installed and retrieve the version
     try:
@@ -123,12 +129,16 @@ def new(
         )
         return
 
-    if not no_juvix_package:
-        # Run 'juvix init -n' in the docs folder
+    juvixPackagePath = docs_path / "Package.juvix"
+    if juvixPackagePath.exists():
+        click.secho(
+            f"Found {juvixPackagePath}. Use -f to force overwrite.", fg="yellow"
+        )
+
+    if not no_juvix_package and (not juvixPackagePath.exists() or force):
         try:
-            click.secho("Initializing Juvix project...", nl=False)
+            click.secho("Initializing Juvix project... ", nl=False)
             subprocess.run(["juvix", "init", "-n"], cwd=docs_path, check=True)
-            juvixPackagePath = docs_path / "Package.juvix"
             click.secho("Done.", fg="green")
             if not juvixPackagePath.exists():
                 click.secho(
@@ -146,9 +156,13 @@ def new(
             return
 
     # Create mkdocs.yml if it doesn't exist
+
     mkdocs_file = project_path / "mkdocs.yml"
+    if mkdocs_file.exists():
+        click.secho(f"Found {mkdocs_file}. Use -f to force overwrite.", fg="yellow")
+
     year = datetime.now().year
-    if not mkdocs_file.exists():
+    if not mkdocs_file.exists() or force:
         mkdocs_file.touch()
         click.secho(f"Adding {mkdocs_file}.", nl=False)
         mkdocs_file.write_text(
@@ -167,71 +181,99 @@ def new(
         )
         click.secho("Done.", fg="green")
         # copy the assets folder
-        click.secho("Copying assets folder...", nl=False)
-        shutil.copytree(
-            FIXTURES_PATH / "assets",
-            project_path / "docs" / "assets",
-            dirs_exist_ok=True,
-        )
-        click.secho("Done.", fg="green")
+        click.secho("Copying assets folder... ", nl=False)
+        try:
+            shutil.copytree(
+                FIXTURES_PATH / "assets",
+                project_path / "docs" / "assets",
+                dirs_exist_ok=force,
+            )
+            click.secho("Done.", fg="green")
+        except Exception as e:
+            click.secho(f"Failed to copy assets folder. Error: {e}", fg="red")
+            click.secho("Aborting. Use -f to force overwrite.", fg="red")
+            return
 
-        click.secho("Adding extra_css to mkdocs.yml...", nl=False)
-        with mkdocs_file.open("a") as f:
-            f.write("\n")
-            f.write("extra_css:\n")
+        click.secho("Adding extra_css to mkdocs.yml... ", nl=False)
         valid_css_files = ["juvix-material-style.css", "juvix-highlighting.css"]
-        for file in (project_path / "docs" / "assets" / "css").iterdir():
-            relative_path = file.relative_to(project_path / "docs")
-            if file.name in valid_css_files:
-                with mkdocs_file.open("a") as f:
-                    f.write(f"  - {relative_path}\n")
-        click.secho("Done.", fg="green")
+        if "extra_css:" not in mkdocs_file.read_text():
+            with mkdocs_file.open("a") as f:
+                f.write("\n")
+                f.write("extra_css:\n")
+            for file in (project_path / "docs" / "assets" / "css").iterdir():
+                relative_path = file.relative_to(project_path / "docs")
+                if file.name in valid_css_files:
+                    with mkdocs_file.open("a") as f:
+                        f.write(f"  - {relative_path}\n")
+            click.secho("Done.", fg="green")
+        else:
+            click.secho("Skipping.", fg="yellow")
+            click.secho(
+                f"Please check that: {', '.join(valid_css_files)} are present in the extra_css section of mkdocs.yml.",
+                fg="yellow",
+            )
 
-        click.secho("Adding extra_javascript to mkdocs.yml...", nl=False)
-        with mkdocs_file.open("a") as f:
-            f.write("\n")
-            f.write("extra_javascript:\n")
-
+        click.secho("Adding extra_javascript to mkdocs.yml... ", nl=False)
         valid_js_files = ["highlight.js", "mathjax.js", "tex-svg.js"]
+        if "extra_javascript:" not in mkdocs_file.read_text():
+            with mkdocs_file.open("a") as f:
+                f.write("\n")
+                f.write("extra_javascript:\n")
+            for file in (project_path / "docs" / "assets" / "js").iterdir():
+                relative_path = file.relative_to(project_path / "docs")
+                if file.name in valid_js_files:
+                    with mkdocs_file.open("a") as f:
+                        f.write(f"  - {relative_path}\n")
+            click.secho("Done.", fg="green")
+        else:
+            click.secho("Skipping.", fg="yellow")
+            click.secho(
+                f"Please check that: {', '.join(valid_js_files)} are present in the extra_javascript section of mkdocs.yml.",
+                fg="yellow",
+            )
 
-        for file in (project_path / "docs" / "assets" / "js").iterdir():
-            relative_path = file.relative_to(project_path / "docs")
-            if file.name in valid_js_files:
-                with mkdocs_file.open("a") as f:
-                    f.write(f"  - {relative_path}\n")
-        click.secho("Done.", fg="green")
-
-    # Create .gitignore if it doesn't exist
     click.secho("Creating .gitignore...", nl=False)
     gitignore_file = project_path / ".gitignore"
-    if not gitignore_file.exists():
+    if not gitignore_file.exists() or force:
         gitignore_file.write_text((FIXTURES_PATH / ".gitignore").read_text())
         click.secho("Done.", fg="green")
+    else:
+        click.secho("File already exists. Use -f to force overwrite.", fg="yellow")
 
     # Add README.md
     click.secho("Creating README.md...", nl=False)
     readme_file = project_path / "README.md"
-    readme_file.write_text((FIXTURES_PATH / "README.md").read_text())
-    click.secho("Done.", fg="green")
+    if not readme_file.exists() or force:
+        readme_file.write_text((FIXTURES_PATH / "README.md").read_text())
+        click.secho("Done.", fg="green")
+    else:
+        click.secho("File already exists. Use -f to force overwrite.", fg="yellow")
 
     # Run poetry init and add mkdocs-juvix-plugin mkdocs-material
     try:
-        click.secho("Initializing poetry project...", nl=False)
-        subprocess.run(
-            [
-                "poetry",
-                "init",
-                "-n",
-                f"--name={project_name}",
-                f"--description='{description}'",
-                f"--author={site_author}",
-                # f"--directory={project_path.as_posix()}",
-                # "-q",
-            ],
-            cwd=project_path,
-            check=True,
-        )
-        click.secho("Done.", fg="green")
+        poetry_file = project_path / "pyproject.toml"
+        if not poetry_file.exists() or force:
+            click.secho("Initializing poetry project... ", nl=False)
+            subprocess.run(
+                [
+                    "poetry",
+                    "init",
+                    "-n",
+                    f"--name={project_name}",
+                    f"--description='{description}'",
+                    f"--author={site_author}",
+                ],
+                cwd=project_path,
+                check=True,
+            )
+            click.secho("Done.", fg="green")
+        else:
+            click.secho("File already exists. Use -f to force overwrite.", fg="yellow")
+    except Exception as e:
+        click.secho(f"Failed to initialize Poetry project. Error: {e}", fg="red")
+        return
+
+    try:
         click.secho("Installing mkdocs-juvix-plugin... ", nl=False)
         subprocess.run(
             ["poetry", "add", "mkdocs-juvix-plugin", "-q", "-n"],
@@ -239,58 +281,82 @@ def new(
             check=True,
         )
         click.secho("Done.", fg="green")
-        click.secho("Installing mkdocs-material... ", nl=False)
-        subprocess.run(
-            ["poetry", "add", "mkdocs-material", "-q", "-n"],
-            cwd=project_path,
-            check=True,
-        )
-        click.secho("Done.", fg="green")
-
     except Exception as e:
         click.secho(
-            f"Failed to add mkdocs-juvix-plugin and mkdocs-material. Error: {e}",
+            f"Failed to install mkdocs-juvix-plugin using Poetry. Error: {e}", fg="red"
+        )
+        return
+
+    try:
+        if not no_material:
+            click.secho("Installing mkdocs-material... ", nl=False)
+            subprocess.run(
+                ["poetry", "add", "mkdocs-material", "-q", "-n"],
+                cwd=project_path,
+                check=True,
+            )
+            click.secho("Done.", fg="green")
+        else:
+            click.secho("Skipping", fg="yellow")
+    except Exception as e:
+        click.secho(
+            f"Failed to add mkdocs-material using Poetry. Error: {e}",
             fg="red",
         )
         return
 
     # Create docs folder and subfolders
     assets_path = docs_path / "assets"
-    if not assets_path.exists():
+    if not assets_path.exists() or force:
         assets_path.mkdir(parents=True, exist_ok=True)
-        click.secho(f"Created {assets_path}.")
+        click.secho(f"Created folder {assets_path}", nl=False)
+        click.secho("Done.", fg="green")
 
     css_path = assets_path / "css"
     js_path = assets_path / "js"
 
-    if not css_path.exists():
+    if not css_path.exists() or force:
         css_path.mkdir(parents=True, exist_ok=True)
-        click.secho(f"Created {css_path}.")
+        click.secho(f"Created folder {css_path}", nl=False)
+        click.secho("Done.", fg="green")
 
-    if not js_path.exists():
+    if not js_path.exists() or force:
         js_path.mkdir(parents=True, exist_ok=True)
         click.secho(f"Created {js_path}.")
 
     # Create index.md
-    click.secho("Creating index.juvix.md...", nl=False)
+    click.secho("Creating index.juvix.md... ", nl=False)
     index_file = docs_path / "index.juvix.md"
-    index_file.write_text((FIXTURES_PATH / "index.juvix.md").read_text())
-    click.secho("Done.", fg="green")
+    if not index_file.exists() or force:
+        index_file.write_text((FIXTURES_PATH / "index.juvix.md").read_text())
+        click.secho("Done.", fg="green")
+    else:
+        click.secho("File already exists. Use -f to force overwrite.", fg="yellow")
 
-    click.secho("Creating test.juvix.md...", nl=False)
+    click.secho("Creating test.juvix.md... ", nl=False)
     test_file = docs_path / "test.juvix.md"
-    test_file.write_text((FIXTURES_PATH / "test.juvix.md").read_text())
-    click.secho("Done.", fg="green")
+    if not test_file.exists() or force:
+        test_file.write_text((FIXTURES_PATH / "test.juvix.md").read_text())
+        click.secho("Done.", fg="green")
+    else:
+        click.secho("File already exists. Use -f to force overwrite.", fg="yellow")
 
     if not no_everything:
-        click.secho("Creating everything.juvix.md...", nl=False)
+        click.secho("Creating everything.juvix.md... ", nl=False)
         everything_file = docs_path / "everything.juvix.md"
-        everything_file.write_text((FIXTURES_PATH / "everything.juvix.md").read_text())
-        click.secho("Done.", fg="green")
-    
+        if not everything_file.exists() or force:
+            everything_file.write_text(
+                (FIXTURES_PATH / "everything.juvix.md").read_text()
+            )
+            click.secho("Done.", fg="green")
+        else:
+            click.secho("File already exists. Use -f to force overwrite.", fg="yellow")
+    else:
+        click.secho("Skipping", fg="yellow")
+
+    github_actions_file = project_path / ".github" / "workflows" / "ci.yml"
     if not no_github_actions:
         click.secho("Creating GitHub Actions workflow...", nl=False)
-        github_actions_file = project_path / ".github" / "workflows" / "ci.yml"
         github_actions_file.parent.mkdir(parents=True, exist_ok=True)
         github_actions_file.write_text(
             (FIXTURES_PATH / "ci.yml")
@@ -303,8 +369,11 @@ def new(
             )
         )
         click.secho("Done.", fg="green")
+    else:
+        click.secho("Skipping", fg="yellow")
 
     click.secho(f"Project '{project_name}' initialized successfully!", fg="green")
+    click.secho("=" * 80, fg="white")
     click.secho("Run `poetry run mkdocs serve` to start the server.", fg="yellow")
     click.secho(
         "Run `juvix typecheck docs/test.juvix.md` to typecheck the test file.",
