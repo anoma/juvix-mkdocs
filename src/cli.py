@@ -72,12 +72,13 @@ def new(
     """Create a new Juvix documentation project."""
 
     project_path = Path(project_name)
-
     if force and project_path.exists():
+        click.secho("Removing existing directory...", nl=False)
         try:
             shutil.rmtree(project_path)
-        except Exception as e:
-            click.secho(f"Failed to remove directory: {e}", fg="red")
+            click.secho("Done.", fg="green")
+        except Exception as _:
+            click.secho("Failed.", fg="red")
             return
     elif project_path.exists():
         click.secho(
@@ -87,14 +88,17 @@ def new(
         return
 
     project_path.mkdir(exist_ok=True, parents=True)
-    click.secho(f"Created {project_path}.")
+    click.secho(f"Creating {project_path}.", nl=False)
+    click.secho("Done.", fg="green")
 
     docs_path = project_path / "docs"
     docs_path.mkdir(exist_ok=True, parents=True)
-    click.secho(f"Created {docs_path}.")
+    click.secho(f"Creating {docs_path}.", nl=False)
+    click.secho("Done.", fg="green")
 
     # Check if juvix is installed and retrieve the version
     try:
+        click.secho("Checking Juvix version...", nl=False)
         juvix_version = (
             subprocess.check_output(
                 ["juvix", "--numeric-version"], stderr=subprocess.STDOUT
@@ -102,6 +106,8 @@ def new(
             .decode()
             .strip()
         )
+        click.secho("Done. ", fg="green", nl=False)
+        click.secho(f" Juvix v{juvix_version}.", fg="black", bg="white")
 
         if Version.parse(juvix_version) < MIN_JUVIX_VERSION:
             click.secho(
@@ -110,7 +116,6 @@ def new(
                 fg="red",
             )
             return
-        click.secho(f"Detected Juvix version {juvix_version}.")
 
     except subprocess.CalledProcessError:
         click.secho(
@@ -124,14 +129,14 @@ def new(
             click.secho("Initializing Juvix project...", nl=False)
             subprocess.run(["juvix", "init", "-n"], cwd=docs_path, check=True)
             juvixPackagePath = docs_path / "Package.juvix"
-            click.secho("Checking if Juvix package exists...")
+            click.secho("Done.", fg="green")
             if not juvixPackagePath.exists():
                 click.secho(
                     "Failed to initialize Juvix project. Please try again.", fg="red"
                 )
                 return
+            click.secho(f"Adding {juvixPackagePath}.", nl=False)
             click.secho("Done.", fg="green")
-            click.secho(f"Created {juvixPackagePath}.")
 
         except Exception as e:
             click.secho(
@@ -145,6 +150,7 @@ def new(
     year = datetime.now().year
     if not mkdocs_file.exists():
         mkdocs_file.touch()
+        click.secho(f"Adding {mkdocs_file}.", nl=False)
         mkdocs_file.write_text(
             (FIXTURES_PATH / "mkdocs.yml")
             .read_text()
@@ -159,15 +165,17 @@ def new(
                 juvix_version=juvix_version,
             )
         )
-        click.secho(f"Added {mkdocs_file}.")
-
+        click.secho("Done.", fg="green")
         # copy the assets folder
+        click.secho("Copying assets folder...", nl=False)
         shutil.copytree(
             FIXTURES_PATH / "assets",
             project_path / "docs" / "assets",
             dirs_exist_ok=True,
         )
+        click.secho("Done.", fg="green")
 
+        click.secho("Adding extra_css to mkdocs.yml...", nl=False)
         with mkdocs_file.open("a") as f:
             f.write("\n")
             f.write("extra_css:\n")
@@ -175,8 +183,9 @@ def new(
             relative_path = file.relative_to(project_path / "docs")
             with mkdocs_file.open("a") as f:
                 f.write(f"  - {relative_path}\n")
-                click.secho(f"Added {relative_path}")
+        click.secho("Done.", fg="green")
 
+        click.secho("Adding extra_javascript to mkdocs.yml...", nl=False)
         with mkdocs_file.open("a") as f:
             f.write("\n")
             f.write("extra_javascript:\n")
@@ -185,18 +194,20 @@ def new(
             relative_path = file.relative_to(project_path / "docs")
             with mkdocs_file.open("a") as f:
                 f.write(f"  - {relative_path}\n")
-                click.secho(f"Added {relative_path}")
+        click.secho("Done.", fg="green")
 
     # Create .gitignore if it doesn't exist
+    click.secho("Creating .gitignore...", nl=False)
     gitignore_file = project_path / ".gitignore"
     if not gitignore_file.exists():
         gitignore_file.write_text((FIXTURES_PATH / ".gitignore").read_text())
-        click.secho(f"Created {gitignore_file}.")
+        click.secho("Done.", fg="green")
 
     # Add README.md
+    click.secho("Creating README.md...", nl=False)
     readme_file = project_path / "README.md"
     readme_file.write_text((FIXTURES_PATH / "README.md").read_text())
-    click.secho(f"Created {readme_file}.")
+    click.secho("Done.", fg="green")
 
     # Run poetry init and add mkdocs-juvix-plugin mkdocs-material
     try:
@@ -267,8 +278,8 @@ def new(
         everything_file.write_text((FIXTURES_PATH / "everything.juvix.md").read_text())
 
     if not no_github_actions:
-        github_actions_file = project_path / ".github" / "workflows" / "ci.yml"
         click.secho("Creating GitHub Actions workflow...", nl=False)
+        github_actions_file = project_path / ".github" / "workflows" / "ci.yml"
         github_actions_file.parent.mkdir(parents=True, exist_ok=True)
         github_actions_file.write_text(
             (FIXTURES_PATH / "ci.yml")
@@ -281,7 +292,6 @@ def new(
             )
         )
         click.secho("Done.", fg="green")
-        click.secho(f"Added {github_actions_file}.")
 
     click.secho(f"Project '{project_name}' initialized successfully!", fg="green")
     click.secho("Run `poetry run mkdocs serve` to start the server.", fg="yellow")
