@@ -1,0 +1,82 @@
+name: Mkdocs+Juvix CI
+'on':
+  push:
+    branches:
+      - main
+
+env:
+  CI: true
+  GH_TOKEN: ${ secrets.GITHUB_TOKEN }
+  PYTHON_VERSION: 3.x
+  POETRY_VERSION: 1.8.3
+  GIT_COMMITTER_EMAIL: site@domain.com
+  GIT_COMMITTER_NAME: Tara
+  BRANCH_NAME: ${{ github.head_ref || github.ref_name }}
+concurrency:
+  group: "${{ github.workflow }}-${{ github.head_ref || github.run_id }}"
+  cancel-in-progress: true
+permissions:
+  contents: write
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4.2.0
+        with:
+          submodules: true
+          fetch-depth: 0
+      - run: |
+          git config --global user.name 'Tara'
+          git config --global user.email 'site@domain.com'
+      - name: Install Juvix
+        uses: jaxxstorm/action-install-gh-release@v1.12.0
+        with:
+          repo: anoma/juvix
+          tag: v0.6.6
+          cache: enable
+          rename-to: juvix
+          chmod: 0755
+      - uses: actions/cache@v4.0.2
+        with:
+          key: juvix-cache-${{ hashFiles('**/*.juvix.md') }}-${{ hashFiles('**/*.juvix') }}
+          path: .juvix-build
+          restore-keys: |
+            juvix-cache-
+      - name: Typecheck everything.juvix.md
+        run: |
+          juvix --version
+          juvix typecheck docs/everything.juvix.md || true
+      - name: Install Python
+        uses: actions/setup-python@v5.2.0
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - name: Install Poetry
+        uses: abatilo/actions-poetry@v3.0.0
+        with:
+          poetry-version: ${{ env.POETRY_VERSION }}
+      - name: Cache .cache
+        uses: actions/cache@v4.0.2
+        with:
+          key: mkdocs-material-${{ env.cache_id }}
+          path: .cache
+          restore-keys: |
+            mkdocs-material-
+      - name: Install Linux dependencies
+        run: sudo apt-get install -y libcairo2-dev libfreetype6-dev libffi-dev libjpeg-dev libpng-dev libz-dev pngquant graphviz
+      - name: Install Python dependencies
+        run: poetry install
+      - name: Create MkDocs Project
+        run: |
+          poetry run mkjuvix new -f
+      - name: Build MkDocs Project
+        run: poetry run mkdocs build --clean --config-file mkdocs.yml
+        env:
+          SITE_URL: https://anoma.github.io/juvix-mkdocs
+
+      - if: success()
+        uses: JamesIves/github-pages-deploy-action@v4.6.4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          clean: true
+          git-config-name: Tara
+          git-config-email: site@domain.com

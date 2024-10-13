@@ -5,7 +5,6 @@ description = "Support for Juvix Markdown files in MkDocs"
 authors = ["Jonathan Prieto-Cubides, and GitHub contributors"]
 license = "MIT"
 readme = "README.md"
-package-mode = true
 
 classifiers = [
     "Intended Audience :: Developers",
@@ -14,17 +13,22 @@ classifiers = [
 ]
 
 packages = [
-    { include = "mkdocs_juvix", from = "." }
+    { include = "mkdocs_juvix", from = "." },
+    { include = "src", from = "." }
 ]
 
-# entry points for mkdocs
+[tool.poetry.scripts]
+juvix-mkdocs = "src.cli:cli"
+
 [tool.poetry.plugins."mkdocs.plugins"]
 juvix = "mkdocs_juvix.plugin:JuvixPlugin"
-juvix-standalone = "mkdocs_juvix.standalone:render"
 
 [tool.poetry.dependencies]
 python = ">=3.9"
 mkdocs = "^1.6.1"
+click = "^8.1.7"
+semver = "^3.0.2"
+mkdocs-material = "^9.5.40"
 
 [tool.poetry.group.dev.dependencies]
 ruff = "^0.6.9"
@@ -35,6 +39,11 @@ pytest = "^8.3.3"
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
+
+
+
+[tool.poetry.group.test.dependencies]
+pytest = "*"
 
 [tool.pytest.ini_options]
 testpaths = ["test"]
