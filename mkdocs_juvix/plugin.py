@@ -1,6 +1,7 @@
 import json
 import logging
 import os
+import re
 import shutil
 import subprocess
 from functools import lru_cache
@@ -192,7 +193,7 @@ class JuvixPlugin(BasePlugin):
         if (gitignore_file := self.ROOT_DIR / ".gitignore").exists():
             with open(gitignore_file) as file:
                 gitignore = pathspec.PathSpec.from_lines(
-                    pathspec.patterns.GitWildMatchPattern,
+                    pathspec.patterns.GitWildMatchPattern,  # type: ignore
                     file,  # type: ignore
                 )
 
@@ -228,6 +229,16 @@ class JuvixPlugin(BasePlugin):
         )
         handler.on_any_event = callback_wrapper(handler.on_any_event)
 
+    def on_page_content(
+        self, html: str, page: Page, config: MkDocsConfig, files: Files
+    ) -> Optional[str]:
+        log.error(
+            "Found a .juvix.html link : "
+            + str(len(re.findall('".juvix.html"', html)))
+        )
+        html = html.replace('".juvix.html"', '".html"')
+        return html
+
     def on_page_markdown(
         self, markdown: str, page: Page, config: MkDocsConfig, files: Files
     ) -> Optional[str]:
@@ -239,6 +250,14 @@ class JuvixPlugin(BasePlugin):
         page.file.url = page.file.url.replace(".juvix", "")
         page.file.dest_uri = page.file.dest_uri.replace(".juvix", "")
         page.file.abs_dest_path = page.file.abs_dest_path.replace(".juvix", "")
+
+        log.error("INFO" + "-" * 80)
+        log.error("abs_dest_path: " + str(page.file.abs_dest_path))
+        # log.error("abs_src_path: " + str(page.file.abs_src_path))
+        # log.error("url: " + str(page.file.url))
+        # log.error("dest_uri: " + str(page.file.dest_uri))
+        # log.error("name: " + str(page.file.name))
+        # log.error("-" * 100)
 
         return markdown
 

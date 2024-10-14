@@ -38,7 +38,7 @@ module index;
 ```
 
 Refer to the test file
-[`test.juvix.md`](test.md) located in the `docs` folder to see another
+[`test.juvix.md`](./test.juvix.md) located in the `docs` folder to see another
 example.
 
 ## Hide Juvix code blocks
@@ -46,8 +46,6 @@ example.
 Juvix code blocks come with a few extra features, such as the ability to hide
 the code block from the final output. This is done by adding the `hide`
 attribute to the code block. For example:
-
-
 
 ## Extract inner module statements
 
@@ -57,3 +55,7 @@ code block. This option can be accompanied by a number to indicate the number of
 statements to extract. For example, the following would only display the content
 inside the module `B`, that is, the module `C`.
 
+
+## Citing
+
+This is a citation [@thebook].

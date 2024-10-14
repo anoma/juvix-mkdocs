@@ -10,6 +10,8 @@ exclude_docs: |
 nav:
   - Home: index.juvix.md
   - Test: test.juvix.md
+  - Everything: everything.juvix.md
+
 plugins:
   - search
   - juvix

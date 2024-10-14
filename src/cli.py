@@ -95,7 +95,7 @@ def new(
     no_run_server,
     no_interactive,
 ):
-    """Create a new Juvix documentation project."""
+    """Subcommand to create a new Juvix documentation project."""
 
     if not no_interactive:
         # Project Information
@@ -375,47 +375,34 @@ def new(
         click.secho(f"Failed to initialize Poetry project. Error: {e}", fg="red")
         return
 
-    try:
-        click.secho("Installing mkdocs-juvix-plugin... ", nl=False)
-        subprocess.run(
-            ["poetry", "add", "mkdocs-juvix-plugin", "-q", "-n"],
-            cwd=project_path,
-            check=True,
-        )
-        click.secho("Done.", fg="green")
-    except Exception as e:
-        click.secho(
-            f"Failed to install mkdocs-juvix-plugin using Poetry. Error: {e}", fg="red"
-        )
-        return
+    def install_poetry_package(package_name, skip_flag=False):
+        if skip_flag:
+            click.secho(f"Skipping installation of {package_name}", fg="yellow")
+            return
 
-    try:
-        if not no_material:
-            click.secho("Installing mkdocs-material... ", nl=False)
+        click.secho(f"Installing {package_name}... ", nl=False)
+        try:
             subprocess.run(
-                ["poetry", "add", "mkdocs-material", "-q", "-n"],
+                ["poetry", "add", package_name, "-q", "-n"],
                 cwd=project_path,
                 check=True,
             )
             click.secho("Done.", fg="green")
-        else:
-            click.secho("Skipping", fg="yellow")
-    except Exception as e:
-        click.secho(
-            f"Failed to add mkdocs-material using Poetry. Error: {e}",
-            fg="red",
-        )
+        except Exception as e:
+            click.secho(
+                f"Failed to install {package_name} using Poetry. Error: {e}", fg="red"
+            )
+            raise
+
+    try:
+        install_poetry_package("mkdocs-juvix-plugin")
+        install_poetry_package("mkdocs-material", no_material)
+    except Exception:
         return
 
     try:
         if not no_bibtex:
-            click.secho("Installing mkdocs-bibtex... ", nl=False)
-            subprocess.run(
-                ["poetry", "add", "mkdocs-bibtex", "-q", "-n"],
-                cwd=project_path,
-                check=True,
-            )
-            click.secho("Done.", fg="green")
+            install_poetry_package("mkdocs-bibtex")
             ref_file = project_path / bib_dir / "ref.bib"
             click.secho(
                 f"Adding {FIXTURES_PATH / 'ref.bib'} to {ref_file}...", nl=False
@@ -437,24 +424,19 @@ def new(
         )
         return
 
-    # Create docs folder and subfolders
     assets_path = docs_path / "assets"
     if not assets_path.exists() or force:
         assets_path.mkdir(parents=True, exist_ok=True)
         click.secho(f"Created folder {assets_path}", nl=False)
         click.secho("Done.", fg="green")
 
-    css_path = assets_path / "css"
-    js_path = assets_path / "js"
-
-    if not css_path.exists() or force:
-        css_path.mkdir(parents=True, exist_ok=True)
-        click.secho(f"Created folder {css_path}", nl=False)
-        click.secho("Done.", fg="green")
-
-    if not js_path.exists() or force:
-        js_path.mkdir(parents=True, exist_ok=True)
-        click.secho(f"Created {js_path}.")
+    for path_name in ["css", "js"]:
+        path = assets_path / path_name
+        if not path.exists() or force:
+            path.mkdir(parents=True, exist_ok=True)
+            click.secho(f"Created folder {path}", nl=False)
+            click.secho("Done.", fg="green")
+            
 
     # Create index.md
     click.secho("Creating index.juvix.md... ", nl=False)
@@ -512,23 +494,25 @@ def new(
             "Typecheck the test file?", default=typecheck
         ).ask()
 
-    # Typecheck the test file
+    # Typecheck given files
+    files_to_typecheck = [index_file, test_file, everything_file]
     if typecheck:
-        click.secho("Typechecking the test file ...", nl=False)
-        try:
-            subprocess.run(
-                ["juvix", "typecheck", f"{docs_dir}/test.juvix.md"],
+        for file in files_to_typecheck:
+            click.secho(f"Typechecking {file}...", nl=False)
+            try:
+                subprocess.run(
+                    ["juvix", "typecheck", file],
                 cwd=project_path,
                 check=True,
-                capture_output=True,
-            )
-            click.secho("All good.", fg="green")
-        except subprocess.CalledProcessError as e:
-            click.secho("Failed.", fg="red")
-            click.secho(f"Error: {e.stderr.decode().strip()}", fg="red")
+                    capture_output=True,
+                )
+                click.secho("All good.", fg="green")
+            except subprocess.CalledProcessError as e:
+                click.secho("Failed.", fg="red")
+                click.secho(f"Error: {e.stderr.decode().strip()}", fg="red")
     else:
         click.secho(
-            "Run `juvix typecheck {docs_dir}/test.juvix.md` to typecheck the test file.",
+            f"Run, e.g., `juvix typecheck {files_to_typecheck[0]}` to typecheck the test file.",
             fg="yellow",
         )
 
@@ -549,26 +533,31 @@ def new(
                 capture_output=True,
             )
             click.secho("Done.", fg="green")
+            # remember to commit the files
+            click.secho("- Run `git add .` to add the files to the repository.", fg="yellow")
+            click.secho("- Run `git commit -m 'Initial commit'` to commit the files.", fg="yellow")
         except subprocess.CalledProcessError as e:
             click.secho("Failed.", fg="red")
             click.secho(f"Error: {e.stderr.decode().strip()}", fg="red")
         except FileNotFoundError:
             click.secho("Failed.", fg="red")
-            click.secho("Git is not installed or not in the system PATH.", fg="red")
+            click.secho("[!] Git is not installed or not in the system PATH.", fg="red")
     else:
-        click.secho("Run `git init` to initialize a git repository.", fg="yellow")
+        click.secho("- Run `git init` to initialize a git repository.", fg="yellow")
 
     run_server = not no_run_server
     if not no_interactive:
         run_server = questionary.confirm(
-            "Do you want to start the server now?", default=run_server
+            "Do you want to start the server? (`poetry run mkdocs serve`)", default=run_server
         ).ask()
 
     if run_server:
         click.secho("Starting the server...", fg="yellow")
         try:
             subprocess.run(
-                ["poetry", "run", "mkdocs", "serve"], cwd=project_path, check=True
+                ["poetry", "run", "mkdocs", "serve", "--open", "--clean", "-q"],
+                cwd=project_path,
+                check=True,
             )
         except subprocess.CalledProcessError as e:
             click.secho("Failed to start the server.", fg="red")
