@@ -19,21 +19,16 @@ CLI tool to help you get started with a new project called `juvix-mkdocs`.
 - [Poetry](https://python-poetry.org/docs/#installation)
 - [Juvix Compiler](https://docs.juvix.org/)
 
-### Installation
+### If you want to create a new MkDocs project
 
-1. Initialize a Poetry project:
-
-```shell
-poetry init
-```
-
-2. Add the required dependencies:
+We ship the `juvix-mkdocs` CLI tool with a Python wheel, so you can install it
+with pip, and later use it to create a new MkDocs project. For example:
 
 ```shell
-poetry add mkdocs-juvix-plugin
+pip3 install mkdocs-juvix-plugin
 ```
 
-3. Create a new MkDocs project:
+Then, create a new MkDocs project:
 
 ```shell
 juvix-mkdocs new
@@ -61,19 +56,20 @@ my-project/
 │   └── ...
 ```
 
-Recall that you can run the development server by running:
+You can run the development server at any time by running:
 
 ```shell
 poetry run mkdocs serve
 ```
 
-4. Otherwise, just add the plugin to your existing MkDocs project, check out the
-fixtures in the `mkdocs.yml` file for reference, and the folder (`src/fixtures`)
-for examples.
+## If you already have a MkDocs project
+
+If you already have a MkDocs project, add the plugin to your existing project,
+check out the fixtures in the `mkdocs.yml` file for reference, and the folder
+(`src/fixtures`) for examples.
 
 ```yaml
 # mkdocs.yml
 plugins:
   - juvix
 ```
-
