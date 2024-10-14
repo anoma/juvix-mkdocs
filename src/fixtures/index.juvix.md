@@ -20,6 +20,7 @@ documentation. To render this file, you need to build the website using
 
 ## Key Features of Juvix Markdown
 
+<<<<<<< Updated upstream
 **Module Declaration**: The first Juvix code block in your file must declare a
 module with the name of the file. 2. **Code Block Structure**: Each Juvix code
 block should contain a sequence of well-defined expressions. 3. **Hide Code
@@ -27,6 +28,16 @@ Blocks**: You can hide Juvix code blocks from the final output using the `hide`
 attribute. 4. **Extract Inner Module Statements**: Use the
 `extract-module-statements` attribute to display only specific parts of your
 Juvix code.
+=======
+For Juvix code blocks:
+
+1. Start with a module declaration matching the file name.
+2. Include well-defined expressions in each block.
+3. Use `hide` attribute to exclude code blocks from output.
+4. Apply `extract-module-statements n` in code block options to only show the
+inner `n` module statements.
+
+>>>>>>> Stashed changes
 
 ## Example: Module Declaration
 

@@ -14,6 +14,7 @@ from mkdocs.plugins import BasePlugin
 from mkdocs.structure.files import Files
 from mkdocs.structure.pages import Page
 from watchdog.events import FileSystemEvent
+from dotenv import load_dotenv
 
 from mkdocs_juvix.utils import (
     compute_hash_filepath,
@@ -23,6 +24,8 @@ from mkdocs_juvix.utils import (
 )
 
 log: logging.Logger = logging.getLogger("mkdocs")
+
+load_dotenv()
 
 
 class JuvixPlugin(BasePlugin):
@@ -44,6 +47,8 @@ class JuvixPlugin(BasePlugin):
     JUVIX_BIN: str = os.environ.get("JUVIX_BIN", "juvix")
     JUVIXCODE_CACHE_DIR: Path
     JUVIXCODE_HASH_FILE: Path
+    ISABELLE_CACHE_DIR: Path
+
     HASH_DIR: Path
     HTML_CACHE_DIR: Path
     FIRST_RUN: bool = True
@@ -61,6 +66,9 @@ class JuvixPlugin(BasePlugin):
 
         self.MARKDOWN_JUVIX_OUTPUT = self.CACHE_DIR / ".MD"
         self.MARKDOWN_JUVIX_OUTPUT.mkdir(parents=True, exist_ok=True)
+
+        self.ISABELLE_CACHE_DIR = self.CACHE_DIR / ".ISABELLE"
+        self.ISABELLE_CACHE_DIR.mkdir(parents=True, exist_ok=True)
 
         self.JUVIXCODE_CACHE_DIR = self.CACHE_DIR / ".JUVIX_MD"
         self.JUVIXCODE_CACHE_DIR.mkdir(parents=True, exist_ok=True)
@@ -146,7 +154,7 @@ class JuvixPlugin(BasePlugin):
         if (gitignore_file := self.ROOT_DIR / ".gitignore").exists():
             with open(gitignore_file) as file:
                 gitignore = pathspec.PathSpec.from_lines(
-                    pathspec.patterns.GitWildMatchPattern,
+                    pathspec.patterns.GitWildMatchPattern,  # type: ignore
                     file,  # type: ignore
                 )
 
@@ -414,6 +422,23 @@ class JuvixPlugin(BasePlugin):
             return cache_path.read_text()
         return None
 
+    def generate_isabelle_theory(
+        self, filepath: Path, options: List[str] = []
+    ) -> Optional[str]:
+        if (
+            not self.JUVIX_ENABLED
+            or not self.JUVIX_AVAILABLE
+            or not filepath.as_posix().endswith(".juvix.md")
+        ):
+            return None
+
+        if self.new_or_changed_or_no_exist(filepath):
+            log.info(f"Running Juvix Markdown on file: {filepath}")
+            return self.run_juvix_isabelle(filepath, options)
+
+        log.debug(f"Reading cache for file: {filepath}")
+        return self.read_cache(filepath)
+
     def generate_markdown(self, filepath: Path) -> Optional[str]:
         if (
             not self.JUVIX_ENABLED
@@ -424,7 +449,7 @@ class JuvixPlugin(BasePlugin):
 
         if self.new_or_changed_or_no_exist(filepath):
             log.info(f"Running Juvix Markdown on file: {filepath}")
-            return self.run_juvix(filepath)
+            return self.run_juvix_markdown(filepath)
 
         log.debug(f"Reading cache for file: {filepath}")
         return self.read_cache(filepath)
@@ -464,7 +489,7 @@ class JuvixPlugin(BasePlugin):
         module_name = self.unqualified_module_name(filepath)
         return module_name + ".md" if module_name else None
 
-    def run_juvix(self, _filepath: Path) -> Optional[str]:
+    def run_juvix_markdown(self, _filepath: Path) -> Optional[str]:
         filepath = _filepath.absolute()
         fposix: str = filepath.as_posix()
 
@@ -474,7 +499,7 @@ class JuvixPlugin(BasePlugin):
 
         rel_to_docs: Path = filepath.relative_to(self.DOCS_DIR)
 
-        cmd: List[str] = [
+        markdown_cmd: List[str] = [
             self.JUVIX_BIN,
             "markdown",
             "--strip-prefix=docs",
@@ -485,9 +510,69 @@ class JuvixPlugin(BasePlugin):
             "--no-colors",
         ]
 
-        log.debug(f"Juvix\n {' '.join(cmd)}")
+        log.debug(f"Juvix\n {' '.join(markdown_cmd)}")
 
-        pp = subprocess.run(cmd, cwd=self.DOCS_DIR, capture_output=True)
+        pp = subprocess.run(markdown_cmd, cwd=self.DOCS_DIR, capture_output=True)
+
+        if pp.returncode != 0:
+            msg = pp.stderr.decode("utf-8").replace("\n", " ").strip()
+            log.debug(f"Error running Juvix on file: {fposix} -\n {msg}")
+
+            format_head = f"!!! failure\n\n    {msg}\n\n"
+            return format_head + filepath.read_text().replace("```juvix", "```")
+
+        log.debug(f"Saving Juvix markdown output to: {self.MARKDOWN_JUVIX_OUTPUT}")
+
+        new_folder: Path = self.MARKDOWN_JUVIX_OUTPUT.joinpath(rel_to_docs.parent)
+        new_folder.mkdir(parents=True, exist_ok=True)
+
+        md_filename: Optional[str] = self.md_filename(filepath)
+        if md_filename is None:
+            log.debug(f"Could not determine the markdown file name for: {fposix}")
+            return None
+
+        new_md_path: Path = new_folder.joinpath(md_filename)
+
+        with open(new_md_path, "w") as f:
+            md_output: str = pp.stdout.decode("utf-8")
+            f.write(md_output)
+
+        raw_path: Path = self.JUVIXCODE_CACHE_DIR.joinpath(rel_to_docs)
+        raw_path.parent.mkdir(parents=True, exist_ok=True)
+
+        try:
+            shutil.copy(filepath, raw_path)
+        except Exception as e:
+            log.error(f"Error copying file: {e}")
+
+        self.update_hash_file(filepath)
+
+        return md_output
+
+    def run_juvix_isabelle(
+        self, _filepath: Path, options: List[str] = ["--non-recursive"]
+    ) -> Optional[str]:
+        filepath = _filepath.absolute()
+        fposix: str = filepath.as_posix()
+
+        if not fposix.endswith(".juvix.md"):
+            log.debug(f"The file: {fposix} is not a Juvix Markdown file.")
+            return None
+
+        rel_to_docs: Path = filepath.relative_to(self.DOCS_DIR)
+
+        isabelle_cmd: List[str] = [
+            self.JUVIX_BIN,
+            *options,
+            "isabelle",
+            "--output-dir",
+            self.ISABELLE_CACHE_DIR.as_posix(),
+            fposix,
+        ]
+
+        log.debug(f"Juvix\n {' '.join(isabelle_cmd)}")
+
+        pp = subprocess.run(isabelle_cmd, cwd=self.DOCS_DIR, capture_output=True)
 
         if pp.returncode != 0:
             msg = pp.stderr.decode("utf-8").replace("\n", " ").strip()
