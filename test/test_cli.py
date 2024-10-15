@@ -11,9 +11,9 @@ def test_new_command():
         result = runner.invoke(new, [
             "--project-name", project_name,
             "--description", "Test project description",
-            "--font-text", "Roboto",
+            "--font-text", "Inter",
             "--font-code", "Fira Code",
-            "--theme", "readthedocs",
+            "--theme", "material",
             "--site-dir", "documentation",
             "--site-author", "Test Author",
             "--site-author-email", "test@example.com",

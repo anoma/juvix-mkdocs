@@ -6,13 +6,27 @@ from pathlib import Path
 import click
 import questionary
 from semver import Version
+import toml
 
 MIN_JUVIX_VERSION = Version(0, 6, 6)
 SRC_PATH = Path(__file__).parent
 FIXTURES_PATH = SRC_PATH / "fixtures"
 
 
+def version_from_toml():
+    toml_path = SRC_PATH.parent / "pyproject.toml"
+    if toml_path.exists():
+        with toml_path.open() as f:
+            toml_data = toml.load(f)
+        return toml_data["tool"]["poetry"]["version"]
+    else:
+        return "unknown"
+
 @click.group()
+@click.version_option(
+    version=version_from_toml(),
+    help="Show the version of the CLI",
+)
 def cli():
     """Helper CLI for making MkDocs projects with Juvix."""
     pass
@@ -623,6 +637,26 @@ def new(
             fg="yellow",
         )
 
+@click.command()
+@click.option("--no-open", is_flag=True, help="Do not open the project in a browser")
+@click.option("--quiet", "-q", is_flag=True, help="Run mkdocs serve in quiet mode")
+def serve(no_open: bool, quiet: bool):
+    """Serve the project using mkdocs."""
+    mkdocs_serve_cmd = ["poetry", "run", "mkdocs", "serve", "--clean"]
+    if not no_open:
+        mkdocs_serve_cmd.append("--open")
+    if quiet:
+        mkdocs_serve_cmd.append("-q")
+    try:
+        subprocess.run(mkdocs_serve_cmd, check=True)
+    except subprocess.CalledProcessError as e:
+        click.secho("Failed to start the server.", fg="red")
+        click.secho(f"Error: {e}", fg="red")
+    except FileNotFoundError:
+        click.secho("Failed to start the server.", fg="red")
+        click.secho(
+            "Make sure Poetry is installed and in your system PATH.", fg="red"
+        )
 
 if __name__ == "__main__":
     cli()
