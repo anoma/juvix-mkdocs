@@ -4,16 +4,14 @@ import os
 import re
 import shutil
 import subprocess
-import pathspec
-
 from functools import lru_cache, wraps
 from os import getenv
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Tuple
 from urllib.parse import urljoin
 
+import pathspec
 from dotenv import load_dotenv
-
 from mkdocs.config.defaults import MkDocsConfig
 from mkdocs.plugins import BasePlugin
 from mkdocs.structure.files import Files
@@ -32,7 +30,7 @@ load_dotenv()
 log: logging.Logger = logging.getLogger("mkdocs")
 
 
-class _JuvixPlugin(BasePlugin):
+class JuvixPlugin(BasePlugin):
     mkconfig: MkDocsConfig
     juvix_md_files: List[Dict[str, Any]]
 
@@ -79,17 +77,17 @@ class _JuvixPlugin(BasePlugin):
         "ISABELLECODE_CACHE_DIRNAME", ".isabelle_md"
     )  # The name of the directory where the Isabelle Markdown files are cached
 
-    HASHES_DIRNAME: str = getenv(
-        "HASHES_DIRNAME", ".hashes"
+    CACHE_HASHES_DIRNAME: str = getenv(
+        "CACHE_HASHES_DIRNAME", ".hashes"
     )  # The name of the directory where the hashes are stored
-    HTML_CACHE_DIRNAME: str = getenv(
-        "HTML_CACHE_DIRNAME", ".html"
+    CACHE_HTML_DIRNAME: str = getenv(
+        "CACHE_HTML_DIRNAME", ".html"
     )  # The name of the directory where the HTML files are cached
     FIRST_RUN: bool = bool(
         getenv("FIRST_RUN", True)
     )  # Whether this is the first time the plugin is run
-    MARKDOWN_JUVIX_OUTPUT_FILENAME: str = getenv(
-        "MARKDOWN_JUVIX_OUTPUT_FILENAME", ".juvix_md"
+    CACHE_MARKDOWN_JUVIX_OUTPUT_DIRNAME: str = getenv(
+        "CACHE_MARKDOWN_JUVIX_OUTPUT_DIRNAME", ".juvix_md"
     )  # The name of the file where the Juvix Markdown files are stored
     CACHE_JUVIX_VERSION_FILENAME: str = getenv(
         "CACHE_JUVIX_VERSION_FILENAME", ".juvix_version"
@@ -109,16 +107,16 @@ class _JuvixPlugin(BasePlugin):
     DOCS_PATH: Path = (
         ROOT_PATH / DOCS_DIRNAME
     )  # The path to the documentation directory
-    MARKDOWN_JUVIX_OUTPUT_PATH: Path = (
-        CACHE_PATH / HTML_CACHE_DIRNAME
+    CACHE_MARKDOWN_JUVIX_OUTPUT_PATH: Path = (
+        CACHE_PATH / CACHE_MARKDOWN_JUVIX_OUTPUT_DIRNAME
     )  # The path to the Juvix Markdown output directory
-    HTML_CACHE_PATH: Path = (
-        CACHE_PATH / HTML_CACHE_DIRNAME
+    CACHE_HTML_PATH: Path = (
+        CACHE_PATH / CACHE_HTML_DIRNAME
     )  # The path to the Juvix Markdown output directory
 
     JUVIX_PROJECT_HASH_FILEPATH: Path = CACHE_PATH / JUVIXCODE_PROJECT_HASH_FILENAME
-    HASHES_PATH: Path = (
-        CACHE_PATH / HASHES_DIRNAME
+    CACHE_HASHES_PATH: Path = (
+        CACHE_PATH / CACHE_HASHES_DIRNAME
     )  # The path where hashes are stored (not the project hash)
 
     JUVIX_FOOTER_CSS_FILEPATH: Path = (
@@ -152,7 +150,7 @@ class _JuvixPlugin(BasePlugin):
         └── on_shutdown()
     """
 
-    def on_config(self, config: MkDocsConfig, **kwargs) -> MkDocsConfig:
+    def on_config(self, config: MkDocsConfig) -> MkDocsConfig:
         """
         Here, we set up the paths, create the cache directories and check if the
         Juvix binary is available. If the Juvix binary is not available, we set the
@@ -173,10 +171,10 @@ class _JuvixPlugin(BasePlugin):
         self.FIRST_RUN: bool = True
 
         directories: List[Path] = [
-            self.MARKDOWN_JUVIX_OUTPUT_PATH,
+            self.CACHE_MARKDOWN_JUVIX_OUTPUT_PATH,
             self.JUVIXCODE_CACHE_PATH,
             self.CACHE_PATH,
-            self.HASHES_PATH,
+            self.CACHE_HASHES_PATH,
             self.JUVIX_FOOTER_CSS_FILEPATH.parent,
         ]
 
@@ -352,8 +350,8 @@ Environment variables relevant:
             and (
                 not equal_hashes
                 or (
-                    self.HTML_CACHE_PATH.exists()
-                    and (len(list(self.HTML_CACHE_PATH.glob("*"))) == 0)
+                    self.CACHE_HTML_PATH.exists()
+                    and (len(list(self.CACHE_HTML_PATH.glob("*"))) == 0)
                 )
             )
         )
@@ -432,20 +430,21 @@ Environment variables relevant:
     def on_page_content(
         self, html: str, page: Page, config: MkDocsConfig, files: Files
     ) -> Optional[str]:
-        log.error(
-            "Found a .juvix.html link : " + str(len(re.findall('".juvix.html"', html)))
-        )
-        html = html.replace('".juvix.html"', '".html"')
         return html
 
     @if_juvix_enabled
     def on_post_page(self, output: str, page: Page, config: MkDocsConfig) -> str:
-        return output
+        # TODO: search for link html pointing to .juvix.html and replace with
+        # .html with a better regex
+        log.error(
+            "Found a .juvix.html link : "
+            + str(len(re.findall('".juvix.html"', output)))
+        )
+        return output.replace('".juvix.html"', '".html"')
 
     @if_juvix_enabled
     def on_post_build(self, config: MkDocsConfig) -> None:
-        if self.JUVIX_ENABLED and self.JUVIX_AVAILABLE:
-            self._generate_html(generate=False, move_cache=True)
+        self._generate_html(generate=False, move_cache=True)
 
     @if_juvix_enabled
     def on_serve(self, server: Any, config: MkDocsConfig, builder: Any) -> None:
@@ -511,7 +510,7 @@ Environment variables relevant:
             file = _file.absolute()
 
             html_file_path = (
-                self.HTML_CACHE_PATH
+                self.CACHE_HTML_PATH
                 / file.relative_to(self.JUVIXCODE_CACHE_PATH).parent
                 / file.name.replace(".juvix.md", ".html")
             )
@@ -520,17 +519,17 @@ Environment variables relevant:
                 log.info(f"Removing file: {html_file_path}")
                 html_file_path.unlink()
 
-        index_file = self.HTML_CACHE_PATH / "index.html"
+        index_file = self.CACHE_HTML_PATH / "index.html"
         if index_file.exists():
             index_file.unlink()
 
         # move the generated HTML files to the site directory
-        shutil.copytree(self.HTML_CACHE_PATH, dest_folder, dirs_exist_ok=True)
+        shutil.copytree(self.CACHE_HTML_PATH, dest_folder, dirs_exist_ok=True)
         return
 
     def _new_or_changed_or_no_exist(self, filepath: Path) -> bool:
         content_hash = hash_file(filepath)
-        path_hash = compute_hash_filepath(filepath, hash_dir=self.HASHES_PATH)
+        path_hash = compute_hash_filepath(filepath, hash_dir=self.CACHE_HASHES_PATH)
         if not path_hash.exists():
             log.debug(f"File: {filepath} does not have a hash file.")
             return True
@@ -539,7 +538,6 @@ Environment variables relevant:
 
     def _generate_html(self, generate: bool = True, move_cache: bool = True) -> None:
         everythingJuvix = self.DOCS_PATH.joinpath("everything.juvix.md")
-
         if not everythingJuvix.exists():
             log.warning(
                 """Consider creating a file named 'everything.juvix.md' or \
@@ -579,11 +577,11 @@ Environment variables relevant:
     ) -> None:
         if remove_cache:
             try:
-                shutil.rmtree(self.HTML_CACHE_PATH)
+                shutil.rmtree(self.CACHE_HTML_PATH)
             except Exception as e:
                 log.error(f"Error removing folder: {e}")
 
-        self.HTML_CACHE_PATH.mkdir(parents=True, exist_ok=True)
+        self.CACHE_HTML_PATH.mkdir(parents=True, exist_ok=True)
 
         filepath: Path = _filepath.absolute()
 
@@ -591,7 +589,7 @@ Environment variables relevant:
             [self.JUVIX_BIN, "html"]
             + ["--strip-prefix=docs"]
             + ["--folder-structure"]
-            + [f"--output-dir={self.HTML_CACHE_PATH.as_posix()}"]
+            + [f"--output-dir={self.CACHE_HTML_PATH.as_posix()}"]
             + [f"--prefix-url={self.SITE_URL}"]
             + [f"--prefix-assets={self.SITE_URL}"]
             + [filepath.as_posix()]
@@ -608,26 +606,34 @@ Environment variables relevant:
         # contain assets with changes that are not reflected
         # in the generated HTML by Juvix.
 
-        good_assets = self.DOCS_PATH / "assets"
+        good_assets: Path = self.DOCS_PATH / "assets"
         good_assets.mkdir(parents=True, exist_ok=True)
 
-        assets_in_html = self.HTML_CACHE_PATH / "assets"
+        assets_in_html: Path = self.CACHE_HTML_PATH / "assets"
 
         if assets_in_html.exists():
-            shutil.rmtree(assets_in_html, ignore_errors=True)
+            try:
+                shutil.rmtree(assets_in_html, ignore_errors=True)
+            except Exception as e:
+                log.error(f"Error removing folder: {e}")
 
-        shutil.copytree(good_assets, assets_in_html, dirs_exist_ok=True)
+        try:
+            shutil.copytree(good_assets, assets_in_html, dirs_exist_ok=True)
+        except Exception as e:
+            log.error(f"Error copying folder: {e}")
 
     @lru_cache(maxsize=128)
-    def _path_juvix_md_cache(self, _filepath: Path) -> Optional[Path]:
+    def _get_filepath_for_juvix_markdown_in_cache(
+        self, _filepath: Path
+    ) -> Optional[Path]:
         filepath = _filepath.absolute()
         md_filename = filepath.name.replace(".juvix.md", ".md")
         rel_to_docs = filepath.relative_to(self.DOCS_PATH)
-        return self.MARKDOWN_JUVIX_OUTPUT_PATH / rel_to_docs.parent / md_filename
+        return self.CACHE_MARKDOWN_JUVIX_OUTPUT_PATH / rel_to_docs.parent / md_filename
 
     @lru_cache(maxsize=128)
     def _read_cache(self, filepath: Path) -> Optional[str]:
-        if cache_path := self._path_juvix_md_cache(filepath):
+        if cache_path := self._get_filepath_for_juvix_markdown_in_cache(filepath):
             return cache_path.read_text()
         return None
 
@@ -732,7 +738,7 @@ Environment variables relevant:
             return None
 
         cache_markdown_filepath: Path = (
-            self.MARKDOWN_JUVIX_OUTPUT_PATH
+            self.CACHE_MARKDOWN_JUVIX_OUTPUT_PATH
             / rel_to_docs.parent
             / cache_markdown_filename
         )
@@ -759,7 +765,7 @@ Environment variables relevant:
             log.error(f"Error copying file: {e}")
 
     def _update_hash_file(self, filepath: Path) -> Optional[Tuple[Path, str]]:
-        filepath_hash = compute_hash_filepath(filepath, hash_dir=self.HASHES_PATH)
+        filepath_hash = compute_hash_filepath(filepath, hash_dir=self.CACHE_HASHES_PATH)
         try:
             with open(filepath_hash, "w") as f:
                 content_hash = hash_file(filepath)
