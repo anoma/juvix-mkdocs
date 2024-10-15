@@ -16,7 +16,6 @@ plugins:
 {bibtex}
 theme:
   name: !ENV [THEME, '{theme}']
-  custom_dir: !ENV [OVERRIDES_DIR, 'overrides']
   font:
     text: !ENV [FONT_TEXT, '{font_text}']
     code: !ENV [FONT_CODE, '{font_code}']

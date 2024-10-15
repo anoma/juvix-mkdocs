@@ -78,7 +78,7 @@ def cli():
     "--in-development", "-D", is_flag=True, help="Install mkdocs-juvix-plugin in development mode"
 )
 @click.option(
-    "--develop-dir", default="../", help="Directory to install mkdocs-juvix-plugin in development mode"
+    "--develop-dir", default="../.", help="Directory to install mkdocs-juvix-plugin in development mode"
 )
 def new(
     project_name,
@@ -268,10 +268,11 @@ def new(
     everything_file = docs_path / "everything.juvix.md"
     juvix_md_files = [index_file, test_file, everything_file]
 
-    nav = [
-        f"  - {file.relative_to(project_path)}: {file}"
+    nav = '\n'.join([
+        f"  - {file.name}: {file.relative_to(project_path)}"
         for file in juvix_md_files
-    ]
+        if file.exists()
+    ])
 
     if not mkdocs_file.exists() or force:
         mkdocs_file.touch()
@@ -404,11 +405,11 @@ def new(
         if skip_flag:
             click.secho(f"Skipping installation of {package_name}", fg="yellow")
             return
-
-        click.secho(f"Installing {package_name}... ", nl=False)
+        alias_package_name = package_name if package_name != "../." else "mkdocs-juvix-plugin-DEV"
+        click.secho(f"Installing {alias_package_name}... ", nl=False)
         poetry_cmd = ["poetry", "add", package_name, "-q", "-n"]
         if development_flag:
-            poetry_cmd.append("--develop=true")
+            poetry_cmd.append("--editable")
         try:
             subprocess.run(
                 poetry_cmd,

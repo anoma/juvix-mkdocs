@@ -1,5 +1,6 @@
 import json
 import os
+from pprint import pprint
 import re
 import shutil
 import subprocess
@@ -148,6 +149,34 @@ class JuvixPlugin(BasePlugin):
         └── on_shutdown()
     """
 
+    def _variables(self) -> Dict[str, Any]:
+        return {
+            "CACHE_DIRNAME": self.CACHE_DIRNAME,
+            "CACHE_HASHES_DIRNAME": self.CACHE_HASHES_DIRNAME,
+            "CACHE_HASHES_PATH": self.CACHE_HASHES_PATH,
+            "CACHE_HTML_DIRNAME": self.CACHE_HTML_DIRNAME,
+            "CACHE_ISABELLE_THEORIES_DIRNAME": self.CACHE_ISABELLE_THEORIES_DIRNAME,
+            "CACHE_JUVIX_MARKDOWN_DIRNAME": self.CACHE_JUVIX_MARKDOWN_DIRNAME,
+            "CACHE_JUVIX_PROJECT_HASH_FILENAME": self.CACHE_JUVIX_PROJECT_HASH_FILENAME,
+            "CACHE_JUVIX_PROJECT_HASH_FILEPATH": self.CACHE_JUVIX_PROJECT_HASH_FILEPATH,
+            "CACHE_JUVIX_VERSION_FILENAME": self.CACHE_JUVIX_VERSION_FILENAME,
+            "CACHE_JUVIX_VERSION_FILEPATH": self.CACHE_JUVIX_VERSION_FILEPATH,
+            "CACHE_MARKDOWN_JUVIX_OUTPUT_DIRNAME": self.CACHE_MARKDOWN_JUVIX_OUTPUT_DIRNAME,
+            "DOCS_DIRNAME": self.DOCS_DIRNAME,
+            "DOCS_PATH": self.DOCS_PATH,
+            "FIRST_RUN": self.FIRST_RUN,
+            "JUVIX_BIN": self.JUVIX_BIN,
+            "JUVIX_BIN_NAME": self.JUVIX_BIN_NAME,
+            "JUVIX_BIN_PATH": self.JUVIX_BIN_PATH,
+            "JUVIX_ENABLED": self.JUVIX_ENABLED,
+            "JUVIX_FOOTER_CSS_FILENAME": self.JUVIX_FOOTER_CSS_FILENAME,
+            "JUVIX_FOOTER_CSS_FILEPATH": self.JUVIX_FOOTER_CSS_FILEPATH,
+            "JUVIX_VERSION": self.JUVIX_VERSION,
+            "MIN_JUVIX_VERSION": self.MIN_JUVIX_VERSION,
+            "SITE_DIR": self.SITE_DIR,
+            "SITE_URL": self.SITE_URL,
+        }
+
     def on_config(self, config: MkDocsConfig) -> MkDocsConfig:
         """
         Here, we set up the paths, create the cache directories and check if the
@@ -159,7 +188,9 @@ class JuvixPlugin(BasePlugin):
 
         self.ROOT_PATH = Path(config_file).parent.absolute()
         self.CACHE_PATH = self.ROOT_PATH / self.CACHE_DIRNAME
-        self.DOCS_PATH = self.ROOT_PATH / self.DOCS_DIRNAME
+        # self.DOCS_PATH = self.ROOT_PATH / self.DOCS_DIRNAME
+
+        log.error(self._variables())
 
         if not self.DOCS_PATH.exists():
             log.error("Expected documentation directory %s not found.", self.DOCS_PATH)
@@ -361,7 +392,7 @@ Environment variables relevant:
                 "Generating auxiliary HTML for Juvix files. This may take a while... It's only generated once per session."
             )
 
-        with open(self.JUVIX_PROJECT_HASH_FILEPATH, "w") as f:
+        with open(self.CACHE_JUVIX_PROJECT_HASH_FILEPATH, "w") as f:
             f.write(current_sha)
 
         self._generate_html(generate=generate, move_cache=True)
