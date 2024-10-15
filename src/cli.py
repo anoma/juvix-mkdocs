@@ -269,9 +269,8 @@ def new(
     juvix_md_files = [index_file, test_file, everything_file]
 
     nav = '\n'.join([
-        f"  - {file.name}: {file.relative_to(project_path)}"
+        f"  - {file.stem.replace('.juvix', '')}: {file.relative_to(docs_path)}"
         for file in juvix_md_files
-        if file.exists()
     ])
 
     if not mkdocs_file.exists() or force:

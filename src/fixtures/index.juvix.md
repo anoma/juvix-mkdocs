@@ -45,7 +45,7 @@ example.
 
 Juvix code blocks come with a few extra features, such as the ability to hide
 the code block from the final output. This is done by adding the `hide`
-attribute to the code block. For example:
+attribute to the code block.
 
 ## Extract inner module statements
 
