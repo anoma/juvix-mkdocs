@@ -74,12 +74,19 @@ def cli():
 @click.option(
     "-n", "--no-interactive", is_flag=True, help="Run in non-interactive mode"
 )
+@click.option("--no-open", is_flag=True, help="Do not open the project in a browser")
 @click.option(
-    "--in-development", "-D", is_flag=True, help="Install mkdocs-juvix-plugin in development mode"
+    "--in-development",
+    "-D",
+    is_flag=True,
+    help="Install mkdocs-juvix-plugin in development mode",
 )
 @click.option(
-    "--develop-dir", default="../.", help="Directory to install mkdocs-juvix-plugin in development mode"
+    "--develop-dir",
+    default="../.",
+    help="Directory to install mkdocs-juvix-plugin in development mode",
 )
+
 def new(
     project_name,
     description,
@@ -103,6 +110,7 @@ def new(
     no_typecheck,
     no_run_server,
     server_quiet,
+    no_open,
     no_interactive,
     in_development,
     develop_dir,
@@ -268,10 +276,12 @@ def new(
     everything_file = docs_path / "everything.juvix.md"
     juvix_md_files = [index_file, test_file, everything_file]
 
-    nav = '\n'.join([
-        f"  - {file.stem.replace('.juvix', '')}: {file.relative_to(docs_path)}"
-        for file in juvix_md_files
-    ])
+    nav = "\n".join(
+        [
+            f"  - {file.stem.replace('.juvix', '')}: {file.relative_to(docs_path)}"
+            for file in juvix_md_files
+        ]
+    )
 
     if not mkdocs_file.exists() or force:
         mkdocs_file.touch()
@@ -404,7 +414,9 @@ def new(
         if skip_flag:
             click.secho(f"Skipping installation of {package_name}", fg="yellow")
             return
-        alias_package_name = package_name if package_name != "../." else "mkdocs-juvix-plugin-DEV"
+        alias_package_name = (
+            package_name if package_name != "../." else "mkdocs-juvix-plugin-DEV"
+        )
         click.secho(f"Installing {alias_package_name}... ", nl=False)
         poetry_cmd = ["poetry", "add", package_name, "-q", "-n"]
         if development_flag:
@@ -587,7 +599,9 @@ def new(
     if run_server:
         click.secho("Starting the server... (Ctrl+C to stop)", fg="yellow")
         try:
-            mkdocs_serve_cmd = ["poetry", "run", "mkdocs", "serve", "--open", "--clean"]
+            mkdocs_serve_cmd = ["poetry", "run", "mkdocs", "serve", "--clean"]
+            if not no_open:
+                mkdocs_serve_cmd.append("--open")
             if server_quiet:
                 mkdocs_serve_cmd.append("-q")
             subprocess.run(

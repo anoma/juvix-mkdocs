@@ -7,17 +7,16 @@ from os import getenv
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Tuple
 from urllib.parse import urljoin
-from bs4 import BeautifulSoup, SoupStrainer
 
 import pathspec
+from bs4 import BeautifulSoup, SoupStrainer
 from dotenv import load_dotenv
 from mkdocs.config.defaults import MkDocsConfig
-from mkdocs.plugins import BasePlugin
+from mkdocs.plugins import BasePlugin, get_plugin_logger
 from mkdocs.structure.files import Files
 from mkdocs.structure.pages import Page
 from semver import Version
 from watchdog.events import FileSystemEvent
-from mkdocs.plugins import get_plugin_logger 
 
 from mkdocs_juvix.utils import (
     compute_hash_filepath,
@@ -29,6 +28,7 @@ from mkdocs_juvix.utils import (
 load_dotenv()
 
 log = get_plugin_logger("[JuvixPlugin] ")
+
 
 class JuvixPlugin(BasePlugin):
     mkconfig: MkDocsConfig
@@ -43,7 +43,6 @@ class JuvixPlugin(BasePlugin):
         getenv("REMOVE_CACHE", False)
     )  # Whether the cache should be removed
 
-    
     JUVIX_ENABLED: bool = bool(
         getenv("JUVIX_ENABLED", True)
     )  # Whether the user wants to use Juvix
@@ -82,7 +81,8 @@ class JuvixPlugin(BasePlugin):
         getenv("FIRST_RUN", True)
     )  # Whether this is the first time the plugin is run
     CACHE_MARKDOWN_JUVIX_OUTPUT_DIRNAME: str = getenv(
-        "CACHE_MARKDOWN_JUVIX_OUTPUT_DIRNAME", ".markdown_output_from_juvix_markdown_files"
+        "CACHE_MARKDOWN_JUVIX_OUTPUT_DIRNAME",
+        ".markdown_output_from_juvix_markdown_files",
     )  # The name of the file where the Juvix Markdown files are stored
     CACHE_JUVIX_VERSION_FILENAME: str = getenv(
         "CACHE_JUVIX_VERSION_FILENAME", ".juvix_version"
@@ -94,16 +94,20 @@ class JuvixPlugin(BasePlugin):
         "DOCS_DIRNAME", "docs"
     )  # The name of the directory where the documentation is stored
 
-    CACHE_ABSPATH: Path # The path to the cache directory
-    JUVIXCODE_CACHE_ABSPATH: Path # The path to the Juvix Markdown cache directory
-    ROOT_ABSPATH: Path # The path to the root directory
-    DOCS_ABSPATH: Path # The path to the documentation directory
-    CACHE_MARKDOWN_JUVIX_OUTPUT_PATH: Path # The path to the Juvix Markdown output directory
-    CACHE_HTML_PATH: Path # The path to the Juvix Markdown output directory
-    CACHE_JUVIX_PROJECT_HASH_FILEPATH: Path # The path to the Juvix Markdown output directory
-    CACHE_HASHES_PATH: Path # The path where hashes are stored (not the project hash)
-    JUVIX_FOOTER_CSS_FILEPATH: Path # The path to the Juvix footer CSS file
-    CACHE_JUVIX_VERSION_FILEPATH: Path # The path to the Juvix version file
+    CACHE_ABSPATH: Path  # The path to the cache directory
+    JUVIXCODE_CACHE_ABSPATH: Path  # The path to the Juvix Markdown cache directory
+    ROOT_ABSPATH: Path  # The path to the root directory
+    DOCS_ABSPATH: Path  # The path to the documentation directory
+    CACHE_MARKDOWN_JUVIX_OUTPUT_PATH: (
+        Path  # The path to the Juvix Markdown output directory
+    )
+    CACHE_HTML_PATH: Path  # The path to the Juvix Markdown output directory
+    CACHE_JUVIX_PROJECT_HASH_FILEPATH: (
+        Path  # The path to the Juvix Markdown output directory
+    )
+    CACHE_HASHES_PATH: Path  # The path where hashes are stored (not the project hash)
+    JUVIX_FOOTER_CSS_FILEPATH: Path  # The path to the Juvix footer CSS file
+    CACHE_JUVIX_VERSION_FILEPATH: Path  # The path to the Juvix version file
 
     """ For reference, the Mkdocs Pipeline is the following:
     ├── on_startup(command, dirty)
@@ -164,42 +168,47 @@ class JuvixPlugin(BasePlugin):
         """
         config_file = config.config_file_path
         if config.get("use_directory_urls", False):
-            log.error("use_directory_urls has been set to True to work with Juvix Markdown files.")
+            log.error(
+                "use_directory_urls has been set to True to work with Juvix Markdown files."
+            )
             exit(1)
 
         self.ROOT_ABSPATH = Path(config_file).parent.absolute()
         self.CACHE_ABSPATH = self.ROOT_ABSPATH / self.CACHE_DIRNAME
         self.JUVIXCODE_CACHE_ABSPATH: Path = (
-        self.CACHE_ABSPATH / self.CACHE_JUVIX_MARKDOWN_DIRNAME
+            self.CACHE_ABSPATH / self.CACHE_JUVIX_MARKDOWN_DIRNAME
         )  # The path to the Juvix Markdown cache directory
-        self.ROOT_ABSPATH: Path = self.CACHE_ABSPATH.parent  # The path to the root directory
+        self.ROOT_ABSPATH: Path = (
+            self.CACHE_ABSPATH.parent
+        )  # The path to the root directory
         self.DOCS_ABSPATH: Path = (
-        self.ROOT_ABSPATH / self.DOCS_DIRNAME
+            self.ROOT_ABSPATH / self.DOCS_DIRNAME
         )  # The path to the documentation directory
         self.CACHE_MARKDOWN_JUVIX_OUTPUT_PATH: Path = (
-        self.CACHE_ABSPATH / self.CACHE_MARKDOWN_JUVIX_OUTPUT_DIRNAME
+            self.CACHE_ABSPATH / self.CACHE_MARKDOWN_JUVIX_OUTPUT_DIRNAME
         )  # The path to the Juvix Markdown output directory
         self.CACHE_HTML_PATH: Path = (
-        self.CACHE_ABSPATH / self.CACHE_HTML_DIRNAME
+            self.CACHE_ABSPATH / self.CACHE_HTML_DIRNAME
         )  # The path to the Juvix Markdown output directory
 
         self.CACHE_JUVIX_PROJECT_HASH_FILEPATH: Path = (
-        self.CACHE_ABSPATH / self.CACHE_JUVIX_PROJECT_HASH_FILENAME
+            self.CACHE_ABSPATH / self.CACHE_JUVIX_PROJECT_HASH_FILENAME
         )  # The path to the Juvix Markdown output directory
         self.CACHE_HASHES_PATH: Path = (
-        self.CACHE_ABSPATH / self.CACHE_HASHES_DIRNAME
+            self.CACHE_ABSPATH / self.CACHE_HASHES_DIRNAME
         )  # The path where hashes are stored (not the project hash)
 
         self.JUVIX_FOOTER_CSS_FILEPATH: Path = (
-        self.DOCS_ABSPATH / "assets" / "css" / self.JUVIX_FOOTER_CSS_FILENAME
+            self.DOCS_ABSPATH / "assets" / "css" / self.JUVIX_FOOTER_CSS_FILENAME
         )
         self.CACHE_JUVIX_VERSION_FILEPATH: Path = (
-        self.CACHE_ABSPATH / self.CACHE_JUVIX_VERSION_FILENAME
+            self.CACHE_ABSPATH / self.CACHE_JUVIX_VERSION_FILENAME
         )  # The path to the Juvix version file
 
-
         if not self.DOCS_ABSPATH.exists():
-            log.error("Expected documentation directory %s not found.", self.DOCS_ABSPATH)
+            log.error(
+                "Expected documentation directory %s not found.", self.DOCS_ABSPATH
+            )
             exit(1)
 
         self.force: bool = self.REMOVE_CACHE
@@ -444,7 +453,6 @@ Environment variables relevant:
     def on_page_markdown(
         self, markdown: str, page: Page, config: MkDocsConfig, files: Files
     ) -> Optional[str]:
-        
         path = page.file.abs_src_path
         if path and not path.endswith(".juvix.md"):
             return markdown
@@ -462,9 +470,9 @@ Environment variables relevant:
 
     @if_juvix_enabled
     def on_post_page(self, output: str, page: Page, config: MkDocsConfig) -> str:
-        soup = BeautifulSoup(output, 'html.parser')
-        for a in soup.find_all('a'):
-            a['href'] = a['href'].replace('.juvix.html', '.html')
+        soup = BeautifulSoup(output, "html.parser")
+        for a in soup.find_all("a"):
+            a["href"] = a["href"].replace(".juvix.html", ".html")
         return str(soup)
 
     @if_juvix_enabled
@@ -800,14 +808,13 @@ Environment variables relevant:
             log.error(f"Error updating hash file: {e}")
             return None
 
-
     def _generate_code_block_footer_css_file(
         self, css_file: Path, compiler_version: Optional[str] = None
     ) -> Optional[Path]:
         css_file.parent.mkdir(parents=True, exist_ok=True)
         try:
             css_file.write_text(
-f"""
+                f"""
 code.juvix::after {{
 font-family: var(--md-code-font-family);
 content: "Juvix v{compiler_version}";
@@ -816,7 +823,7 @@ color: var(--md-juvix-codeblock-footer);
 float: right;
     }}
     """
-        )
+            )
             log.info(f"CSS file generated at: {css_file.as_posix()}")
         except Exception as e:
             log.error(f"Error writing to CSS file: {e}")
