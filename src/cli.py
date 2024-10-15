@@ -436,7 +436,6 @@ def new(
             path.mkdir(parents=True, exist_ok=True)
             click.secho(f"Created folder {path}", nl=False)
             click.secho("Done.", fg="green")
-            
 
     # Create index.md
     click.secho("Creating index.juvix.md... ", nl=False)
@@ -502,8 +501,8 @@ def new(
             try:
                 subprocess.run(
                     ["juvix", "typecheck", file],
-                cwd=project_path,
-                check=True,
+                    cwd=project_path,
+                    check=True,
                     capture_output=True,
                 )
                 click.secho("All good.", fg="green")
@@ -534,8 +533,13 @@ def new(
             )
             click.secho("Done.", fg="green")
             # remember to commit the files
-            click.secho("- Run `git add .` to add the files to the repository.", fg="yellow")
-            click.secho("- Run `git commit -m 'Initial commit'` to commit the files.", fg="yellow")
+            click.secho(
+                "- Run `git add .` to add the files to the repository.", fg="yellow"
+            )
+            click.secho(
+                "- Run `git commit -m 'Initial commit'` to commit the files.",
+                fg="yellow",
+            )
         except subprocess.CalledProcessError as e:
             click.secho("Failed.", fg="red")
             click.secho(f"Error: {e.stderr.decode().strip()}", fg="red")
@@ -548,7 +552,8 @@ def new(
     run_server = not no_run_server
     if not no_interactive:
         run_server = questionary.confirm(
-            "Do you want to start the server? (`poetry run mkdocs serve`)", default=run_server
+            "Do you want to start the server? (`poetry run mkdocs serve`)",
+            default=run_server,
         ).ask()
 
     if run_server:

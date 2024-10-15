@@ -1,24 +1,25 @@
 import json
 import logging
-from os import getenv, environ
 import os
 import re
 import shutil
 import subprocess
+import pathspec
+
 from functools import lru_cache, wraps
+from os import getenv
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Tuple
 from urllib.parse import urljoin
 
-import pathspec
+from dotenv import load_dotenv
+
 from mkdocs.config.defaults import MkDocsConfig
 from mkdocs.plugins import BasePlugin
 from mkdocs.structure.files import Files
 from mkdocs.structure.pages import Page
-from watchdog.events import FileSystemEvent
-from dotenv import load_dotenv
 from semver import Version
-from functools import wraps
+from watchdog.events import FileSystemEvent
 
 from mkdocs_juvix.utils import (
     compute_hash_filepath,
@@ -189,6 +190,7 @@ class _JuvixPlugin(BasePlugin):
                     )
             directory.mkdir(parents=True, exist_ok=True)
 
+        self.JUVIX_VERSION = ""
         if self.JUVIX_AVAILABLE:
             full_version_cmd = [self.JUVIX_BIN, "--version"]
             try:
@@ -209,8 +211,6 @@ class _JuvixPlugin(BasePlugin):
                 log.warning(
                     f"Something went wrong while getting the numeric version of Juvix. Error: {e}"
                 )
-        else:
-            self.JUVIX_VERSION = ""
 
         if self.JUVIX_VERSION == "":
             log.warning(
@@ -245,7 +245,7 @@ class _JuvixPlugin(BasePlugin):
 
         if not self.JUVIX_AVAILABLE and self.JUVIX_ENABLED:
             log.error(
-                """You have requested Juvix but it is not available. Check your configuration. 
+                """You have requested Juvix but it is not available. Check your configuration.
 Environment variables relevant:
 - JUVIX_ENABLED
 - JUVIX_BIN
@@ -352,8 +352,8 @@ Environment variables relevant:
             and (
                 not equal_hashes
                 or (
-                    self.HTML_CACHE_DIR.exists()
-                    and (len(list(self.HTML_CACHE_DIR.glob("*"))) == 0)
+                    self.HTML_CACHE_PATH.exists()
+                    and (len(list(self.HTML_CACHE_PATH.glob("*"))) == 0)
                 )
             )
         )
@@ -723,7 +723,7 @@ Environment variables relevant:
         except Exception as e:
             log.error(f"Error running Juvix on file: {fposix} -\n {e}")
             return None
-        
+
         md_output: str = result_markdown.stdout.decode("utf-8")
 
         cache_markdown_filename: Optional[str] = self._get_markdown_filename(filepath)
@@ -749,7 +749,9 @@ Environment variables relevant:
         return md_output
 
     def _update_raw_file(self, filepath: Path) -> None:
-        raw_path: Path = self.JUVIXCODE_CACHE_PATH / filepath.relative_to(self.DOCS_PATH)
+        raw_path: Path = self.JUVIXCODE_CACHE_PATH / filepath.relative_to(
+            self.DOCS_PATH
+        )
         raw_path.parent.mkdir(parents=True, exist_ok=True)
         try:
             shutil.copy(filepath, raw_path)
@@ -757,17 +759,15 @@ Environment variables relevant:
             log.error(f"Error copying file: {e}")
 
     def _update_hash_file(self, filepath: Path) -> Optional[Tuple[Path, str]]:
-        path_hash = compute_hash_filepath(filepath, hash_dir=self.HASHES_PATH)
-
+        filepath_hash = compute_hash_filepath(filepath, hash_dir=self.HASHES_PATH)
         try:
-            with open(path_hash, "w") as f:
+            with open(filepath_hash, "w") as f:
                 content_hash = hash_file(filepath)
                 f.write(content_hash)
-                return (path_hash, content_hash)
-
+                return (filepath_hash, content_hash)
         except Exception as e:
             log.error(f"Error updating hash file: {e}")
-        return None
+            return None
 
 
 def generate_code_block_footer_css_file(
