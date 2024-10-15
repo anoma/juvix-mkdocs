@@ -69,7 +69,16 @@ def cli():
 @click.option("--no-typecheck", is_flag=True, help="Skip typechecking the test file")
 @click.option("--no-run-server", is_flag=True, help="Skip running mkdocs serve")
 @click.option(
+    "--server-quiet", "-q", is_flag=True, help="Run mkdocs serve in quiet mode"
+)
+@click.option(
     "-n", "--no-interactive", is_flag=True, help="Run in non-interactive mode"
+)
+@click.option(
+    "--in-development", "-D", is_flag=True, help="Install mkdocs-juvix-plugin in development mode"
+)
+@click.option(
+    "--develop-dir", default="../", help="Directory to install mkdocs-juvix-plugin in development mode"
 )
 def new(
     project_name,
@@ -93,7 +102,10 @@ def new(
     no_init_git,
     no_typecheck,
     no_run_server,
+    server_quiet,
     no_interactive,
+    in_development,
+    develop_dir,
 ):
     """Subcommand to create a new Juvix documentation project."""
 
@@ -250,6 +262,17 @@ def new(
         click.secho(f"Found {mkdocs_file}. Use -f to force overwrite.", fg="yellow")
 
     year = datetime.now().year
+
+    index_file = docs_path / "index.juvix.md"
+    test_file = docs_path / "test.juvix.md"
+    everything_file = docs_path / "everything.juvix.md"
+    juvix_md_files = [index_file, test_file, everything_file]
+
+    nav = [
+        f"  - {file.relative_to(project_path)}: {file}"
+        for file in juvix_md_files
+    ]
+
     if not mkdocs_file.exists() or force:
         mkdocs_file.touch()
         click.secho(f"Adding {mkdocs_file}.", nl=False)
@@ -261,6 +284,7 @@ def new(
                 site_author=site_author,
                 project_name=project_name,
                 theme=theme,
+                nav=nav,
                 year=year,
                 font_text=font_text,
                 font_code=font_code,
@@ -364,6 +388,7 @@ def new(
                     f"--name={project_name}",
                     f"--description='{description}'",
                     f"--author={site_author}",
+                    "--python=^3.9",
                 ],
                 cwd=project_path,
                 check=True,
@@ -375,15 +400,18 @@ def new(
         click.secho(f"Failed to initialize Poetry project. Error: {e}", fg="red")
         return
 
-    def install_poetry_package(package_name, skip_flag=False):
+    def install_poetry_package(package_name, skip_flag=False, development_flag=False):
         if skip_flag:
             click.secho(f"Skipping installation of {package_name}", fg="yellow")
             return
 
         click.secho(f"Installing {package_name}... ", nl=False)
+        poetry_cmd = ["poetry", "add", package_name, "-q", "-n"]
+        if development_flag:
+            poetry_cmd.append("--develop=true")
         try:
             subprocess.run(
-                ["poetry", "add", package_name, "-q", "-n"],
+                poetry_cmd,
                 cwd=project_path,
                 check=True,
             )
@@ -395,7 +423,9 @@ def new(
             raise
 
     try:
-        install_poetry_package("mkdocs-juvix-plugin")
+        install_poetry_package("mkdocs-juvix-plugin", skip_flag=in_development)
+        if in_development:
+            install_poetry_package(develop_dir, development_flag=True)
         install_poetry_package("mkdocs-material", no_material)
     except Exception:
         return
@@ -439,7 +469,6 @@ def new(
 
     # Create index.md
     click.secho("Creating index.juvix.md... ", nl=False)
-    index_file = docs_path / "index.juvix.md"
     if not index_file.exists() or force:
         index_file.write_text((FIXTURES_PATH / "index.juvix.md").read_text())
         click.secho("Done.", fg="green")
@@ -447,7 +476,7 @@ def new(
         click.secho("File already exists. Use -f to force overwrite.", fg="yellow")
 
     click.secho("Creating test.juvix.md... ", nl=False)
-    test_file = docs_path / "test.juvix.md"
+
     if not test_file.exists() or force:
         test_file.write_text((FIXTURES_PATH / "test.juvix.md").read_text())
         click.secho("Done.", fg="green")
@@ -456,7 +485,6 @@ def new(
 
     if not no_everything:
         click.secho("Creating everything.juvix.md... ", nl=False)
-        everything_file = docs_path / "everything.juvix.md"
         if not everything_file.exists() or force:
             everything_file.write_text(
                 (FIXTURES_PATH / "everything.juvix.md").read_text()
@@ -501,7 +529,7 @@ def new(
             try:
                 subprocess.run(
                     ["juvix", "typecheck", file],
-                    cwd=project_path,
+                    # cwd=project_path,
                     check=True,
                     capture_output=True,
                 )
@@ -557,10 +585,13 @@ def new(
         ).ask()
 
     if run_server:
-        click.secho("Starting the server...", fg="yellow")
+        click.secho("Starting the server... (Ctrl+C to stop)", fg="yellow")
         try:
+            mkdocs_serve_cmd = ["poetry", "run", "mkdocs", "serve", "--open", "--clean"]
+            if server_quiet:
+                mkdocs_serve_cmd.append("-q")
             subprocess.run(
-                ["poetry", "run", "mkdocs", "serve", "--open", "--clean", "-q"],
+                mkdocs_serve_cmd,
                 cwd=project_path,
                 check=True,
             )

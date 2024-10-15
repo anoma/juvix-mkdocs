@@ -3,18 +3,19 @@
     - content.code.annotate
     - content.code.copy
     - content.tooltips
-    # - navigation.tracking
-    - navigation.footer
-    - navigation.path
-    # - navigation.expand
-    - navigation.prune
-    - navigation.tabs
-    - navigation.sections
-    # - navigation.instant
-    # - navigation.instant.preview
-    - navigation.indexes
     - search.highlight
     - search.suggest
     - search.sharing
+    - navigation.instant
+    - navigation.instant.prefetch
+    - navigation.instant.progress
+    - navigation.instant.preview
+    - navigation.tracking
+    - navigation.tabs
+    - navigation.tabs.sticky
+    - navigation.prune
+    - navigation.indexes
+    - navigation.top
+    - navigation.path
     - toc.follow
-    # - header.autohide
+    - toc.integrate

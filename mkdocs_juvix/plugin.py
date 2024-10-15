@@ -1,13 +1,14 @@
 import json
-import logging
 import os
 import re
 import shutil
 import subprocess
+import logging
 from functools import lru_cache, wraps
 from os import getenv
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Tuple
+from logging import Logger, getLogger
 from urllib.parse import urljoin
 
 import pathspec
@@ -27,7 +28,7 @@ from mkdocs_juvix.utils import (
 )
 
 load_dotenv()
-log: logging.Logger = logging.getLogger("mkdocs")
+log: Logger = getLogger("mkdocs")
 
 
 class JuvixPlugin(BasePlugin):
@@ -43,9 +44,7 @@ class JuvixPlugin(BasePlugin):
         getenv("REMOVE_CACHE", False)
     )  # Whether the cache should be removed
 
-    JUVIX_FOOTER_CSS_FILENAME: str = getenv(
-        "JUVIX_FOOTER_CSS_FILENAME", "juvix_codeblock_footer.css"
-    )
+    
     JUVIX_ENABLED: bool = bool(
         getenv("JUVIX_ENABLED", True)
     )  # Whether the user wants to use Juvix
@@ -60,25 +59,22 @@ class JuvixPlugin(BasePlugin):
         else JUVIX_BIN_NAME
     )  # The full path to the Juvix binary
     JUVIX_AVAILABLE: bool = shutil.which(JUVIX_BIN) is not None
-    JUVIXCODE_CACHE_DIRNAME: str = getenv(
-        "JUVIXCODE_CACHE_DIRNAME", ".juvix_md"
+    JUVIX_FOOTER_CSS_FILENAME: str = getenv(
+        "JUVIX_FOOTER_CSS_FILENAME", "juvix_codeblock_footer.css"
+    )
+    CACHE_JUVIX_MARKDOWN_DIRNAME: str = getenv(
+        "CACHE_JUVIX_MARKDOWN_DIRNAME", ".original_juvix_markdown_files"
     )  # The name of the directory where the Juvix Markdown files are cached
-    JUVIXCODE_PROJECT_HASH_FILENAME: str = getenv(
-        "JUVIXCODE_PROJECT_HASH_FILENAME", ".hash_juvix_md"
+    CACHE_JUVIX_PROJECT_HASH_FILENAME: str = getenv(
+        "CACHE_JUVIX_PROJECT_HASH_FILENAME", ".hash_compound_of_juvix_markdown_files"
     )  # The name of the file where the Juvix Markdown files are cached
 
-    ISABELLE_PROJECT_HASH_FILENAME: str = getenv(
-        "ISABELLE_PROJECT_HASH_FILENAME", ".hash_isabelle_md"
-    )  # The name of the file where the Isabelle Markdown files are cached
-    ISABELLE_ENABLED: bool = bool(
-        getenv("ISABELLE_ENABLED", True)
-    )  # Whether the user wants to use Isabelle
-    ISABELLECODE_CACHE_DIRNAME: str = getenv(
-        "ISABELLECODE_CACHE_DIRNAME", ".isabelle_md"
+    CACHE_ISABELLE_THEORIES_DIRNAME: str = getenv(
+        "CACHE_ISABELLE_THEORIES_DIRNAME", ".isabelle_theories"
     )  # The name of the directory where the Isabelle Markdown files are cached
 
     CACHE_HASHES_DIRNAME: str = getenv(
-        "CACHE_HASHES_DIRNAME", ".hashes"
+        "CACHE_HASHES_DIRNAME", ".hashes_for_juvix_markdown_files"
     )  # The name of the directory where the hashes are stored
     CACHE_HTML_DIRNAME: str = getenv(
         "CACHE_HTML_DIRNAME", ".html"
@@ -87,7 +83,7 @@ class JuvixPlugin(BasePlugin):
         getenv("FIRST_RUN", True)
     )  # Whether this is the first time the plugin is run
     CACHE_MARKDOWN_JUVIX_OUTPUT_DIRNAME: str = getenv(
-        "CACHE_MARKDOWN_JUVIX_OUTPUT_DIRNAME", ".juvix_md"
+        "CACHE_MARKDOWN_JUVIX_OUTPUT_DIRNAME", ".markdown_output_from_juvix_markdown_files"
     )  # The name of the file where the Juvix Markdown files are stored
     CACHE_JUVIX_VERSION_FILENAME: str = getenv(
         "CACHE_JUVIX_VERSION_FILENAME", ".juvix_version"
@@ -101,7 +97,7 @@ class JuvixPlugin(BasePlugin):
 
     CACHE_PATH: Path = Path(CACHE_DIRNAME)  # The path to the cache directory
     JUVIXCODE_CACHE_PATH: Path = (
-        CACHE_PATH / JUVIXCODE_CACHE_DIRNAME
+        CACHE_PATH / CACHE_JUVIX_MARKDOWN_DIRNAME
     )  # The path to the Juvix Markdown cache directory
     ROOT_PATH: Path = CACHE_PATH.parent  # The path to the root directory
     DOCS_PATH: Path = (
@@ -114,7 +110,9 @@ class JuvixPlugin(BasePlugin):
         CACHE_PATH / CACHE_HTML_DIRNAME
     )  # The path to the Juvix Markdown output directory
 
-    JUVIX_PROJECT_HASH_FILEPATH: Path = CACHE_PATH / JUVIXCODE_PROJECT_HASH_FILENAME
+    CACHE_JUVIX_PROJECT_HASH_FILEPATH: Path = (
+        CACHE_PATH / CACHE_JUVIX_PROJECT_HASH_FILENAME
+    )  # The path to the Juvix Markdown output directory
     CACHE_HASHES_PATH: Path = (
         CACHE_PATH / CACHE_HASHES_DIRNAME
     )  # The path where hashes are stored (not the project hash)
