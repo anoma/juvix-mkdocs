@@ -62,6 +62,18 @@ You can run the development server at any time by running:
 poetry run mkdocs serve
 ```
 
+Or with `juvix-mkdocs` (which is a wrapper around `poetry run mkdocs serve`):
+
+```shell
+juvix-mkdocs serve
+```
+
+And build the project:
+
+```shell
+juvix-mkdocs build
+```
+
 ## If you already have a MkDocs project
 
 If you already have a MkDocs project, add the plugin to your existing project,

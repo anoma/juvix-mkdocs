@@ -677,5 +677,35 @@ def serve(project_path: Path, no_open: bool, quiet: bool, config_file: Path):
         click.secho("Make sure Poetry is installed and in your system PATH.", fg="red")
 
 
+@cli.command()
+@click.option(
+    "--project-path",
+    "-p",
+    type=Path,
+    default=Path.cwd(),
+    help="Path to the project",
+    show_default=True,
+)
+@click.option(
+    "--config-file",
+    type=Path,
+    default=Path("mkdocs.yml"),
+    help="Path to the mkdocs configuration file",
+    show_default=True,
+)
+@click.option("--quiet", "-q", is_flag=True, help="Run mkdocs build in quiet mode")
+def build(project_path: Path, config_file: Path, quiet: bool):
+    mkdocs_build_cmd = ["poetry", "run", "mkdocs", "build"]
+    if config_file:
+        mkdocs_build_cmd.append(f"--config-file={config_file}")
+    if quiet:
+        mkdocs_build_cmd.append("-q")
+    try:
+        subprocess.run(mkdocs_build_cmd, cwd=project_path, check=True)
+    except subprocess.CalledProcessError as e:
+        click.secho("Failed to build the project.", fg="red")
+        click.secho(f"Error: {e}", fg="red")
+
+
 if __name__ == "__main__":
     cli()
