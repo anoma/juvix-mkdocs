@@ -5,8 +5,8 @@ from pathlib import Path
 
 import click
 import questionary
-from semver import Version
 import toml
+from semver import Version
 
 MIN_JUVIX_VERSION = Version(0, 6, 6)
 SRC_PATH = Path(__file__).parent
@@ -21,6 +21,7 @@ def version_from_toml():
         return toml_data["tool"]["poetry"]["version"]
     else:
         return "unknown"
+
 
 @click.group()
 @click.version_option(
@@ -100,7 +101,6 @@ def cli():
     default="../.",
     help="Directory to install mkdocs-juvix-plugin in development mode",
 )
-
 def new(
     project_name,
     description,
@@ -155,6 +155,7 @@ def new(
         no_material = not questionary.confirm(
             "Install mkdocs-material? (recommended)", default=not no_material
         ).ask()
+
         no_markdown_extensions = not questionary.confirm(
             "Set up markdown extensions? (recommended)",
             default=not no_markdown_extensions,
@@ -195,7 +196,7 @@ def new(
                 f"Directory {project_path.absolute()} already exists.", fg="red"
             )
             click.secho("Aborting.", fg="red")
-            click.secho("=" * 80, fg="white")
+            click.secho("=" * 70, fg="white")
             click.secho(
                 "Try a different project name or use -f to force overwrite.",
                 fg="yellow",
@@ -207,8 +208,8 @@ def new(
         try:
             shutil.rmtree(project_path)
             click.secho("Done.", fg="green")
-        except Exception as _:
-            click.secho("Failed.", fg="red")
+        except Exception as e:
+            click.secho(f"Failed. Error: {e}", fg="red")
             return
 
     project_path.mkdir(exist_ok=True, parents=True)
@@ -259,7 +260,7 @@ def new(
 
     if not no_juvix_package and (not juvixPackagePath.exists() or force):
         try:
-            click.secho("Initializing Juvix project... ", nl=False)
+            click.secho(f"Initializing Juvix project in {docs_path}...", nl=False)
             subprocess.run(["juvix", "init", "-n"], cwd=docs_path, check=True)
             click.secho("Done.", fg="green")
             if not juvixPackagePath.exists():
@@ -637,26 +638,44 @@ def new(
             fg="yellow",
         )
 
-@click.command()
+
+@cli.command()
+@click.option(
+    "--project-path",
+    "-p",
+    type=Path,
+    default=Path.cwd(),
+    help="Path to the project",
+    show_default=True,
+)
 @click.option("--no-open", is_flag=True, help="Do not open the project in a browser")
 @click.option("--quiet", "-q", is_flag=True, help="Run mkdocs serve in quiet mode")
-def serve(no_open: bool, quiet: bool):
-    """Serve the project using mkdocs."""
+@click.option(
+    "--config-file",
+    type=Path,
+    default=Path("mkdocs.yml"),
+    help="Path to the mkdocs configuration file",
+    show_default=True,
+)
+def serve(project_path: Path, no_open: bool, quiet: bool, config_file: Path):
+    """This is a wrapper around `poetry run mkdocs serve`.
+    It is used to serve the project using mkdocs."""
     mkdocs_serve_cmd = ["poetry", "run", "mkdocs", "serve", "--clean"]
     if not no_open:
         mkdocs_serve_cmd.append("--open")
     if quiet:
         mkdocs_serve_cmd.append("-q")
+    if config_file:
+        mkdocs_serve_cmd.append(f"--config-file={config_file}")
     try:
-        subprocess.run(mkdocs_serve_cmd, check=True)
+        subprocess.run(mkdocs_serve_cmd, cwd=project_path, check=True)
     except subprocess.CalledProcessError as e:
         click.secho("Failed to start the server.", fg="red")
         click.secho(f"Error: {e}", fg="red")
     except FileNotFoundError:
         click.secho("Failed to start the server.", fg="red")
-        click.secho(
-            "Make sure Poetry is installed and in your system PATH.", fg="red"
-        )
+        click.secho("Make sure Poetry is installed and in your system PATH.", fg="red")
+
 
 if __name__ == "__main__":
     cli()

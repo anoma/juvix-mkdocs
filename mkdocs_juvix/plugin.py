@@ -9,7 +9,7 @@ from typing import Any, Callable, Dict, List, Optional, Tuple
 from urllib.parse import urljoin
 
 import pathspec
-from bs4 import BeautifulSoup, SoupStrainer
+from bs4 import BeautifulSoup
 from dotenv import load_dotenv
 from mkdocs.config.defaults import MkDocsConfig
 from mkdocs.plugins import BasePlugin, get_plugin_logger
@@ -27,7 +27,7 @@ from mkdocs_juvix.utils import (
 
 load_dotenv()
 
-log = get_plugin_logger("[JuvixPlugin] ")
+log = get_plugin_logger("JuvixPlugin")
 
 
 class JuvixPlugin(BasePlugin):
@@ -109,7 +109,7 @@ class JuvixPlugin(BasePlugin):
     JUVIX_FOOTER_CSS_FILEPATH: Path  # The path to the Juvix footer CSS file
     CACHE_JUVIX_VERSION_FILEPATH: Path  # The path to the Juvix version file
 
-    """ For reference, the Mkdocs Pipeline is the following:
+    _mkdocs_pipeline: str = """ For reference, the Mkdocs Pipeline is the following:
     ├── on_startup(command, dirty)
     └── on_config(config)
         ├── on_pre_build(config)
@@ -272,6 +272,24 @@ class JuvixPlugin(BasePlugin):
             self.JUVIX_AVAILABLE = False
             return config
 
+        # Check if we need to create or update the codeblock footer CSS
+        version_diff = Version.parse(
+            self.CACHE_JUVIX_VERSION_FILEPATH.read_text().strip()
+        ) != Version.parse(self.JUVIX_VERSION)
+        if not self.CACHE_JUVIX_VERSION_FILEPATH.exists() or version_diff:
+            log.info("Writing Juvix version to cache: %s", self.JUVIX_VERSION)
+            self.CACHE_JUVIX_VERSION_FILEPATH.write_text(self.JUVIX_VERSION)
+
+        if not self.JUVIX_FOOTER_CSS_FILEPATH.exists() or version_diff:
+            log.info("Generating codeblock footer CSS file")
+            self._generate_code_block_footer_css_file(
+                self.JUVIX_FOOTER_CSS_FILEPATH, self.JUVIX_VERSION
+            )
+            log.info(
+                "Codeblock footer CSS file generated and saved to %s",
+                self.JUVIX_FOOTER_CSS_FILEPATH.as_posix(),
+            )
+
         config = fix_site_url(config)
         self.mkconfig = config
 
@@ -319,34 +337,8 @@ Environment variables relevant:
                     [self.JUVIX_BIN, "dependencies", "update"], capture_output=True
                 )
             except Exception as e:
-                if self.JUVIX_ENABLED and self.JUVIX_AVAILABLE:
-                    log.error(
-                        f"A problem occurred while updating Juvix dependencies: {e}"
-                    )
+                log.error(f"A problem occurred while updating Juvix dependencies: {e}")
                 return
-
-        # New code for CSS generation
-
-        need_to_write = (
-            not self.CACHE_JUVIX_VERSION_FILEPATH.exists()
-            or not self.JUVIX_FOOTER_CSS_FILEPATH.exists()
-        )
-        read_version = (
-            self.CACHE_JUVIX_VERSION_FILEPATH.read_text().strip()
-            if not need_to_write
-            else None
-        )
-
-        if read_version != self.JUVIX_VERSION:
-            self.CACHE_JUVIX_VERSION_FILEPATH.parent.mkdir(parents=True, exist_ok=True)
-            self.CACHE_JUVIX_VERSION_FILEPATH.write_text(
-                self.JUVIX_VERSION if self.JUVIX_VERSION is not None else ""
-            )
-            need_to_write = True
-        if need_to_write:
-            self._generate_code_block_footer_css_file(
-                self.JUVIX_FOOTER_CSS_FILEPATH, self.JUVIX_VERSION
-            )
 
         for _file in self.DOCS_ABSPATH.rglob("*.juvix.md"):
             file: Path = _file.absolute()
@@ -383,7 +375,7 @@ Environment variables relevant:
         equal_hashes = current_sha == sha_filecontent
 
         log.info("Computed Juvix content hash: %s", current_sha)
-        log.info(" Location: %s", self.JUVIXCODE_CACHE_ABSPATH.as_posix())
+        log.info("> Location: %s", self.JUVIXCODE_CACHE_ABSPATH.as_posix())
 
         if not equal_hashes:
             log.info("Cache Juvix content hash: %s", sha_filecontent)
@@ -460,6 +452,11 @@ Environment variables relevant:
         page.file.url = page.file.url.replace(".juvix", "")
         page.file.dest_uri = page.file.dest_uri.replace(".juvix", "")
         page.file.abs_dest_path = page.file.abs_dest_path.replace(".juvix", "")
+
+        metadata = page.meta
+        if metadata.get("isabelle", False):
+            # isabelle_html = self._generate_isabelle_html(page.file.abs_src_path)
+            return markdown
         return markdown
 
     @if_juvix_enabled
