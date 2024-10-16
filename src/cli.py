@@ -1,14 +1,14 @@
+import os
 import shutil
 import subprocess
 from datetime import datetime
 from pathlib import Path
 
-import os
 import click
 import questionary
 import toml
-from semver import Version
 from dotenv import load_dotenv
+from semver import Version
 
 load_dotenv()
 
