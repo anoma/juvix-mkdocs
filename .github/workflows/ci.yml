@@ -67,7 +67,7 @@ jobs:
         run: poetry run pytest
       - name: Create MkDocs Project
         run: |
-          juvix-mkdocs new -f -n --no-run-server --no-open --project-name my-juvix-project
+          juvix-mkdocs new -f -n --no-run-server --no-open --project-name my-juvix-project --anoma-setup
       - name: Build MkDocs Project
         run: juvix-mkdocs build -p my-juvix-project
         env:

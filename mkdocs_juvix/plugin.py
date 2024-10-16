@@ -465,6 +465,7 @@ Environment variables relevant:
 
         metadata = page.meta
         if metadata.get("isabelle", False):
+            log.error("Isabelle is not supported yet")
             # isabelle_html = self._generate_isabelle_html(page.file.abs_src_path)
             return markdown
         return markdown
