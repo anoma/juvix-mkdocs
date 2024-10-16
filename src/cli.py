@@ -3,10 +3,17 @@ import subprocess
 from datetime import datetime
 from pathlib import Path
 
+import os
 import click
 import questionary
 import toml
 from semver import Version
+from dotenv import load_dotenv
+
+load_dotenv()
+
+JUVIX_BIN = os.getenv("JUVIX_BIN", "juvix")
+POETRY_BIN = os.getenv("POETRY_BIN", "poetry")
 
 MIN_JUVIX_VERSION = Version(0, 6, 6)
 SRC_PATH = Path(__file__).parent
@@ -231,7 +238,7 @@ def new(
         click.secho("Checking Juvix version...", nl=False)
         juvix_version = (
             subprocess.check_output(
-                ["juvix", "--numeric-version"], stderr=subprocess.STDOUT
+                [JUVIX_BIN, "--numeric-version"], stderr=subprocess.STDOUT
             )
             .decode()
             .strip()
@@ -262,7 +269,7 @@ def new(
     if not no_juvix_package and (not juvixPackagePath.exists() or force):
         try:
             click.secho(f"Initializing Juvix project in {docs_path}...", nl=False)
-            subprocess.run(["juvix", "init", "-n"], cwd=docs_path, check=True)
+            subprocess.run([JUVIX_BIN, "init", "-n"], cwd=docs_path, check=True)
             click.secho("Done.", fg="green")
             if not juvixPackagePath.exists():
                 click.secho(
@@ -434,7 +441,7 @@ def new(
             click.secho("Initializing poetry project... ", nl=False)
             subprocess.run(
                 [
-                    "poetry",
+                    POETRY_BIN,
                     "init",
                     "-n",
                     f"--name={project_name}",
@@ -468,7 +475,7 @@ def new(
         )
 
         click.secho(f"Installing {alias_package_name}... ", nl=False)
-        poetry_cmd = ["poetry", "add", package_name, "-q", "-n"]
+        poetry_cmd = [POETRY_BIN, "add", package_name, "-q", "-n"]
         if development_flag:
             poetry_cmd.append("--editable")
         try:
