@@ -101,6 +101,11 @@ def cli():
     default="../.",
     help="Directory to install mkdocs-juvix-plugin in development mode",
 )
+@click.option(
+    "--anoma-setup",
+    is_flag=True,
+    help="Setup the project to follow the Anoma style",
+)
 def new(
     project_name,
     description,
@@ -117,6 +122,7 @@ def new(
     no_juvix_package,
     no_everything,
     no_github_actions,
+    anoma_setup,
     no_material,
     no_markdown_extensions,
     no_assets,
@@ -150,11 +156,6 @@ def new(
         theme = questionary.text("Theme to use:", default=theme).ask()
         font_text = questionary.text("Font for text:", default=font_text).ask()
         font_code = questionary.text("Font for code:", default=font_code).ask()
-
-        # Plugin and Feature Settings
-        no_material = not questionary.confirm(
-            "Install mkdocs-material? (recommended)", default=not no_material
-        ).ask()
 
         no_markdown_extensions = not questionary.confirm(
             "Set up markdown extensions? (recommended)",
@@ -403,6 +404,7 @@ def new(
     # Run poetry init and add mkdocs-juvix-plugin mkdocs-material
     try:
         poetry_file = project_path / "pyproject.toml"
+        click.secho("Creating pyproject.toml... ", nl=False)
         if not poetry_file.exists() or force:
             click.secho("Initializing poetry project... ", nl=False)
             subprocess.run(
@@ -426,12 +428,20 @@ def new(
         return
 
     def install_poetry_package(package_name, skip_flag=False, development_flag=False):
+        # ask for confirmation
+        if not no_interactive and not skip_flag:
+            skip_flag = questionary.confirm(
+                f"Install {package_name}? (recommended)",
+                default=skip_flag,
+            ).ask()
         if skip_flag:
             click.secho(f"Skipping installation of {package_name}", fg="yellow")
             return
+        
         alias_package_name = (
             package_name if package_name != "../." else "mkdocs-juvix-plugin-DEV"
         )
+        
         click.secho(f"Installing {alias_package_name}... ", nl=False)
         poetry_cmd = ["poetry", "add", package_name, "-q", "-n"]
         if development_flag:
@@ -450,10 +460,21 @@ def new(
             raise
 
     try:
-        install_poetry_package("mkdocs-juvix-plugin", skip_flag=in_development)
         if in_development:
             install_poetry_package(develop_dir, development_flag=True)
-        install_poetry_package("mkdocs-material", no_material)
+        else:
+            install_poetry_package("mkdocs-juvix-plugin")
+        # rest of the plugins
+        rest_of_plugins = [
+            "mkdocs-material",
+            "graphviz",
+            "pymdown-extensions",
+            "mkdocs-macros-plugin",
+            "mkdocs-glightbox",
+        ]
+        for plugin in rest_of_plugins:
+            install_poetry_package(plugin)
+
     except Exception:
         return
 
