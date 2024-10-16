@@ -109,6 +109,11 @@ def cli():
     help="Directory to install mkdocs-juvix-plugin in development mode",
 )
 @click.option(
+    "--output-dir",
+    default=".",
+    show_default=True,
+)
+@click.option(
     "--anoma-setup",
     is_flag=True,
     help="Setup the project to follow the Anoma style",
@@ -141,6 +146,7 @@ def new(
     no_interactive,
     in_development,
     develop_dir,
+    output_dir,
 ):
     """Subcommand to create a new Juvix documentation project."""
 
@@ -192,7 +198,10 @@ def new(
             f"Create {docs_dir}/assets folder?", default=not no_assets
         ).ask()
 
-    project_path = Path(project_name)
+    project_path = (
+        Path(output_dir) / project_name if output_dir != "." else Path(project_name)
+    )
+
     if project_path.exists() and not force:
         if (
             no_interactive
@@ -219,10 +228,13 @@ def new(
         except Exception as e:
             click.secho(f"Failed. Error: {e}", fg="red")
             return
-
-    project_path.mkdir(exist_ok=True, parents=True)
-    click.secho(f"Creating {project_path}.", nl=False)
-    click.secho("Done.", fg="green")
+    try:
+        click.secho(f"Creating {project_path}.", nl=False)
+        project_path.mkdir(exist_ok=True, parents=True)
+        click.secho("Done.", fg="green")
+    except Exception as e:
+        click.secho(f"Failed. Error: {e}", fg="red")
+        return
 
     docs_path = project_path / docs_dir
 
