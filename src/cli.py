@@ -347,7 +347,10 @@ def new(
             click.secho("Skipping.", fg="yellow")
 
         click.secho("Updating `extra_css` section in mkdocs.yml... ", nl=False)
-        valid_css_files = ["juvix-material-style.css", "juvix-highlighting.css"]
+        valid_css_files = ["juvix-highlighting.css", "juvix_codeblock_footer.css"]
+        if not no_material:
+            valid_css_files.append("juvix-material-style.css")
+            
         if "extra_css:" not in mkdocs_file.read_text():
             with mkdocs_file.open("a") as f:
                 f.write("\n")
@@ -437,11 +440,11 @@ def new(
         if skip_flag:
             click.secho(f"Skipping installation of {package_name}", fg="yellow")
             return
-        
+
         alias_package_name = (
             package_name if package_name != "../." else "mkdocs-juvix-plugin-DEV"
         )
-        
+
         click.secho(f"Installing {alias_package_name}... ", nl=False)
         poetry_cmd = ["poetry", "add", package_name, "-q", "-n"]
         if development_flag:
@@ -681,6 +684,17 @@ def new(
 def serve(project_path: Path, no_open: bool, quiet: bool, config_file: Path):
     """This is a wrapper around `poetry run mkdocs serve`.
     It is used to serve the project using mkdocs."""
+
+    click.secho("Running in project path: ", nl=False)
+    click.secho(f"{project_path}", fg="blue")
+    # check if the config file exists
+    if not (project_path / config_file).exists():
+        click.secho(
+            f"Config file {config_file} not found. Specify a different config file using --config-file.",
+            fg="red",
+        )
+        return
+
     mkdocs_serve_cmd = ["poetry", "run", "mkdocs", "serve", "--clean"]
     if not no_open:
         mkdocs_serve_cmd.append("--open")
