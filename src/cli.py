@@ -310,6 +310,11 @@ def new(
                 site_author=site_author,
                 project_name=project_name,
                 theme=theme,
+                anoma_theme_config=(
+                    ""
+                    if not anoma_setup
+                    else (FIXTURES_PATH / "anoma_theme.yml").read_text()
+                ),
                 nav=nav,
                 year=year,
                 font_text=font_text,
@@ -328,6 +333,23 @@ def new(
                 ),
             )
         )
+
+        if anoma_setup:
+            # copy "overrides" folder from FIXTURES_PATH to project_path /
+            # "docs"
+            try:
+                click.secho("Copying overrides folder... ", nl=False)
+                shutil.copytree(
+                    FIXTURES_PATH / "overrides",
+                    project_path / "overrides",
+                    dirs_exist_ok=True,
+                )
+                click.secho("Done.", fg="green")
+            except Exception as e:
+                click.secho(f"Failed to copy overrides folder. Error: {e}", fg="red")
+                click.secho("Aborting. Use -f to force overwrite.", fg="red")
+                return
+
         click.secho("Done.", fg="green")
         click.secho("Copying assets folder... ", nl=False)
         if not no_assets:
@@ -350,7 +372,7 @@ def new(
         valid_css_files = ["juvix-highlighting.css", "juvix_codeblock_footer.css"]
         if not no_material:
             valid_css_files.append("juvix-material-style.css")
-            
+
         if "extra_css:" not in mkdocs_file.read_text():
             with mkdocs_file.open("a") as f:
                 f.write("\n")

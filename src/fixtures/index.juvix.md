@@ -10,10 +10,11 @@ pip3 install mkdocs-juvix-plugin
 This website is an example of a documentation website that is built using this
 package.
 
-We created this website running:
+We created this website by running `juvix-mkdocs new` with the `--anoma-setup`
+flag, which creates a custom theme for the website. This is optional.
 
 ```bash
-juvix-mkdocs new my-juvix-project
+juvix-mkdocs new my-juvix-project --anoma-setup
 ```
 
 Checkout all the options with:
@@ -39,7 +40,7 @@ instructions on the official [Juvix](https://docs.juvix.org) and
 A Juvix Markdown file is a special type of Markdown file with the extension
 `.juvix.md`. These files are preprocessed by the Juvix compiler to generate the
 final Markdown output, allowing you to seamlessly integrate Juvix code into your
-documentation. Easy. 
+documentation. Easy.
 
 ## Key Features of Juvix Markdown
 
@@ -53,7 +54,8 @@ For Juvix code blocks:
 
 ## Example: Module Declaration
 
-Here's how you declare a module in a Juvix Markdown file:
+Here's how you declare a module in a Juvix Markdown file named `index` (notice
+this file is located in the `docs` folder, same folder where `Package.juvix` is located):
 
 ```juvix
 module index;

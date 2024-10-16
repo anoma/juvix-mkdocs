@@ -32,6 +32,7 @@ log = get_plugin_logger("JuvixPlugin")
 BASE_PATH = Path(__file__).parent
 FIXTURES_PATH = BASE_PATH / "fixtures"
 
+
 class JuvixPlugin(BasePlugin):
     mkconfig: MkDocsConfig
     juvix_md_files: List[Dict[str, Any]]
@@ -97,7 +98,9 @@ class JuvixPlugin(BasePlugin):
     )  # The name of the directory where the documentation is stored
 
     CACHE_ABSPATH: Path  # The path to the cache directory
-    CACHE_ORIGINAL_JUVIX_MARKDOWN_FILES_ABSPATH: Path  # The path to the Juvix Markdown cache directory
+    CACHE_ORIGINAL_JUVIX_MARKDOWN_FILES_ABSPATH: (
+        Path  # The path to the Juvix Markdown cache directory
+    )
     ROOT_ABSPATH: Path  # The path to the root directory
     DOCS_ABSPATH: Path  # The path to the documentation directory
     CACHE_MARKDOWN_JUVIX_OUTPUT_PATH: (
@@ -297,7 +300,9 @@ class JuvixPlugin(BasePlugin):
         self.mkconfig = config
 
         # Add CSS file to extra_css
-        css_path = self.JUVIX_FOOTER_CSS_FILEPATH.relative_to(self.DOCS_ABSPATH).as_posix()
+        css_path = self.JUVIX_FOOTER_CSS_FILEPATH.relative_to(
+            self.DOCS_ABSPATH
+        ).as_posix()
         if css_path not in self.mkconfig["extra_css"]:
             self.mkconfig["extra_css"].append(css_path)
         log.info("Added CSS file to extra_css: %s", css_path)
@@ -376,7 +381,9 @@ Environment variables relevant:
             else None
         )
 
-        current_sha: str = compute_sha_over_folder(self.CACHE_ORIGINAL_JUVIX_MARKDOWN_FILES_ABSPATH)
+        current_sha: str = compute_sha_over_folder(
+            self.CACHE_ORIGINAL_JUVIX_MARKDOWN_FILES_ABSPATH
+        )
         equal_hashes = current_sha == sha_filecontent
 
         log.info("Computed Juvix content hash: %s", current_sha)
@@ -539,12 +546,16 @@ Environment variables relevant:
         # Juvix Markdown file to not lose the generated HTML files in the site
         # directory.
 
-        for _file in self.CACHE_ORIGINAL_JUVIX_MARKDOWN_FILES_ABSPATH.rglob("*.juvix.md"):
+        for _file in self.CACHE_ORIGINAL_JUVIX_MARKDOWN_FILES_ABSPATH.rglob(
+            "*.juvix.md"
+        ):
             file = _file.absolute()
 
             html_file_path = (
                 self.CACHE_HTML_PATH
-                / file.relative_to(self.CACHE_ORIGINAL_JUVIX_MARKDOWN_FILES_ABSPATH).parent
+                / file.relative_to(
+                    self.CACHE_ORIGINAL_JUVIX_MARKDOWN_FILES_ABSPATH
+                ).parent
                 / file.name.replace(".juvix.md", ".html")
             )
 
@@ -788,8 +799,9 @@ Environment variables relevant:
         return md_output
 
     def _update_raw_file(self, filepath: Path) -> None:
-        raw_path: Path = self.CACHE_ORIGINAL_JUVIX_MARKDOWN_FILES_ABSPATH / filepath.relative_to(
-            self.DOCS_ABSPATH
+        raw_path: Path = (
+            self.CACHE_ORIGINAL_JUVIX_MARKDOWN_FILES_ABSPATH
+            / filepath.relative_to(self.DOCS_ABSPATH)
         )
         raw_path.parent.mkdir(parents=True, exist_ok=True)
         try:
@@ -814,14 +826,14 @@ Environment variables relevant:
         css_file.parent.mkdir(parents=True, exist_ok=True)
         try:
             if compiler_version is None:
-                compiler_version = f"Juvix v{str(Version.parse(self.JUVIX_VERSION))}".strip()
-                log.error(f"Compiler version: {compiler_version}")
+                compiler_version = str(Version.parse(self.JUVIX_VERSION))
+            compiler_version = f"Juvix v{compiler_version}".strip()
             css_file.write_text(
-                (FIXTURES_PATH / "juvix_codeblock_footer.css").read_text().format(compiler_version=compiler_version)
+                (FIXTURES_PATH / "juvix_codeblock_footer.css")
+                .read_text()
+                .format(compiler_version=compiler_version)
             )
             log.info(f"CSS file generated at: {css_file.as_posix()}")
-            log.info(f"CSS file content: {css_file.read_text()}")
-            raise Exception("asdf")
         except Exception as e:
             log.error(f"Error writing to CSS file: {e}")
             return None

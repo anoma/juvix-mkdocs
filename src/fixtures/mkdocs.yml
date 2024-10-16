@@ -1,12 +1,14 @@
 site_name: !ENV [SITE_NAME, '{project_name}']
 site_author: !ENV [SITE_AUTHOR, "{site_author}"]
-site_description: !ENV [SITE_DESCRIPTION, "Documentation for my Juvix Application"]
-site_url: !ENV [SITE_URL, 'https://docs.juvix.org']
+site_description: !ENV [SITE_DESCRIPTION, "Documentation project with support
+for Juvix code blocks syntax highlighting."]
+site_url: !ENV [SITE_URL, 'https://github.com/anoma/juvix-mkdocs']
 site_dir: !ENV [SITE_DIR, '{site_dir}']
-copyright: !ENV [COPYRIGHT, "&copy; {year} <a href=\"https://juvix.org\">Juvix</a>"]
+copyright: !ENV [COPYRIGHT, "&copy; {year} <a href=\"https://github.com/anoma/juvix-mkdocs\">juvix-mkdocs</a>"]
 use_directory_urls: false
 exclude_docs: |
   */**/.juvix-build/
+  */**/.hooks/
 nav:
 {nav}
 
@@ -19,5 +21,6 @@ theme:
   font:
     text: !ENV [FONT_TEXT, '{font_text}']
     code: !ENV [FONT_CODE, '{font_code}']
+{anoma_theme_config}
 {theme_features}
 {markdown_extensions}
