@@ -58,6 +58,9 @@ jobs:
             mkdocs-material-
       - name: Install Linux dependencies
         run: sudo apt-get install -y libcairo2-dev libfreetype6-dev libffi-dev libjpeg-dev libpng-dev libz-dev pngquant graphviz
+      - run: |
+          poetry config virtualenvs.create false --local
+          poetry config virtualenvs.in-project false --local
       - name: Install Python dependencies
         run: poetry install
       - name: Run test
