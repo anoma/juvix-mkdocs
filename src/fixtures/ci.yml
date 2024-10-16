@@ -41,40 +41,37 @@ jobs:
           path: .juvix-build
           restore-keys: |
             juvix-cache-
-      - name: Typecheck everything.juvix.md
-        run: |
-          juvix --version
-          juvix typecheck docs/everything.juvix.md || true
-      - name: Install Python
+     - name: Install Python
         uses: actions/setup-python@v5.2.0
         with:
-          python-version: ${{{{ env.PYTHON_VERSION }}}}
+          python-version: ${{ env.PYTHON_VERSION }}
       - name: Install Poetry
         uses: abatilo/actions-poetry@v3.0.0
         with:
-          poetry-version: ${{{{ env.POETRY_VERSION }}}}
+          poetry-version: ${{ env.POETRY_VERSION }}
       - name: Cache .cache
         uses: actions/cache@v4.0.2
         with:
-          key: mkdocs-material-${{{{ env.cache_id }}}}
+          key: mkdocs-material-${{ env.cache_id }}
           path: .cache
           restore-keys: |
             mkdocs-material-
       - name: Install Linux dependencies
         run: sudo apt-get install -y libcairo2-dev libfreetype6-dev libffi-dev libjpeg-dev libpng-dev libz-dev pngquant graphviz
+      - run: |
+          poetry config virtualenvs.create false --local
+          poetry config virtualenvs.in-project false --local
       - name: Install Python dependencies
-        run: poetry install
-      - name: Create MkDocs Project
-        run: |
-          poetry run mkjuvix new -f
+        run: poetry install mkdocs-juvix-plugin
       - name: Build MkDocs Project
         run: poetry run mkdocs build --clean --config-file mkdocs.yml
         env:
-          SITE_URL: https://anoma.github.io/juvix-mkdocs
+          SITE_URL: https://${{{{ github.repository_owner }}}}.github.io/${{{{ github.event.repository.name }}}}
       - if: success()
         uses: JamesIves/github-pages-deploy-action@v4.6.4
         with:
-          token: ${{{{ secrets.GITHUB_TOKEN }}}}
           clean: true
+          folder: site
+          token: ${{{{ secrets.GITHUB_TOKEN }}}}
           git-config-name: ${{{{ env.GIT_COMMITTER_NAME }}}}
           git-config-email: ${{{{ env.GIT_COMMITTER_EMAIL }}}}
