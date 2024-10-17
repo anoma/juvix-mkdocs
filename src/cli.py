@@ -30,39 +30,32 @@ def version_from_toml():
         return "unknown"
 
 
+__version__ = version_from_toml()
+
+
 @click.group()
 @click.version_option(
-    version=version_from_toml(),
-    help="Show the version of the CLI",
+    version=__version__,
+    help="Show the version of the CLI.",
 )
 def cli():
-    """Helper CLI for making MkDocs projects with Juvix."""
+    """Helper CLI for making beautiful MkDocs sites with support for Juvix code blocks."""
     pass
 
 
 @cli.command()
+# Project Information
 @click.option(
     "--project-name",
     default="my-juvix-project",
     help="Name of the project",
     show_default=True,
 )
-@click.option("--font-text", default="Inter", help="Font for text", show_default=True)
-@click.option(
-    "--font-code", default="Source Code Pro", help="Font for code", show_default=True
-)
-@click.option("--theme", default="material", help="Theme to use", show_default=True)
 @click.option(
     "--description",
     default="A Juvix documentation project using MkDocs.",
     help="Description of the project",
     show_default=True,
-)
-@click.option(
-    "--site-dir", default="site", help="Site directory as for MkDocs", show_default=True
-)
-@click.option(
-    "--docs-dir", default="docs", help="Docs directory as for MkDocs", show_default=True
 )
 @click.option(
     "--site-author",
@@ -76,11 +69,30 @@ def cli():
     help="Site author email",
     show_default=True,
 )
+# Directory Settings
+@click.option(
+    "--output-dir",
+    default=".",
+    show_default=True,
+    help="Output directory for the project",
+)
+@click.option(
+    "--docs-dir", default="docs", help="Docs directory as for MkDocs", show_default=True
+)
+@click.option(
+    "--site-dir", default="site", help="Site directory as for MkDocs", show_default=True
+)
 @click.option(
     "--bib-dir", default="docs/references", help="BibTeX directory", show_default=True
 )
+# Theme and Font Settings
+@click.option("--theme", default="material", help="Theme to use", show_default=True)
+@click.option("--font-text", default="Inter", help="Font for text", show_default=True)
+@click.option(
+    "--font-code", default="Source Code Pro", help="Font for code", show_default=True
+)
+# Feature Flags
 @click.option("--no-bibtex", is_flag=True, help="Skip BibTeX plugin setup")
-@click.option("--force", "-f", is_flag=True, help="Force overwrite existing files")
 @click.option("--no-juvix-package", is_flag=True, help="Skip Juvix package setup")
 @click.option("--no-everything", is_flag=True, help="Skip everything.juvix.md")
 @click.option("--no-github-actions", is_flag=True, help="Skip GitHub Actions setup")
@@ -90,13 +102,15 @@ def cli():
 @click.option("--no-init-git", is_flag=True, help="Skip git repository initialization")
 @click.option("--no-typecheck", is_flag=True, help="Skip typechecking the test file")
 @click.option("--no-run-server", is_flag=True, help="Skip running mkdocs serve")
+@click.option("--no-open", is_flag=True, help="Do not open the project in a browser")
+# Behavior Flags
+@click.option("--force", "-f", is_flag=True, help="Force overwrite existing files")
 @click.option(
     "--server-quiet", "-q", is_flag=True, help="Run mkdocs serve in quiet mode"
 )
 @click.option(
     "-n", "--no-interactive", is_flag=True, help="Run in non-interactive mode"
 )
-@click.option("--no-open", is_flag=True, help="Do not open the project in a browser")
 @click.option(
     "--in-development",
     "-D",
@@ -109,11 +123,6 @@ def cli():
     help="Directory to install mkdocs-juvix-plugin in development mode",
 )
 @click.option(
-    "--output-dir",
-    default=".",
-    show_default=True,
-)
-@click.option(
     "--anoma-setup",
     is_flag=True,
     help="Setup the project to follow the Anoma style",
@@ -121,32 +130,32 @@ def cli():
 def new(
     project_name,
     description,
-    font_text,
-    font_code,
-    docs_dir,
-    theme,
-    site_dir,
     site_author,
     site_author_email,
+    output_dir,
+    docs_dir,
+    site_dir,
     bib_dir,
+    theme,
+    font_text,
+    font_code,
     no_bibtex,
-    force,
     no_juvix_package,
     no_everything,
     no_github_actions,
-    anoma_setup,
     no_material,
     no_markdown_extensions,
     no_assets,
     no_init_git,
     no_typecheck,
     no_run_server,
-    server_quiet,
     no_open,
+    force,
+    server_quiet,
     no_interactive,
     in_development,
     develop_dir,
-    output_dir,
+    anoma_setup,
 ):
     """Subcommand to create a new Juvix documentation project."""
 
@@ -308,13 +317,16 @@ def new(
 
     index_file = docs_path / "index.juvix.md"
     test_file = docs_path / "test.juvix.md"
+    test_to_isabelle_file = docs_path / "test_to_isabelle.juvix.md"
+    juvix_md_files = [index_file, test_file, test_to_isabelle_file]
+
+    # this file is a bit special, as goes separately
     everything_file = docs_path / "everything.juvix.md"
-    juvix_md_files = [index_file, test_file, everything_file]
 
     nav = "\n".join(
         [
             f"  - {file.stem.replace('.juvix', '')}: {file.relative_to(docs_path)}"
-            for file in juvix_md_files
+            for file in (juvix_md_files + [everything_file])
         ]
     )
 
@@ -560,20 +572,13 @@ def new(
             click.secho("Done.", fg="green")
 
     # Create index.md
-    click.secho("Creating index.juvix.md... ", nl=False)
-    if not index_file.exists() or force:
-        index_file.write_text((FIXTURES_PATH / "index.juvix.md").read_text())
-        click.secho("Done.", fg="green")
-    else:
-        click.secho("File already exists. Use -f to force overwrite.", fg="yellow")
-
-    click.secho("Creating test.juvix.md... ", nl=False)
-
-    if not test_file.exists() or force:
-        test_file.write_text((FIXTURES_PATH / "test.juvix.md").read_text())
-        click.secho("Done.", fg="green")
-    else:
-        click.secho("File already exists. Use -f to force overwrite.", fg="yellow")
+    for file in juvix_md_files:
+        click.secho(f"Creating {file.name}... ", nl=False)
+        if not file.exists() or force:
+            file.write_text((FIXTURES_PATH / file.name).read_text())
+            click.secho("Done.", fg="green")
+        else:
+            click.secho("File already exists. Use -f to force overwrite.", fg="yellow")
 
     if not no_everything:
         click.secho("Creating everything.juvix.md... ", nl=False)
@@ -771,6 +776,17 @@ def serve(project_path: Path, no_open: bool, quiet: bool, config_file: Path):
 )
 @click.option("--quiet", "-q", is_flag=True, help="Run mkdocs build in quiet mode")
 def build(project_path: Path, config_file: Path, quiet: bool):
+    """This is a wrapper around `poetry run mkdocs build`."""
+    click.secho("Running in project path: ", nl=False)
+    click.secho(f"{project_path}", fg="blue")
+    # check if the config file exists
+    if not (project_path / config_file).exists():
+        click.secho(
+            f"Config file {config_file} not found. Specify a different config file using --config-file.",
+            fg="red",
+        )
+        return
+
     mkdocs_build_cmd = ["poetry", "run", "mkdocs", "build"]
     if config_file:
         mkdocs_build_cmd.append(f"--config-file={config_file}")

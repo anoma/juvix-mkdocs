@@ -8,6 +8,5 @@ This is a Juvix code block:
 module test;
 
 import Stdlib.Prelude open;
-
 main : String := "Hello world!";
 ```

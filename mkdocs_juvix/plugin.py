@@ -73,7 +73,8 @@ class JuvixPlugin(BasePlugin):
     CACHE_ISABELLE_THEORIES_DIRNAME: str = getenv(
         "CACHE_ISABELLE_THEORIES_DIRNAME", ".isabelle_theories"
     )  # The name of the directory where the Isabelle Markdown files are cached
-
+    CACHE_ISABELLE_OUTPUT_PATH: str
+    # The name of the directory where the Isabelle output is cached
     CACHE_HASHES_DIRNAME: str = getenv(
         "CACHE_HASHES_DIRNAME", ".hashes_for_juvix_markdown_files"
     )  # The name of the directory where the hashes are stored
@@ -196,6 +197,10 @@ class JuvixPlugin(BasePlugin):
             self.CACHE_ABSPATH / self.CACHE_HTML_DIRNAME
         )  # The path to the Juvix Markdown output directory
 
+        self.CACHE_ISABELLE_OUTPUT_PATH: Path = (
+            self.CACHE_ABSPATH / self.CACHE_ISABELLE_THEORIES_DIRNAME
+        )  # The path to the Isabelle output directory
+
         self.CACHE_JUVIX_PROJECT_HASH_FILEPATH: Path = (
             self.CACHE_ABSPATH / self.CACHE_JUVIX_PROJECT_HASH_FILENAME
         )  # The path to the Juvix Markdown output directory
@@ -221,6 +226,7 @@ class JuvixPlugin(BasePlugin):
 
         directories: List[Path] = [
             self.CACHE_MARKDOWN_JUVIX_OUTPUT_PATH,
+            self.CACHE_ISABELLE_OUTPUT_PATH,
             self.CACHE_ORIGINAL_JUVIX_MARKDOWN_FILES_ABSPATH,
             self.CACHE_ABSPATH,
             self.CACHE_HASHES_PATH,
@@ -465,8 +471,9 @@ Environment variables relevant:
 
         metadata = page.meta
         if metadata.get("isabelle", False):
-            log.error("Isabelle is not supported yet")
-            # isabelle_html = self._generate_isabelle_html(page.file.abs_src_path)
+            isabelle_html = self._generate_isabelle_html(Path(page.file.abs_src_path))
+            if isabelle_html is None:
+                log.error("Isabelle no output generated")
             return markdown
         return markdown
 
@@ -677,25 +684,37 @@ Environment variables relevant:
         return self.CACHE_MARKDOWN_JUVIX_OUTPUT_PATH / rel_to_docs.parent / md_filename
 
     @lru_cache(maxsize=128)
-    def _read_cache(self, filepath: Path) -> Optional[str]:
+    def _read_markdown_file_from_cache(self, filepath: Path) -> Optional[str]:
         if cache_ABSpath := self._get_filepath_for_juvix_markdown_in_cache(filepath):
             return cache_ABSpath.read_text()
         return None
 
+    def _generate_isabelle_html(self, filepath: Path) -> Optional[str]:
+        if not filepath.as_posix().endswith(".juvix.md"):
+            return None
+
+        # check the theory file in the cache
+        isabelle_filepath = (
+            self._get_expected_filepath_for_juvix_isabelle_output_in_cache(filepath)
+        )
+        cache_available: bool = isabelle_filepath and isabelle_filepath.exists()
+
+        if not cache_available or self._new_or_changed_or_no_exist(filepath):
+            return self._run_juvix_isabelle(filepath)
+
+        log.debug(f"Reading cache for file: {filepath}")
+        return isabelle_filepath.read_text()
+
+    @if_juvix_enabled
     def _generate_markdown(self, filepath: Path) -> Optional[str]:
-        if (
-            not self.JUVIX_ENABLED
-            or not self.JUVIX_AVAILABLE
-            or not filepath.as_posix().endswith(".juvix.md")
-        ):
+        if not filepath.as_posix().endswith(".juvix.md"):
             return None
 
         if self._new_or_changed_or_no_exist(filepath):
-            log.info(f"Running Juvix Markdown on file: {filepath}")
-            return self._run_juvix(filepath)
+            return self._run_juvix_markdown(filepath)
 
         log.debug(f"Reading cache for file: {filepath}")
-        return self._read_cache(filepath)
+        return self._read_markdown_file_from_cache(filepath)
 
     def _unqualified_module_name(self, filepath: Path) -> Optional[str]:
         fposix: str = filepath.as_posix()
@@ -728,14 +747,91 @@ Environment variables relevant:
 
         return qualified_name if qualified_name else None
 
-    def _get_markdown_filename(self, filepath: Path) -> Optional[str]:
+    def _get_filename_module_by_extension(
+        self, filepath: Path, extension: str = ".md"
+    ) -> Optional[str]:
         """
         The markdown filename is the same as the juvix file name but without the .juvix.md extension.
         """
         module_name = self._unqualified_module_name(filepath)
-        return module_name + ".md" if module_name else None
+        return module_name + extension if module_name else None
 
-    def _run_juvix(self, _filepath: Path) -> Optional[str]:
+    def _get_expected_filepath_for_juvix_isabelle_output_in_cache(
+        self, filepath: Path
+    ) -> Optional[Path]:
+        cache_isabelle_filename: Optional[str] = self._get_filename_module_by_extension(
+            filepath, extension=".thy"
+        )
+        if cache_isabelle_filename is None:
+            return None
+        rel_to_docs = filepath.relative_to(self.DOCS_ABSPATH)
+        cache_isabelle_filepath: Path = (
+            self.CACHE_ISABELLE_OUTPUT_PATH
+            / rel_to_docs.parent
+            / cache_isabelle_filename
+        )
+        return cache_isabelle_filepath
+
+    def _run_juvix_isabelle(self, _filepath: Path) -> Optional[str]:
+        filepath: Path = _filepath.absolute()
+        fposix: str = filepath.as_posix()
+
+        if not fposix.endswith(".juvix.md"):
+            log.debug(f"The file: {fposix} is not a Juvix Markdown file.")
+            return None
+
+        juvix_isabelle_cmd: List[str] = [
+            self.JUVIX_BIN,
+            "--log-level=error",
+            "isabelle",
+            "--non-recursive",
+            "--stdout",
+            "--output-dir",
+            self.CACHE_ISABELLE_OUTPUT_PATH.as_posix(),
+            fposix,
+        ]
+
+        try:
+            log.info(f"Running Juvix Isabelle on file: {fposix}")
+            result_isabelle = subprocess.run(
+                juvix_isabelle_cmd, cwd=self.DOCS_ABSPATH, capture_output=True
+            )
+            if result_isabelle.returncode != 0:
+                juvix_isabelle_error_message = (
+                    result_isabelle.stderr.decode("utf-8").replace("\n", " ").strip()
+                )
+                log.warning(
+                    f"Error running Juvix Isabelle on file: {fposix} -\n {juvix_isabelle_error_message}"
+                )
+                return f"!!! failure 'When translating to Isabelle, the Juvix compiler found the following error:'\n\n    {juvix_isabelle_error_message}\n\n"
+        except Exception as e:
+            log.error(f"Error running Juvix to Isabelle pass on file: {fposix} -\n {e}")
+            return None
+
+        cache_isabelle_filepath: Path = (
+            self._get_expected_filepath_for_juvix_isabelle_output_in_cache(filepath)
+        )
+
+        if cache_isabelle_filepath is None:
+            log.debug(f"Could not determine the Isabelle file name for: {fposix}")
+            return
+
+        cache_isabelle_filepath.parent.mkdir(parents=True, exist_ok=True)
+
+        isabelle_output: str = result_isabelle.stdout.decode("utf-8")
+
+        try:
+            cache_isabelle_filepath.write_text(isabelle_output)
+        except Exception as e:
+            log.error(f"Error writing to cache Isabelle file: {e}")
+            return None
+
+        self._update_markdown_file_as_in_docs(filepath)
+        self._update_hash_file(filepath)
+
+        return isabelle_output
+
+    def _run_juvix_markdown(self, _filepath: Path) -> Optional[str]:
         filepath = _filepath.absolute()
         fposix: str = filepath.as_posix()
 
@@ -756,6 +852,7 @@ Environment variables relevant:
             "--no-colors",
         ]
         try:
+            log.info(f"Running Juvix Markdown on file: {filepath}")
             result_markdown = subprocess.run(
                 juvix_markdown_cmd, cwd=self.DOCS_ABSPATH, capture_output=True
             )
@@ -768,16 +865,16 @@ Environment variables relevant:
                     f"Error running Juvix on file: {fposix} -\n {juvix_error_message}"
                 )
                 return (
-                    f"!!! failure\n\n    {juvix_error_message}\n\n"
+                    f"!!! failure 'When typechecking the Juvix Markdown file, the Juvix compiler found the following error:'\n\n    {juvix_error_message}\n\n"
                     + filepath.read_text().replace("```juvix", "```")
                 )
         except Exception as e:
             log.error(f"Error running Juvix on file: {fposix} -\n {e}")
             return None
 
-        md_output: str = result_markdown.stdout.decode("utf-8")
-
-        cache_markdown_filename: Optional[str] = self._get_markdown_filename(filepath)
+        cache_markdown_filename: Optional[str] = self._get_filename_module_by_extension(
+            filepath
+        )
         if cache_markdown_filename is None:
             log.debug(f"Could not determine the markdown file name for: {fposix}")
             return None
@@ -788,18 +885,17 @@ Environment variables relevant:
             / cache_markdown_filename
         )
         cache_markdown_filepath.parent.mkdir(parents=True, exist_ok=True)
+
+        md_output: str = result_markdown.stdout.decode("utf-8")
         try:
             cache_markdown_filepath.write_text(md_output)
         except Exception as e:
             log.error(f"Error writing to cache markdown file: {e}")
             return None
 
-        self._update_raw_file(filepath)
-        self._update_hash_file(filepath)
-
         return md_output
 
-    def _update_raw_file(self, filepath: Path) -> None:
+    def _update_markdown_file_as_in_docs(self, filepath: Path) -> None:
         raw_path: Path = (
             self.CACHE_ORIGINAL_JUVIX_MARKDOWN_FILES_ABSPATH
             / filepath.relative_to(self.DOCS_ABSPATH)
