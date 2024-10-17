@@ -15,7 +15,7 @@ CLI tool to help you get started with a new project called `juvix-mkdocs`.
 
 ### Prerequisites
 
-- Python 3.9+
+- Python 3.10+
 - [Poetry](https://python-poetry.org/docs/#installation)
 - [Juvix Compiler](https://docs.juvix.org/)
 
@@ -83,5 +83,7 @@ check out the fixtures in the `mkdocs.yml` file for reference, and the folder
 ```yaml
 # mkdocs.yml
 plugins:
-  - juvix
+  - juvix # assume material theme
+  - wikilinks # optional, provides [[wikilink]] support (assume material theme)
+  - todo # optional, provides [TODO] support (assume material theme)
 ```

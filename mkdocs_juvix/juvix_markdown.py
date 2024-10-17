@@ -875,7 +875,6 @@ Environment variables relevant:
         except Exception as e:
             log.error(f"Error writing to cache markdown file: {e}")
             return
-        log.error(f">>>>>>>>>> {filepath}")
         self._update_markdown_file_as_in_docs(filepath)
         self._update_hash_file(filepath)
         return md_output

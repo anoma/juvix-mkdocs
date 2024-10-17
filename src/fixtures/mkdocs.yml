@@ -20,6 +20,16 @@ plugins:
   - juvix # Provided with mkdocs-juvix-plugin
   - wikilinks # Provided with mkdocs-juvix-plugin
   - todos # Provided with mkdocs-juvix-plugin
+  - differ # Provided with mkdocs-juvix-plugin
+  - kroki:  # docs: https://github.com/AVATEAM-IT-SYSTEMHAUS/mkdocs-kroki-plugin#readme
+      ServerURL: !ENV [KROKI_SERVER_URL, 'https://kroki.io'] #https://kroki.io/examples.html
+      FileTypes:
+        - png
+        - svg
+      FileTypeOverrides:
+        mermaid: png
+      FailFast: !ENV CI
+
 {bibtex}
 theme:
   name: !ENV [THEME, '{theme}']

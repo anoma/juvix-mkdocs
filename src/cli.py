@@ -326,7 +326,8 @@ def new(
     index_file = docs_path / "index.juvix.md"
     test_file = docs_path / "test.juvix.md"
     isabelle_file = docs_path / "isabelle.juvix.md"
-    juvix_md_files = [index_file, test_file, isabelle_file]
+    diagrams_file = docs_path / "diagrams.juvix.md"
+    juvix_md_files = [index_file, test_file, isabelle_file, diagrams_file]
 
     # this file is a bit special, as goes separately
     everything_file = docs_path / "everything.juvix.md"
@@ -479,7 +480,7 @@ def new(
                     f"--name={project_name}",
                     f"--description='{description}'",
                     f"--author={site_author}",
-                    "--python=^3.9",
+                    "--python=^3.10",
                 ],
                 cwd=project_path,
                 check=True,
@@ -511,16 +512,19 @@ def new(
         if development_flag:
             poetry_cmd.append("--editable")
         try:
-            subprocess.run(
+            output = subprocess.run(
                 poetry_cmd,
                 cwd=project_path,
                 check=True,
+                capture_output=True,
             )
-            click.secho("Done.", fg="green")
+            if output.returncode != 0:
+                click.secho(f"Failed to install {package_name} using Poetry.", fg="red")
+                click.secho(f"Error: {output.stderr.decode().strip()}", fg="red")
+            else:
+                click.secho("Done.", fg="green")
         except Exception as e:
-            click.secho(
-                f"Failed to install {package_name} using Poetry. Error: {e}", fg="red"
-            )
+            click.secho(f"{e}", fg="red")
             raise
 
     try:
@@ -528,6 +532,7 @@ def new(
             install_poetry_package(develop_dir, development_flag=True)
         else:
             install_poetry_package("mkdocs-juvix-plugin")
+            
         # rest of the plugins
         rest_of_plugins = [
             "mkdocs-material",
@@ -535,6 +540,7 @@ def new(
             "pymdown-extensions",
             "mkdocs-macros-plugin",
             "mkdocs-glightbox",
+            "mkdocs-kroki-plugin",
         ]
         for plugin in rest_of_plugins:
             install_poetry_package(plugin)
@@ -731,7 +737,9 @@ def new(
         # Build the project
         try:
             click.secho("Building the project... ", nl=False)
-            subprocess.run(["poetry", "run", "mkdocs", "build"], cwd=project_path, check=True)
+            subprocess.run(
+                ["poetry", "run", "mkdocs", "build"], cwd=project_path, check=True
+            )
             click.secho("Done.", fg="green")
         except subprocess.CalledProcessError as e:
             click.secho("Failed to build the project.", fg="red")

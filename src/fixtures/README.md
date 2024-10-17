@@ -8,7 +8,7 @@ site (v{juvix_version}).
 
 ### Prerequisites
 
-- Python 3.9+
+- Python 3.10+
 - [Poetry](https://python-poetry.org/docs/#installation)
 
 ### Installation
