@@ -4,10 +4,11 @@ import re
 from pathlib import Path
 from urllib.parse import urljoin
 
-from common.models import FileLoc, WikiLink
 from fuzzywuzzy import fuzz  # type: ignore
 from markdown.preprocessors import Preprocessor  # type: ignore
 from mkdocs.structure.pages import Page
+
+from mkdocs_juvix.common.models import FileLoc, WikiLink
 
 ROOT_DIR = Path(__file__).parent.parent.absolute()
 DOCS_DIR = ROOT_DIR / "docs"

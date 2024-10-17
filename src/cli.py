@@ -69,6 +69,18 @@ def cli():
     help="Site author email",
     show_default=True,
 )
+@click.option(
+    "--repo-url",
+    default="https://github.com/anoma/juvix-mkdocs",
+    help="Repository URL",
+    show_default=True,
+)
+@click.option(
+    "--repo-name",
+    default="juvix-mkdocs",
+    help="Repository name",
+    show_default=True,
+)
 # Directory Settings
 @click.option(
     "--output-dir",
@@ -131,6 +143,8 @@ def new(
     description,
     site_author,
     site_author_email,
+    repo_url,
+    repo_name,
     output_dir,
     docs_dir,
     site_dir,
@@ -143,7 +157,6 @@ def new(
     no_everything,
     no_github_actions,
     no_material,
-    no_markdown_extensions,
     no_assets,
     no_init_git,
     no_typecheck,
@@ -178,10 +191,6 @@ def new(
         font_text = questionary.text("Font for text:", default=font_text).ask()
         font_code = questionary.text("Font for code:", default=font_code).ask()
 
-        no_markdown_extensions = not questionary.confirm(
-            "Set up markdown extensions? (recommended)",
-            default=not no_markdown_extensions,
-        ).ask()
         no_bibtex = not questionary.confirm(
             "Set up BibTeX plugin?", default=not no_bibtex
         ).ask()
@@ -316,8 +325,8 @@ def new(
 
     index_file = docs_path / "index.juvix.md"
     test_file = docs_path / "test.juvix.md"
-    test_to_isabelle_file = docs_path / "test_to_isabelle.juvix.md"
-    juvix_md_files = [index_file, test_file, test_to_isabelle_file]
+    isabelle_file = docs_path / "isabelle.juvix.md"
+    juvix_md_files = [index_file, test_file, isabelle_file]
 
     # this file is a bit special, as goes separately
     everything_file = docs_path / "everything.juvix.md"
@@ -339,6 +348,8 @@ def new(
                 site_dir=site_dir,
                 site_author=site_author,
                 project_name=project_name,
+                repo_url=repo_url,
+                repo_name=repo_name,
                 theme=theme,
                 anoma_theme_config=(
                     ""
@@ -357,9 +368,7 @@ def new(
                     else (FIXTURES_PATH / "material_features.yml").read_text()
                 ),
                 markdown_extensions=(
-                    ""
-                    if no_markdown_extensions
-                    else (FIXTURES_PATH / "markdown_extensions.yml").read_text()
+                    (FIXTURES_PATH / "markdown_extensions.yml").read_text()
                 ),
             )
         )

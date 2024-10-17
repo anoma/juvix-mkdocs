@@ -51,7 +51,6 @@ For Juvix code blocks:
 3. Use `hide` attribute to exclude blocks from output.
 4. Apply `extract-module-statements` to show specific code parts.
 
-
 ## Example: Module Declaration
 
 Here's how you declare a module in a Juvix Markdown file named `index` (notice
@@ -62,9 +61,8 @@ module index;
 -- Your Juvix code here
 ```
 
-Refer to the test file
-[`test.juvix.md`](./test.juvix.md) located in the `docs` folder to see another
-example.
+Refer to [[test|test.juvix.md]] located in the `docs` folder to see another
+example. Or [[isabelle|isabelle.juvix.md]] to see another example.
 
 ## Hide Juvix code blocks
 

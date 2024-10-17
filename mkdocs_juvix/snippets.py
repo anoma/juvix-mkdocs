@@ -112,8 +112,6 @@ class SnippetPreprocessor(Preprocessor):
         self.dedent_subsections = config["dedent_subsections"]
         self.tab_length = md.tab_length
         super().__init__()
-        log.error("HEREEE"*30)
-
         self.download.cache_clear()
 
     def extract_section(
@@ -232,9 +230,9 @@ Error found in the file '{backup_path}' for the section '{section}'.
         The most recently used files are kept in a cache until the next reset.
         """
 
-        http_request = urllib.request.Request(url, headers=self.url_request_headers)
+        http_request = urllib.request.Request(url, headers=self.url_request_headers)  # type: ignore
         timeout = None if self.url_timeout == 0 else self.url_timeout
-        with urllib.request.urlopen(http_request, timeout=timeout) as response:
+        with urllib.request.urlopen(http_request, timeout=timeout) as response:  # type: ignore
             # Fail if status is not OK
             status = response.status if util.PY39 else response.code
             if status != 200:
@@ -332,6 +330,8 @@ Error found in the file '{backup_path}' for the section '{section}'.
                 start = None
                 section = None
                 m = self.RE_SNIPPET_FILE.match(path)
+                if m is None:
+                    continue
                 path = m.group(1).strip()
 
                 if not path:
@@ -526,7 +526,10 @@ class SnippetExtension(Extension):
     def reset(self):
         """Reset."""
 
-        self.md.preprocessors["snippet"].download.cache_clear()
+        try:
+            self.md.preprocessors["snippet"].download.cache_clear()  # type: ignore
+        except AttributeError:
+            log.warning("Failed to clear snippet cache, download method not found")
 
 
 def makeExtension(*args, **kwargs):
