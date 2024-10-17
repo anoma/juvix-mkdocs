@@ -258,11 +258,32 @@
 </li>
 <li class="md-nav__item md-nav__item--active">
 <input class="md-nav__toggle md-toggle" id="__toc" type="checkbox"/>
+<label class="md-nav__link md-nav__link--active" for="__toc">
+<span class="md-ellipsis">
+    isabelle
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
 <a class="md-nav__link md-nav__link--active" href="isabelle.html">
 <span class="md-ellipsis">
     isabelle
   </span>
 </a>
+<nav aria-label="Table of contents" class="md-nav md-nav--secondary">
+<label class="md-nav__title" for="__toc">
+<span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+<ul class="md-nav__list" data-md-component="toc" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#isabellehol-theories">
+<span class="md-ellipsis">
+      Isabelle/HOL theories
+    </span>
+</a>
+</li>
+</ul>
+</nav>
 </li>
 <li class="md-nav__item">
 <a class="md-nav__link" href="diagrams.html">
@@ -293,6 +314,24 @@ named <code>isabelle.juvix</code>:</p>
 <div class="language-bash highlight"><pre><span></span><code><span id="__ispan-0-1">juvix<span class="w"> </span>isabelle<span class="w"> </span>isabelle.juvix
 </span></code></pre></div>
 <p>This will generate a file <code>isabelle.thy</code> in the current directory.</p>
+<details class="quote">
+<summary>Isabelle/HOL theories for this page</summary>
+<h2 id="isabellehol-theories">Isabelle/HOL theories<a class="headerlink" href="#isabellehol-theories" title="Permanent link">¶</a></h2>
+<div class="language-isabelle highlight"><span class="filename">isabelle</span><pre><span></span><code><span id="__ispan-1-1"><span class="k">theory</span><span class="w"> </span><span class="n">isabelle</span>
+</span><span id="__ispan-1-2"><span class="kp">imports</span><span class="w"> </span><span class="n">Main</span>
+</span><span id="__ispan-1-3"><span class="k">begin</span>
+</span><span id="__ispan-1-4">
+</span><span id="__ispan-1-5"><span class="k">datatype</span><span class="w"> </span><span class="n">Nat</span>
+</span><span id="__ispan-1-6"><span class="w">  </span><span class="o">=</span><span class="w"> </span><span class="n">zero</span><span class="w"> </span><span class="o">|</span>
+</span><span id="__ispan-1-7"><span class="w">    </span><span class="n">succ</span><span class="w"> </span><span class="n">Nat</span>
+</span><span id="__ispan-1-8">
+</span><span id="__ispan-1-9"><span class="k">fun</span><span class="w"> </span><span class="n">add</span><span class="w"> </span><span class="o">::</span><span class="w"> </span><span class="s">"Nat </span><span class="ss">\&lt;Rightarrow&gt;</span><span class="s"> Nat </span><span class="ss">\&lt;Rightarrow&gt;</span><span class="s"> Nat"</span><span class="w"> </span><span class="kp">where</span>
+</span><span id="__ispan-1-10"><span class="w">  </span><span class="s">"add zero n = n"</span><span class="w"> </span><span class="o">|</span>
+</span><span id="__ispan-1-11"><span class="w">  </span><span class="s">"add (succ m) n = (succ (add m n))"</span>
+</span><span id="__ispan-1-12">
+</span><span id="__ispan-1-13"><span class="k">end</span>
+</span></code></pre></div>
+</details>
 <!-- list_wikilinks -->
 <!-- mermaid_wikilinks -->
 </article>
@@ -310,7 +349,7 @@ named <code>isabelle.juvix</code>:</p>
 <div class="md-copyright">
 <div class="md-copyright__highlight">
     © 2024 <a href="https://github.com/anoma/juvix-mkdocs">juvix-mkdocs</a> - Last updated: October 17, 2024
-    at 07:24 AM UTC - Powered by Mkdocs, Material for Mkdocs, Juvix, and
+    at 07:33 AM UTC - Powered by Mkdocs, Material for Mkdocs, Juvix, and
     Juvix-Mkdocs.
   </div>
 </div>
