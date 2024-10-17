@@ -22,6 +22,7 @@ log = get_plugin_logger("DiffPlugin")
 
 VERSIONED_FILE_PATTERN = r"(.+)?v(\d+)((\.\w+)?\.md)"
 
+
 class ENV:
     ROOT_PATH: Path
     DOCS_DIRNAME: str = getenv("DOCS_DIRNAME", "docs")
@@ -62,6 +63,7 @@ class ENV:
                     "The diff binary is not available. Please install diff and make sure it's available in the PATH."
                 )
 
+
 class DifferPlugin(BasePlugin):
     env: ENV
 
@@ -80,6 +82,7 @@ class DifferPlugin(BasePlugin):
             filepath = Path(page.file.abs_src_path)
             return differ.add_diff_markdown(markdown, filepath)
         return markdown
+
 
 class DiffPreprocessor:
     def __init__(self, env: ENV):
@@ -309,9 +312,7 @@ class DiffPreprocessor:
             older_path = _older.as_posix()
             folder = None
 
-        cmd = (
-            [self.env.DIFF_BIN] + self.env.DIFF_OPTIONS + [older_path, newer_path]
-        )
+        cmd = [self.env.DIFF_BIN] + self.env.DIFF_OPTIONS + [older_path, newer_path]
         cd = subprocess.run(cmd, cwd=folder, capture_output=True)
         log.debug("%s", " ".join(cmd))
 

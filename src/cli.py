@@ -690,11 +690,15 @@ def new(
             click.secho("Done.", fg="green")
             # remember to commit the files
             click.secho(
-                "- Run `git add .` to add the files to the repository.", fg="yellow"
+                "- Run `git add .` to add the files to the repository.", fg="green"
+            )
+            click.secho(
+                "- Run `git add .` to add the files to the repository.",
+                fg="green",
             )
             click.secho(
                 "- Run `git commit -m 'Initial commit'` to commit the files.",
-                fg="yellow",
+                fg="green",
             )
         except subprocess.CalledProcessError as e:
             click.secho("Failed.", fg="red")
@@ -703,7 +707,7 @@ def new(
             click.secho("Failed.", fg="red")
             click.secho("[!] Git is not installed or not in the system PATH.", fg="red")
     else:
-        click.secho("- Run `git init` to initialize a git repository.", fg="yellow")
+        click.secho("- Run `git init` to initialize a git repository.", fg="green")
 
     run_server = not no_run_server
     if not no_interactive:

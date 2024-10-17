@@ -115,6 +115,8 @@ class JuvixPlugin(BasePlugin):
     JUVIX_FOOTER_CSS_FILEPATH: Path  # The path to the Juvix footer CSS file
     CACHE_JUVIX_VERSION_FILEPATH: Path  # The path to the Juvix version file
 
+    TOKEN_ISABELLE_THEORY: str = "<!-- ISABELLE_THEORY -->"
+
     _mkdocs_pipeline: str = """ For reference, the Mkdocs Pipeline is the following:
     ├── on_startup(command, dirty)
     └── on_config(config)
@@ -444,18 +446,51 @@ Environment variables relevant:
         page.file.abs_dest_path = page.file.abs_dest_path.replace(".juvix", "")
 
         metadata = page.meta
-        if metadata.get("isabelle", False):
+        isabelle_meta = metadata.get("isabelle", {})
+        if not isinstance(isabelle_meta, dict):
+            isabelle_meta = {}
+        generate_isabelle = isabelle_meta.get("generate", False) or metadata.get(
+            "isabelle", False
+        )
+        include_isabelle_at_bottom = isabelle_meta.get("include_at_bottom", False)
+
+        if generate_isabelle or include_isabelle_at_bottom:
             src_path = page.file.abs_src_path
             if src_path is None:
                 log.error(f"Source path not found for {page.file.name}")
                 return markdown
+            isabelle_html = None
             if isinstance(src_path, str):
-                isabelle_html = self._generate_isabelle_html(Path(src_path))
-            else:
-                log.error(f"Invalid source path for {page.file.name}: {src_path}")
-                return markdown
+                filepath = Path(src_path)
+                isabelle_html = self._generate_isabelle_html(filepath)
+
             if isabelle_html is None:
+                log.info(f"No Isabelle output generated for {page.file.name}")
+                return markdown
+
+            _isabelle_path = (
+                self._get_expected_filepath_for_juvix_isabelle_output_in_cache(filepath)
+            )
+
+            if _isabelle_path is None:
                 log.error(f"Isabelle no output generated for {page.file.name}")
+                return markdown
+
+            isabelle_path = Path(_isabelle_path)
+
+            if not isabelle_path.exists():
+                log.error(f"Isabelle output file not found for {page.file.name}")
+                return markdown
+
+            if include_isabelle_at_bottom:
+                return markdown + (
+                    FIXTURES_PATH / "isabelle_at_bottom.md"
+                ).read_text().format(
+                    filename=page.file.name,
+                    block_title=page.file.name,
+                    isabelle_html=isabelle_html,
+                    juvix_version=self.JUVIX_VERSION,
+                )
             return markdown
         return markdown
 

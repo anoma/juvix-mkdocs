@@ -3,7 +3,6 @@ Support for wiki-style links in MkDocs in tandem of pydownx_snippets.
 """
 
 import json
-import logging
 import os
 import re
 from os import getenv
@@ -36,7 +35,7 @@ from mkdocs_juvix.snippets import (
 load_dotenv()
 
 
-log: logging.Logger = get_plugin_logger("mkdocs")
+log = get_plugin_logger("Wikilinks")
 
 files_relation: List[ResultEntry] = []
 
@@ -97,7 +96,7 @@ class WikilinksPlugin(BasePlugin):
     GRAPH_JSON: Path
     NODES_JSON: Path
     PAGE_LINK_DIAGS: Path
-    REPORT_BROKEN_WIKILINKS: bool = getenv("REPORT_BROKEN_WIKILINKS", True)
+    REPORT_BROKEN_WIKILINKS: bool = bool(getenv("REPORT_BROKEN_WIKILINKS", True))
     TOKEN_LIST_WIKILINKS: str = "<!-- list_wikilinks -->"
     TOKEN_MERMAID_WIKILINKS: str = "<!-- mermaid_wikilinks -->"
 
@@ -167,7 +166,7 @@ class WikilinksPlugin(BasePlugin):
                 indent=2,
             )
         config["current_page"] = None  # current page being processed
-        return config
+        return
 
     def on_files(self, files: Files, config: MkDocsConfig) -> None:
         """When MkDocs loads its files, extract aliases from any Markdown files
@@ -247,12 +246,16 @@ class WikilinksPlugin(BasePlugin):
 
             if page.meta.get("list_wikilinks", True):
                 # Creat a bullet list of links
-                wrapped_links = "<details class='quote'><summary>(Wiki) links on this page</summary><ul>"
-                for link in links_number:
-                    wrapped_links += f"<li><a href='{link['url']}' alt='{link['path']}'>{link['name']}</a></li>"
+                wrapped_links = "<details class='quote'><summary>Wiki links on this page</summary><ul>"
+                unique_links = {
+                    link["url"]: (link["path"], link["name"]) for link in links_number
+                }
+                for url, (path, name) in unique_links.items():
+                    wrapped_links += f"<li><a href='{url}' alt='{path}'>{name}</a></li>"
                 wrapped_links += "</ul></details>"
 
                 html = html.replace(self.TOKEN_LIST_WIKILINKS, wrapped_links)
+
             if page.meta.get("mermaid_wikilinks", False):
                 mermaid_structure = create_mermaid_diagram([result_entry])
                 file_path = (
