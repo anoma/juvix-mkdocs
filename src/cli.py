@@ -530,9 +530,26 @@ def new(
         ]
         for plugin in rest_of_plugins:
             install_poetry_package(plugin)
-
     except Exception:
         return
+
+    if not no_interactive:
+        install_pre_commit = questionary.confirm(
+            "Install pre-commit? (recommended)", default=install_pre_commit
+        ).ask()
+        if install_pre_commit:
+            install_poetry_package("pre-commit")
+            # move the pre-commit config to the project path
+            pre_commit_file = project_path / ".pre-commit-config.yaml"
+            if not pre_commit_file.exists() or force:
+                pre_commit_file.write_text(
+                    (FIXTURES_PATH / ".pre-commit-config.yaml").read_text()
+                )
+                click.secho("Done.", fg="green")
+            else:
+                click.secho(
+                    "File already exists. Use -f to force overwrite.", fg="yellow"
+                )
 
     try:
         if not no_bibtex:
