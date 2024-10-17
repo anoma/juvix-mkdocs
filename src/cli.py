@@ -97,7 +97,6 @@ def cli():
 @click.option("--no-everything", is_flag=True, help="Skip everything.juvix.md")
 @click.option("--no-github-actions", is_flag=True, help="Skip GitHub Actions setup")
 @click.option("--no-material", is_flag=True, help="Skip mkdocs-material installation")
-@click.option("--no-markdown-extensions", is_flag=True, help="Skip markdown extensions")
 @click.option("--no-assets", is_flag=True, help="Skip assets folder creation")
 @click.option("--no-init-git", is_flag=True, help="Skip git repository initialization")
 @click.option("--no-typecheck", is_flag=True, help="Skip typechecking the test file")
@@ -535,7 +534,7 @@ def new(
 
     if not no_interactive:
         install_pre_commit = questionary.confirm(
-            "Install pre-commit? (recommended)", default=install_pre_commit
+            "Install pre-commit? (recommended)", default=True
         ).ask()
         if install_pre_commit:
             install_poetry_package("pre-commit")
