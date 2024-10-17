@@ -806,7 +806,7 @@ Environment variables relevant:
             self.JUVIX_BIN,
             "--log-level=error",
             "isabelle",
-            "--non-recursive",
+            # "--non-recursive", # TODO: wait for v0.6.7
             "--stdout",
             "--output-dir",
             self.CACHE_ISABELLE_OUTPUT_PATH.as_posix(),
