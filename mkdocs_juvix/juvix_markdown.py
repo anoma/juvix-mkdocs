@@ -388,7 +388,7 @@ Environment variables relevant:
         if not generate:
             log.info("Skipping Juvix HTML generation for Juvix files.")
         else:
-            log.info(
+            log.debug(
                 "Generating auxiliary HTML for Juvix files. This may take a while... It's only generated once per session."
             )
 
@@ -550,7 +550,7 @@ Environment variables relevant:
             )
 
             if html_file_path.exists():
-                log.info(f"Removing file: {html_file_path}")
+                log.debug(f"Removing file: {html_file_path}")
                 html_file_path.unlink()
 
         index_file = self.CACHE_HTML_PATH / "index.html"

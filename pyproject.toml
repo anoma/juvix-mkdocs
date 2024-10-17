@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "mkdocs-juvix-plugin"
-version = "0.2.12"
+version = "0.2.13"
 description = "Support for Juvix Markdown files in MkDocs"
 authors = ["Jonathan Prieto-Cubides, and GitHub contributors"]
 license = "MIT"
@@ -25,7 +25,7 @@ juvix = "mkdocs_juvix.juvix_markdown:JuvixPlugin"
 # extra plugins
 todos = "mkdocs_juvix.todos:TodosPlugin"
 wikilinks = "mkdocs_juvix.links:WikilinksPlugin"
-differ = "mkdocs_juvix.differ:DifferPlugin"
+# differ = "mkdocs_juvix.differ:DifferPlugin"
 
 [tool.poetry.dependencies]
 python = ">=3.10"

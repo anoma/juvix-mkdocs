@@ -22,8 +22,7 @@ log = get_plugin_logger("DiffPlugin")
 
 VERSIONED_FILE_PATTERN = r"(.+)?v(\d+)((\.\w+)?\.md)"
 
-
-class DifferPlugin(BasePlugin):
+class ENV:
     ROOT_PATH: Path
     DOCS_DIRNAME: str = getenv("DOCS_DIRNAME", "docs")
     DOCS_PATH: Path
@@ -34,15 +33,15 @@ class DifferPlugin(BasePlugin):
     DIFF_AVAILABLE: bool
     DIFF_DIR: Path
     DIFF_OPTIONS: List[str]
+    SITE_URL: str
 
-    def on_config(self, config: Config) -> Config:
+    def __init__(self, config: Config):
         config_file = config.config_file_path
         self.ROOT_PATH = Path(config_file).parent.absolute()
         self.DOCS_PATH = self.ROOT_PATH / self.DOCS_DIRNAME
-        config["docs_dir"] = self.DOCS_PATH
         self.CACHE_PATH = self.ROOT_PATH / self.CACHE_DIRNAME
         self.CACHE_PATH.mkdir(parents=True, exist_ok=True)
-
+        self.SITE_URL = config.get("site_url", "")
         self.DIFF_ENABLED: bool = bool(getenv("DIFF_ENABLED", True))
 
         self.DIFF_BIN: str = getenv("DIFF_BIN", "diff")
@@ -62,25 +61,30 @@ class DifferPlugin(BasePlugin):
                 log.warning(
                     "The diff binary is not available. Please install diff and make sure it's available in the PATH."
                 )
+
+class DifferPlugin(BasePlugin):
+    env: ENV
+
+    def on_config(self, config: Config) -> Config:
+        self.env = ENV(config)
+        config["docs_dir"] = self.env.DOCS_PATH
         return config
 
     def on_page_markdown(
         self, markdown: str, page: Page, config: Config, files: Files
     ) -> str:
-        if not self.DIFF_AVAILABLE:
+        if not self.env.DIFF_AVAILABLE:
             return markdown
-        differ = DiffPreprocessor(config, self)
+        differ = DiffPreprocessor(self.env)
         if page.file.abs_src_path:
             filepath = Path(page.file.abs_src_path)
             return differ.add_diff_markdown(markdown, filepath)
         return markdown
 
-
 class DiffPreprocessor:
-    def __init__(self, config: Config, plugin: DifferPlugin):
-        self.mkconfig = config
-        self.plugin = plugin
-        self.site_url = config.get("site_url", "")
+    def __init__(self, env: ENV):
+        self.env = env
+        self.site_url = env.SITE_URL
 
     def _path_versioned_links(self, markdown: str, filepath: Path) -> str:
         _prev_version = self._markdown_link_filepath_version(
@@ -128,7 +132,7 @@ class DiffPreprocessor:
                 try:
                     rel_path = (
                         _version.absolute()
-                        .relative_to(self.plugin.DOCS_PATH)
+                        .relative_to(self.env.DOCS_PATH)
                         .as_posix()
                         .replace(".juvix", "")
                         .replace(".md", ".html")
@@ -137,7 +141,7 @@ class DiffPreprocessor:
                     log.warning(f"Error computing relative path: {e}")
                     return None
 
-                url = urljoin(self.site_url, rel_path)
+                url = urljoin(self.env.SITE_URL, rel_path)
 
                 if just_url:
                     return url
@@ -306,7 +310,7 @@ class DiffPreprocessor:
             folder = None
 
         cmd = (
-            [self.plugin.DIFF_BIN] + self.plugin.DIFF_OPTIONS + [older_path, newer_path]
+            [self.env.DIFF_BIN] + self.env.DIFF_OPTIONS + [older_path, newer_path]
         )
         cd = subprocess.run(cmd, cwd=folder, capture_output=True)
         log.debug("%s", " ".join(cmd))
@@ -380,8 +384,8 @@ class DiffPreprocessor:
         log.debug(f"Filepath: {filepath} counter:{counter}")
         diff_output = self._compute_diff_with_version(filepath, counter)
         if diff_output:
-            diff_folder = self.plugin.DIFF_DIR / filepath.parent.relative_to(
-                self.plugin.DOCS_PATH
+            diff_folder = self.env.DIFF_DIR / filepath.parent.relative_to(
+                self.env.DOCS_PATH
             )
             diff_folder.mkdir(parents=True, exist_ok=True)
             diff_filename = self._compute_diff_filename_version(filepath, counter)
