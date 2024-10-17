@@ -532,7 +532,7 @@ def new(
             install_poetry_package(develop_dir, development_flag=True)
         else:
             install_poetry_package("mkdocs-juvix-plugin")
-            
+
         # rest of the plugins
         rest_of_plugins = [
             "mkdocs-material",
