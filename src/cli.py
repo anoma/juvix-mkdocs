@@ -10,13 +10,16 @@ import toml
 from dotenv import load_dotenv
 from semver import Version
 
+from mkdocs_juvix.juvix_version import MIN_JUVIX_VERSION
+
 load_dotenv()
 
 JUVIX_BIN = os.getenv("JUVIX_BIN", "juvix")
 POETRY_BIN = os.getenv("POETRY_BIN", "poetry")
 
-MIN_JUVIX_VERSION = Version(0, 6, 6)
 SRC_PATH = Path(__file__).parent
+ROOT_PATH = SRC_PATH.parent
+
 FIXTURES_PATH = SRC_PATH / "fixtures"
 
 
@@ -265,7 +268,7 @@ def new(
     # Check if juvix is installed and retrieve the version
     try:
         click.secho("Checking Juvix version...", nl=False)
-        juvix_version = (
+        juvix_version_output = (
             subprocess.check_output(
                 [JUVIX_BIN, "--numeric-version"], stderr=subprocess.STDOUT
             )
@@ -273,9 +276,9 @@ def new(
             .strip()
         )
         click.secho("Done. ", fg="green", nl=False)
-        click.secho(f" Juvix v{juvix_version}.", fg="black", bg="white")
+        click.secho(f" Juvix v{juvix_version_output}.", fg="black", bg="white")
 
-        if Version.parse(juvix_version) < MIN_JUVIX_VERSION:
+        if Version.parse(juvix_version_output) < MIN_JUVIX_VERSION:
             click.secho(
                 f"""Juvix version {MIN_JUVIX_VERSION} or higher is required. \
                         Please upgrade Juvix and try again.""",
@@ -361,7 +364,7 @@ def new(
                 year=year,
                 font_text=font_text,
                 font_code=font_code,
-                juvix_version=juvix_version,
+                juvix_version=juvix_version_output,
                 bibtex=("" if no_bibtex else f"  - bibtex:\n      bib_dir: {bib_dir}"),
                 theme_features=(
                     ""
@@ -633,7 +636,7 @@ def new(
             .format(
                 site_author=site_author,
                 site_author_email=site_author_email,
-                juvix_version=juvix_version,
+                juvix_version=juvix_version_output,
                 project_name=project_name,
             )
         )

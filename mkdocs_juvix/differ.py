@@ -6,9 +6,7 @@ version number, and `ext` is the file extension.
 """
 
 import re
-import shutil
 import subprocess
-from os import getenv
 from pathlib import Path
 from typing import List, Optional, Tuple
 from urllib.parse import urljoin
@@ -18,50 +16,11 @@ from mkdocs.plugins import BasePlugin, get_plugin_logger
 from mkdocs.structure.files import Files
 from mkdocs.structure.pages import Page
 
+from mkdocs_juvix.env import ENV
+
 log = get_plugin_logger("DiffPlugin")
 
 VERSIONED_FILE_PATTERN = r"(.+)?v(\d+)((\.\w+)?\.md)"
-
-
-class ENV:
-    ROOT_PATH: Path
-    DOCS_DIRNAME: str = getenv("DOCS_DIRNAME", "docs")
-    DOCS_PATH: Path
-    CACHE_DIRNAME: str = getenv("CACHE_DIRNAME", ".hooks")
-    CACHE_PATH: Path
-    DIFF_ENABLED: bool
-    DIFF_BIN: str
-    DIFF_AVAILABLE: bool
-    DIFF_DIR: Path
-    DIFF_OPTIONS: List[str]
-    SITE_URL: str
-
-    def __init__(self, config: Config):
-        config_file = config.config_file_path
-        self.ROOT_PATH = Path(config_file).parent.absolute()
-        self.DOCS_PATH = self.ROOT_PATH / self.DOCS_DIRNAME
-        self.CACHE_PATH = self.ROOT_PATH / self.CACHE_DIRNAME
-        self.CACHE_PATH.mkdir(parents=True, exist_ok=True)
-        self.SITE_URL = config.get("site_url", "")
-        self.DIFF_ENABLED: bool = bool(getenv("DIFF_ENABLED", True))
-
-        self.DIFF_BIN: str = getenv("DIFF_BIN", "diff")
-        self.DIFF_AVAILABLE = shutil.which(self.DIFF_BIN) is not None
-
-        self.DIFF_DIR: Path = self.CACHE_PATH / ".diff"
-        self.DIFF_DIR.mkdir(parents=True, exist_ok=True)
-
-        if self.DIFF_ENABLED:
-            log.info("Diff plugin enabled.")
-
-            self.DIFF_OPTIONS = ["--unified", "--new-file", "--text"]
-
-            try:
-                subprocess.run([self.DIFF_BIN, "--version"], capture_output=True)
-            except FileNotFoundError:
-                log.warning(
-                    "The diff binary is not available. Please install diff and make sure it's available in the PATH."
-                )
 
 
 class DifferPlugin(BasePlugin):
