@@ -326,7 +326,7 @@ def new(
 
     year = datetime.now().year
 
-    index_file = docs_path / "index.juvix.md"
+    index_file = docs_path / "index.md"
     test_file = docs_path / "test.juvix.md"
     isabelle_file = docs_path / "isabelle.juvix.md"
     diagrams_file = docs_path / "diagrams.juvix.md"
@@ -653,7 +653,7 @@ def new(
         ).ask()
 
     # Typecheck given files
-    files_to_typecheck = [index_file, test_file, everything_file]
+    files_to_typecheck = [test_file, isabelle_file, diagrams_file, everything_file]
     if typecheck:
         for file in files_to_typecheck:
             click.secho(f"Typechecking {file}...", nl=False)

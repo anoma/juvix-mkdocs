@@ -9,6 +9,7 @@ isabelle:
 For example, we can define the following Juvix module, assuming the file is
 named `isabelle.juvix`:
 
+<!-- --8<-- [start:isabelle-module] -->
 ```juvix
 module isabelle;
 
@@ -18,6 +19,7 @@ add : Nat -> Nat -> Nat
   | zero n := n
   | (succ m) n := succ (add m n);
 ```
+<!-- --8<-- [end:isabelle-module] -->
 
 And then we can generate an Isabelle theory from it with the following command:
 

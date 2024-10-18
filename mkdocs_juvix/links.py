@@ -26,6 +26,7 @@ from mkdocs_juvix.common.utils import (
     fix_site_url,
     get_page_title,
 )
+from mkdocs_juvix.env import ENV
 from mkdocs_juvix.snippets import (
     DEFAULT_URL_SIZE,
     DEFAULT_URL_TIMEOUT,
@@ -41,11 +42,15 @@ files_relation: List[ResultEntry] = []
 
 
 class WLExtension(Extension):
-    def __init__(self, mkconfig):
-        self.mkconfig = mkconfig
+    config: MkDocsConfig
+    env: ENV
 
-        if "pymdownx.snippets" in self.mkconfig.mdx_configs:
-            bpath = self.mkconfig.mdx_configs["pymdownx.snippets"].get(
+    def __init__(self, config: MkDocsConfig):
+        self.config = config
+        self.env = ENV(config)
+
+        if "pymdownx.snippets" in self.config.mdx_configs:
+            bpath = self.config.mdx_configs["pymdownx.snippets"].get(
                 "base_path", [".", "includes"]
             )
 
@@ -60,7 +65,7 @@ class WLExtension(Extension):
 
                 bpath.extend(os.path.relpath(os.path.join(root, d), ".") for d in dirs)
 
-            self.mkconfig.mdx_configs["pymdownx.snippets"]["base_path"] = bpath
+            self.config.mdx_configs["pymdownx.snippets"]["base_path"] = bpath
 
     def __repr__(self):
         return "WLExtension"
@@ -70,7 +75,7 @@ class WLExtension(Extension):
         md.registerExtension(self)
 
         # Snippet extension preprocessor
-        sc = self.mkconfig.mdx_configs.get("pymdownx.snippets", {})
+        sc = self.config.mdx_configs.get("pymdownx.snippets", {})
         sc.setdefault("dedent_subsections", True)
         sc.setdefault("url_request_headers", {})
         sc.setdefault("url_timeout", DEFAULT_URL_TIMEOUT)
@@ -82,8 +87,9 @@ class WLExtension(Extension):
         sc.setdefault("restrict_base_path", True)
         sc.setdefault("base_path", [".", "includes"])
 
-        sp = SnippetPreprocessor(sc, md)
-        self.wlpp = WLPreprocessor(self.mkconfig, sp)
+        sp = SnippetPreprocessor(sc, md, self.env)
+
+        self.wlpp = WLPreprocessor(self.config, sp)
         md.preprocessors.register(self.wlpp, "wl-pp", 100)
 
 
@@ -126,7 +132,7 @@ class WikilinksPlugin(BasePlugin):
         if "pymdownx.snippets" in config["markdown_extensions"]:
             config["markdown_extensions"].remove("pymdownx.snippets")
 
-        wl_extension = WLExtension(mkconfig=config)
+        wl_extension = WLExtension(config)
         config.markdown_extensions.append(wl_extension)  # type: ignore
         return config
 

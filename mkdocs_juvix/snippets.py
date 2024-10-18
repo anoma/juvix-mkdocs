@@ -36,10 +36,14 @@ import re
 import textwrap
 import urllib
 from pathlib import Path
+from typing import Any
 
 from markdown import Extension
 from markdown.preprocessors import Preprocessor
+from mkdocs.config.defaults import MkDocsConfig
 from pymdownx import util
+
+from mkdocs_juvix.env import ENV
 
 log: logging.Logger = logging.getLogger("mkdocs")
 
@@ -47,11 +51,6 @@ MI = 1024 * 1024  # mebibyte (MiB)
 DEFAULT_URL_SIZE = MI * 32
 DEFAULT_URL_TIMEOUT = 10.0  # in seconds
 DEFAULT_URL_REQUEST_HEADERS = {}
-
-ROOT_DIR = Path(__file__).parent.parent.absolute()
-CACHE_DIR: Path = ROOT_DIR / ".hooks"
-JUVIX_OUTPUT = CACHE_DIR / ".MD"
-DOCS_DIR = ROOT_DIR / "docs"
 
 
 class SnippetMissingError(Exception):
@@ -93,14 +92,18 @@ class SnippetPreprocessor(Preprocessor):
     RE_SNIPPET_FILE = re.compile(
         r"(?i)(.*?)(?:(:[0-9]*)?(:[0-9]*)?|(:[a-z][-_0-9a-z]*)?)$"
     )
+    env: ENV
 
-    def __init__(self, config, md):
+    def __init__(self, config, md: Any, env: ENV):
         """Initialize."""
 
         base = config.get("base_path")
+        self.env = env
+
         if isinstance(base, (str, os.PathLike)):
             base = [base]
-        self.base_path = [os.path.abspath(b) for b in base]
+
+        self.base_path = [os.path.abspath(b) for b in base]  # type: ignore
         self.restrict_base_path = config["restrict_base_path"]
         self.encoding = config.get("encoding")
         self.check_paths = config.get("check_paths")
@@ -168,8 +171,8 @@ class SnippetPreprocessor(Preprocessor):
 
         if not found and self.check_paths:
             if not is_juvix:
-                raise SnippetMissingError(
-                    "Snippet section '{}' could not be located".format(section)
+                log.error(
+                    "[!] Snippet section '{}' could not be located".format(section)
                 )
             elif backup_lines is not None:
                 return self.extract_section(
@@ -180,7 +183,7 @@ class SnippetPreprocessor(Preprocessor):
                     backup_path=backup_path,
                 )
 
-            raise SnippetMissingError(
+            log.error(
                 f"""
 The snippet section '{section}' could not be located.
 This is likely because the section is inside a Juvix code block,
@@ -364,19 +367,37 @@ Error found in the file '{backup_path}' for the section '{section}'.
                 if just_raw:
                     path = path[:-1]
 
+                requires_generated_thy = path and path.endswith("!thy")
+                if requires_generated_thy:
+                    path = path[:-4]
+
                 snippet = self.get_snippet_path(path) if not url else path
 
                 is_juvix = False
-
                 if snippet:
                     original = snippet
 
                     if not just_raw and snippet.endswith(".juvix.md"):
-                        snippet = JUVIX_OUTPUT / Path(
+                        snippet = self.env.CACHE_MARKDOWN_JUVIX_OUTPUT_PATH / Path(
                             snippet.replace(".juvix.md", ".md")
-                        ).relative_to(DOCS_DIR)
+                        ).relative_to(self.env.DOCS_PATH)
                         snippet = snippet.as_posix()
                         is_juvix = True
+
+                    if requires_generated_thy:
+                        relative_path = Path(original).relative_to(self.env.DOCS_PATH)
+                        snippet = self.env.CACHE_ISABELLE_OUTPUT_PATH / Path(
+                            relative_path.as_posix().replace(".juvix.md", ".thy")
+                        )
+                        if not snippet.exists():
+                            log.warning(
+                                f"Isabelle file does not exist: {snippet}, "
+                                f"did you forget to add `isabelle: true` to the meta in the corresponding Juvix file?"
+                            )
+                            snippet = original
+                        else:
+                            snippet = snippet.as_posix()
+                            is_juvix = True
 
                     # This is in the stack and we don't want an infinite loop!
                     if snippet in self.seen:
@@ -472,6 +493,8 @@ Error found in the file '{backup_path}' for the section '{section}'.
 class SnippetExtension(Extension):
     """Snippet extension."""
 
+    env: ENV
+
     def __init__(self, *args, **kwargs):
         """Initialize."""
 
@@ -520,7 +543,7 @@ class SnippetExtension(Extension):
         self.md = md
         md.registerExtension(self)
         config = self.getConfigs()
-        snippet = SnippetPreprocessor(config, md)
+        snippet = SnippetPreprocessor(config, md, self.env)
         md.preprocessors.register(snippet, "snippet", 32)
 
     def reset(self):
