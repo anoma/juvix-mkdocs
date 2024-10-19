@@ -1,3 +1,9 @@
+"""
+This file defines a configurator for the different plugins included in
+mkdocs-juvix. It manages the different paths, mkdocs configurations, and
+Juvix settings.
+"""
+
 import shutil
 import subprocess
 from os import getenv
@@ -6,6 +12,9 @@ from typing import List, Optional
 
 from mkdocs.config import Config
 from mkdocs.plugins import get_plugin_logger
+from semver import Version
+
+from mkdocs_juvix.juvix_version import MIN_JUVIX_VERSION
 
 log = get_plugin_logger("ENV")
 
@@ -172,3 +181,67 @@ class ENV:
                 "Expected documentation directory %s not found.", self.DOCS_ABSPATH
             )
             exit(1)
+
+        directories: List[Path] = [
+            self.CACHE_MARKDOWN_JUVIX_OUTPUT_PATH,
+            self.CACHE_ISABELLE_OUTPUT_PATH,
+            self.CACHE_ORIGINAL_JUVIX_MARKDOWN_FILES_ABSPATH,
+            self.CACHE_ABSPATH,
+            self.CACHE_HASHES_PATH,
+            self.JUVIX_FOOTER_CSS_FILEPATH.parent,
+        ]
+
+        for directory in directories:
+            if directory.exists() and self.REMOVE_CACHE:
+                try:
+                    shutil.rmtree(directory, ignore_errors=True)
+                except Exception as e:
+                    log.error(
+                        f"Something went wrong while removing the directory {directory}. Error: {e}"
+                    )
+            directory.mkdir(parents=True, exist_ok=True)
+
+        self.JUVIX_VERSION = ""
+        self.JUVIX_FULL_VERSION = ""
+
+        if self.JUVIX_AVAILABLE:
+            full_version_cmd = [self.JUVIX_BIN, "--version"]
+            try:
+                result = subprocess.run(full_version_cmd, capture_output=True)
+                if result.returncode == 0:
+                    self.JUVIX_FULL_VERSION = result.stdout.decode("utf-8")
+                    if "Branch: HEAD" not in self.JUVIX_FULL_VERSION:
+                        log.debug(
+                            "You are using a version of Juvix that may not be supported by this plugin. Use at your own risk!"
+                        )
+            except Exception as e:
+                log.debug(
+                    f"[!] Something went wrong while getting the full version of Juvix. Error: {e}"
+                )
+
+            numeric_version_cmd = [self.JUVIX_BIN, "--numeric-version"]
+            try:
+                result = subprocess.run(numeric_version_cmd, capture_output=True)
+                if result.returncode == 0:
+                    self.JUVIX_VERSION = result.stdout.decode("utf-8")
+            except Exception as e:
+                log.debug(
+                    f"[!] Something went wrong while getting the numeric version of Juvix. Error: {e}"
+                )
+
+        if self.JUVIX_VERSION == "":
+            log.debug(
+                "Juvix version not found. Make sure Juvix is installed, for now support for Juvix Markdown is disabled."
+            )
+            self.JUVIX_ENABLED = False
+            self.JUVIX_AVAILABLE = False
+
+            return config
+
+        if Version.parse(self.JUVIX_VERSION) < MIN_JUVIX_VERSION:
+            log.debug(
+                f"""Juvix version {MIN_JUVIX_VERSION} or higher is required. Please upgrade Juvix and try again."""
+            )
+            self.JUVIX_ENABLED = False
+            self.JUVIX_AVAILABLE = False
+            return config

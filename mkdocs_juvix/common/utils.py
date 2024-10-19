@@ -1,9 +1,7 @@
 import logging
 import os
-from pathlib import Path
 from typing import List, Optional
 
-import graphviz
 from mkdocs.config.defaults import MkDocsConfig
 from mkdocs.utils import get_markdown_title
 

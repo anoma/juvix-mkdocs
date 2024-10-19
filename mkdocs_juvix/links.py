@@ -11,7 +11,6 @@ from typing import List, Optional
 from urllib.parse import urljoin
 
 import mkdocs.plugins
-from dotenv import load_dotenv
 from markdown.extensions import Extension
 from mkdocs.config.defaults import MkDocsConfig
 from mkdocs.plugins import BasePlugin, get_plugin_logger
@@ -32,9 +31,6 @@ from mkdocs_juvix.snippets import (
     DEFAULT_URL_TIMEOUT,
     SnippetPreprocessor,
 )
-
-load_dotenv()
-
 
 log = get_plugin_logger("Wikilinks")
 
@@ -88,16 +84,11 @@ class WLExtension(Extension):
         sc.setdefault("base_path", [".", "includes"])
 
         sp = SnippetPreprocessor(sc, md, self.env)
-
-        self.wlpp = WLPreprocessor(self.config, sp)
+        self.wlpp = WLPreprocessor(self.config, sp, self.env)
         md.preprocessors.register(self.wlpp, "wl-pp", 100)
 
 
 class WikilinksPlugin(BasePlugin):
-    ROOT_PATH: Path
-    DOCS_PATH: Path
-    CACHE_DIR: Path
-    SITE_URL: str
     LINKS_JSON: Path
     GRAPH_JSON: Path
     NODES_JSON: Path
@@ -106,27 +97,20 @@ class WikilinksPlugin(BasePlugin):
     TOKEN_LIST_WIKILINKS: str = "<!-- list_wikilinks -->"
     TOKEN_MERMAID_WIKILINKS: str = "<!-- mermaid_wikilinks -->"
 
-    DOCS_DIRNAME: str = getenv("DOCS_DIRNAME", "docs")
-    CACHE_DIRNAME: str = getenv("CACHE_DIRNAME", ".hooks")
     LINKS_JSONNAME: str = getenv("LINKS_JSONNAME", "aliases.json")
     GRAPH_JSONNAME: str = getenv("GRAPH_JSONNAME", "graph.json")
     NODES_JSONNAME: str = getenv("NODES_JSONNAME", "nodes.json")
     PAGE_LINK_DIAGSNAME: str = getenv("PAGE_LINK_DIAGSNAME", "page_link_diags")
+    env: ENV
 
     def on_config(self, config: MkDocsConfig, **kwargs) -> MkDocsConfig:
         config = fix_site_url(config)
-        self.SITE_URL = config.get("site_url", getenv("SITE_URL", ""))
-        config_file = config.config_file_path
-        self.ROOT_PATH = Path(config_file).parent.absolute()
-        self.DOCS_PATH = self.ROOT_PATH / self.DOCS_DIRNAME
-        self.CACHE_DIR = self.ROOT_PATH / self.CACHE_DIRNAME
-        self.LINKS_JSON = self.CACHE_DIR / self.LINKS_JSONNAME
-        self.GRAPH_JSON = self.CACHE_DIR / self.GRAPH_JSONNAME
-        self.NODES_JSON = self.CACHE_DIR / self.NODES_JSONNAME
-        self.PAGE_LINK_DIAGS = self.CACHE_DIR / self.PAGE_LINK_DIAGSNAME
+        self.env = ENV(config)
 
-        # create cache dir
-        self.CACHE_DIR.mkdir(parents=True, exist_ok=True)
+        self.LINKS_JSON = self.env.CACHE_PATH / self.LINKS_JSONNAME
+        self.GRAPH_JSON = self.env.CACHE_PATH / self.GRAPH_JSONNAME
+        self.NODES_JSON = self.env.CACHE_PATH / self.NODES_JSONNAME
+        self.PAGE_LINK_DIAGS = self.env.CACHE_PATH / self.PAGE_LINK_DIAGSNAME
         self.PAGE_LINK_DIAGS.mkdir(parents=True, exist_ok=True)
 
         if "pymdownx.snippets" in config["markdown_extensions"]:

@@ -20,7 +20,6 @@ from semver import Version
 from watchdog.events import FileSystemEvent
 
 from mkdocs_juvix.env import ENV, FIXTURES_PATH
-from mkdocs_juvix.juvix_version import MIN_JUVIX_VERSION
 from mkdocs_juvix.snippets import RE_SNIPPET_SECTION
 from mkdocs_juvix.utils import (
     compute_hash_filepath,
@@ -64,81 +63,8 @@ class JuvixPlugin(BasePlugin):
     env: ENV
 
     def on_config(self, config: MkDocsConfig) -> MkDocsConfig:
-        """
-        Here, we set up the paths, create the cache directories and check if the
-        Juvix binary is available. If the Juvix binary is not available, we set the
-        JUVIX_AVAILABLE variable to False. We also set the JUVIX_VERSION variable to
-        the version of the Juvix binary.
-        """
-
         self.env = ENV(config)
-
-        self.force: bool = self.env.REMOVE_CACHE
         self.env.FIRST_RUN = True
-
-        directories: List[Path] = [
-            self.env.CACHE_MARKDOWN_JUVIX_OUTPUT_PATH,
-            self.env.CACHE_ISABELLE_OUTPUT_PATH,
-            self.env.CACHE_ORIGINAL_JUVIX_MARKDOWN_FILES_ABSPATH,
-            self.env.CACHE_ABSPATH,
-            self.env.CACHE_HASHES_PATH,
-            self.env.JUVIX_FOOTER_CSS_FILEPATH.parent,
-        ]
-
-        for directory in directories:
-            if directory.exists() and self.force:
-                try:
-                    shutil.rmtree(directory, ignore_errors=True)
-                except Exception as e:
-                    log.error(
-                        f"Something went wrong while removing the directory {directory}. Error: {e}"
-                    )
-            directory.mkdir(parents=True, exist_ok=True)
-
-        self.env.JUVIX_VERSION = ""
-        self.env.JUVIX_FULL_VERSION = ""
-
-        if self.env.JUVIX_AVAILABLE:
-            full_version_cmd = [self.env.JUVIX_BIN, "--version"]
-            try:
-                result = subprocess.run(full_version_cmd, capture_output=True)
-                if result.returncode == 0:
-                    self.env.JUVIX_FULL_VERSION = result.stdout.decode("utf-8")
-                    if "Branch: HEAD" not in self.env.JUVIX_FULL_VERSION:
-                        log.warning(
-                            "You are using a version of Juvix that may not be supported by this plugin. Use at your own risk!"
-                        )
-            except Exception as e:
-                log.warning(
-                    f"Something went wrong while getting the full version of Juvix. Error: {e}"
-                )
-
-            numeric_version_cmd = [self.env.JUVIX_BIN, "--numeric-version"]
-            try:
-                result = subprocess.run(numeric_version_cmd, capture_output=True)
-                if result.returncode == 0:
-                    self.env.JUVIX_VERSION = result.stdout.decode("utf-8")
-            except Exception as e:
-                log.warning(
-                    f"Something went wrong while getting the numeric version of Juvix. Error: {e}"
-                )
-
-        if self.env.JUVIX_VERSION == "":
-            log.warning(
-                "Juvix version not found. Make sure Juvix is installed, for now support for Juvix Markdown is disabled."
-            )
-            self.env.JUVIX_ENABLED = False
-            self.env.JUVIX_AVAILABLE = False
-
-            return config
-
-        if Version.parse(self.env.JUVIX_VERSION) < MIN_JUVIX_VERSION:
-            log.warning(
-                f"""Juvix version {MIN_JUVIX_VERSION} or higher is required. Please upgrade Juvix and try again."""
-            )
-            self.env.JUVIX_ENABLED = False
-            self.env.JUVIX_AVAILABLE = False
-            return config
 
         # Check if we need to create or update the codeblock footer CSS
         version_diff = (
@@ -614,6 +540,8 @@ Environment variables relevant:
             log.info(f"Reading cached file for: {filepath}")
             return self._read_markdown_file_from_cache(filepath)
 
+        markdown_output = self._run_juvix_markdown(filepath)
+
         log.debug(f"New or changed file: {filepath}")
 
         try:
@@ -621,13 +549,13 @@ Environment variables relevant:
             # Extract metadata block checking it has exist it may not be
             metadata_block = content.split("---")
             if len(metadata_block) < 3:
-                return None
+                return markdown_output
             metadata = metadata_block[1].strip()
             try:
                 metadata = yaml.safe_load(metadata)
             except Exception as e:
                 log.error(f"Error parsing metadata block: {e}")
-                return None
+                return markdown_output
 
             isabelle_meta = metadata.get("isabelle", {})
             if not isinstance(isabelle_meta, dict):
@@ -647,7 +575,7 @@ Environment variables relevant:
         except Exception as e:
             log.error(f"Error generating Isabelle output files for {filepath}: {e}")
 
-        return self._run_juvix_markdown(filepath)
+        return markdown_output
 
     def _unqualified_module_name(self, filepath: Path) -> Optional[str]:
         fposix: str = filepath.as_posix()

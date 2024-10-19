@@ -29,14 +29,12 @@ REPORT_BROKEN_WIKILINKS = bool(os.environ.get("REPORT_BROKEN_WIKILINKS", False))
 
 
 class WLPreprocessor(Preprocessor):
-    env: ENV
-
-    def __init__(self, mkconfig, snippet_preprocessor):
+    def __init__(self, mkconfig, snippet_preprocessor, env: ENV):
         self.mkconfig = mkconfig
         self.snippet_preprocessor = snippet_preprocessor
         self.current_file = None
         self.links_found = []
-        self.env = ENV(mkconfig)
+        self.env = env
 
     def run(self, lines):
         lines = self.snippet_preprocessor.run(lines)
@@ -50,15 +48,17 @@ class WLPreprocessor(Preprocessor):
         inside_wikilink = False
         wikilink_buffer = []
         wikilink_buffer_pos = []
-
+        page = None
         if "current_page" in config and isinstance(config["current_page"], Page):
-            page = config["current_page"]
-            url_relative = self.env.DOCS_PATH / Path(page.url.replace(".html", ".md"))
-            current_page_url = url_relative.as_posix()
-            log.debug(f"CURRENT PAGE: {current_page_url}")
+            page = config.get("current_page", None)
+            if page:
+                url_relative = self.env.DOCS_PATH / Path(
+                    page.url.replace(".html", ".md")
+                )
+                current_page_url = url_relative.as_posix()
 
         if not current_page_url:
-            log.error("Current page URL not found. Wikilinks will not be processed.")
+            log.warning("Current page URL not found. Wikilinks will not be processed.")
             return lines
 
         for i, line in enumerate(lines.copy()):
@@ -76,7 +76,6 @@ class WLPreprocessor(Preprocessor):
                 continue
 
             matches = WIKILINK_PATTERN.finditer(line)
-
             # If we're inside a wikilink, keep adding lines to the buffer
             if inside_wikilink:
                 wikilink_buffer.append(line)
