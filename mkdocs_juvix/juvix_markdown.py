@@ -9,6 +9,7 @@ from typing import Any, Callable, Dict, List, Optional, Tuple
 from urllib.parse import urljoin
 
 import pathspec
+import yaml
 from bs4 import BeautifulSoup
 from dotenv import load_dotenv
 from mkdocs.config.defaults import MkDocsConfig
@@ -20,6 +21,7 @@ from watchdog.events import FileSystemEvent
 
 from mkdocs_juvix.env import ENV, FIXTURES_PATH
 from mkdocs_juvix.juvix_version import MIN_JUVIX_VERSION
+from mkdocs_juvix.snippets import RE_SNIPPET_SECTION
 from mkdocs_juvix.utils import (
     compute_hash_filepath,
     compute_sha_over_folder,
@@ -216,20 +218,20 @@ Environment variables relevant:
                 return
 
         for _file in self.env.DOCS_ABSPATH.rglob("*.juvix.md"):
-            file: Path = _file.absolute()
-            relative_to: Path = file.relative_to(self.env.DOCS_ABSPATH)
+            filepath: Path = _file.absolute()
+            relative_to: Path = filepath.relative_to(self.env.DOCS_ABSPATH)
             url = urljoin(
                 self.env.SITE_URL, relative_to.as_posix().replace(".juvix.md", ".html")
             )
             self.juvix_md_files.append(
                 {
-                    "module_name": self._unqualified_module_name(file),
-                    "qualified_module_name": self._qualified_module_name(file),
+                    "module_name": self._unqualified_module_name(filepath),
+                    "qualified_module_name": self._qualified_module_name(filepath),
                     "url": url,
-                    "file": file.absolute().as_posix(),
+                    "file": filepath.absolute().as_posix(),
                 }
             )
-            self._generate_markdown(file)
+            self._generate_output_files_for_juvix_markdown(filepath)
 
         self.juvix_md_files.sort(key=lambda x: x["qualified_module_name"])
         juvix_modules = self.env.CACHE_ABSPATH.joinpath("juvix_modules.json")
@@ -298,7 +300,7 @@ Environment variables relevant:
         return nav
 
     @if_juvix_enabled
-    def on_pre_page(self, page: Page, config: MkDocsConfig, files: Files):
+    def on_pre_page(self, page: Page, config: MkDocsConfig, files: Files) -> Page:
         return page
 
     @if_juvix_enabled
@@ -311,70 +313,54 @@ Environment variables relevant:
         if not filepath.as_posix().endswith(".juvix.md"):
             return None
 
-        output = self._generate_markdown(filepath)
-        if not output:
-            log.error(f"Error generating markdown for file: {filepath}")
-        return output
+        return self._generate_output_files_for_juvix_markdown(filepath)
 
     @if_juvix_enabled
     def on_page_markdown(
         self, markdown: str, page: Page, config: MkDocsConfig, files: Files
     ) -> Optional[str]:
         path = page.file.abs_src_path
+
         if path and not path.endswith(".juvix.md"):
             return markdown
+
         page.file.name = page.file.name.replace(".juvix", "")
         page.file.url = page.file.url.replace(".juvix", "")
         page.file.dest_uri = page.file.dest_uri.replace(".juvix", "")
         page.file.abs_dest_path = page.file.abs_dest_path.replace(".juvix", "")
 
-        metadata = page.meta
-        isabelle_meta = metadata.get("isabelle", {})
-        if not isinstance(isabelle_meta, dict):
-            isabelle_meta = {}
-        generate_isabelle = isabelle_meta.get("generate", False) or metadata.get(
-            "isabelle", False
-        )
-        include_isabelle_at_bottom = isabelle_meta.get("include_at_bottom", False)
+        required_isabelle_output: Optional[dict | bool] = page.meta.get("isabelle")
+        include_isabelle_at_bottom = False
 
-        if generate_isabelle or include_isabelle_at_bottom:
-            src_path = page.file.abs_src_path
-            if src_path is None:
-                log.error(f"Source path not found for {page.file.name}")
-                return markdown
-            isabelle_html = None
-            if isinstance(src_path, str):
-                filepath = Path(src_path)
-                isabelle_html = self._generate_isabelle_html(filepath)
-
-            if isabelle_html is None:
-                log.info(f"No Isabelle output generated for {page.file.name}")
-                return markdown
-
-            _isabelle_path = (
-                self._get_expected_filepath_for_juvix_isabelle_output_in_cache(filepath)
+        if isinstance(required_isabelle_output, dict):
+            include_isabelle_at_bottom = required_isabelle_output.get(
+                "include_at_bottom", False
             )
 
-            if _isabelle_path is None:
-                log.error(f"Isabelle no output generated for {page.file.name}")
+        if include_isabelle_at_bottom:
+            log.debug(f"Including Isabelle at the bottom of {page.file.name}")
+            src_path = page.file.abs_src_path
+            if not src_path:
+                return markdown
+            filepath = Path(src_path)
+            isabelle_path = (
+                self._get_expected_filepath_for_juvix_isabelle_output_in_cache(filepath)
+            )
+            if isabelle_path and not isabelle_path.exists():
+                log.error(
+                    f"Isabelle output file not found for {page.file.name}. Try to build the project again."
+                )
                 return markdown
 
-            isabelle_path = Path(_isabelle_path)
-
-            if not isabelle_path.exists():
-                log.error(f"Isabelle output file not found for {page.file.name}")
-                return markdown
-
-            if include_isabelle_at_bottom:
+            if isabelle_path and include_isabelle_at_bottom:
                 return markdown + (
                     FIXTURES_PATH / "isabelle_at_bottom.md"
                 ).read_text().format(
                     filename=page.file.name,
                     block_title=page.file.name,
-                    isabelle_html=isabelle_html,
+                    isabelle_html=isabelle_path.read_text(),
                     juvix_version=self.env.JUVIX_VERSION,
                 )
-            return markdown
         return markdown
 
     @if_juvix_enabled
@@ -606,6 +592,7 @@ Environment variables relevant:
         )
 
         if not cache_available or self._new_or_changed_or_no_exist(filepath):
+            log.info(f"No Isabelle file in cache for {filepath}")
             return self._run_juvix_isabelle(filepath)
 
         log.debug(f"Reading cache for file: {filepath}")
@@ -615,15 +602,52 @@ Environment variables relevant:
         return isabelle_filepath.read_text()
 
     @if_juvix_enabled
-    def _generate_markdown(self, filepath: Path) -> Optional[str]:
+    def _generate_output_files_for_juvix_markdown(
+        self, filepath: Path
+    ) -> Optional[str]:
         if not filepath.as_posix().endswith(".juvix.md"):
             return None
 
-        if self._new_or_changed_or_no_exist(filepath):
-            return self._run_juvix_markdown(filepath)
+        new_or_changed = self._new_or_changed_or_no_exist(filepath)
 
-        log.debug(f"Reading cache for file: {filepath}")
-        return self._read_markdown_file_from_cache(filepath)
+        if not new_or_changed:
+            log.info(f"Reading cached file for: {filepath}")
+            return self._read_markdown_file_from_cache(filepath)
+
+        log.debug(f"New or changed file: {filepath}")
+
+        try:
+            content = filepath.read_text()
+            # Extract metadata block checking it has exist it may not be
+            metadata_block = content.split("---")
+            if len(metadata_block) < 3:
+                return None
+            metadata = metadata_block[1].strip()
+            try:
+                metadata = yaml.safe_load(metadata)
+            except Exception as e:
+                log.error(f"Error parsing metadata block: {e}")
+                return None
+
+            isabelle_meta = metadata.get("isabelle", {})
+            if not isinstance(isabelle_meta, dict):
+                isabelle_meta = {}
+
+            generate_isabelle = isabelle_meta.get("generate", False) or metadata.get(
+                "isabelle", False
+            )
+
+            include_isabelle_at_bottom = isabelle_meta.get("include_at_bottom", False)
+            if generate_isabelle or include_isabelle_at_bottom:
+                try:
+                    log.info(f"Generating Isabelle HTML for {filepath}")
+                    self._generate_isabelle_html(filepath)
+                except Exception as e:
+                    log.error(f"Error generating Isabelle HTML for {filepath}: {e}")
+        except Exception as e:
+            log.error(f"Error generating Isabelle output files for {filepath}: {e}")
+
+        return self._run_juvix_markdown(filepath)
 
     def _unqualified_module_name(self, filepath: Path) -> Optional[str]:
         fposix: str = filepath.as_posix()
@@ -709,6 +733,7 @@ Environment variables relevant:
             result_isabelle = subprocess.run(
                 juvix_isabelle_cmd, cwd=self.env.DOCS_ABSPATH, capture_output=True
             )
+
             if result_isabelle.returncode != 0:
                 juvix_isabelle_error_message = (
                     result_isabelle.stderr.decode("utf-8").replace("\n", " ").strip()
@@ -717,6 +742,7 @@ Environment variables relevant:
                     f"Error running Juvix Isabelle on file: {fposix} -\n {juvix_isabelle_error_message}"
                 )
                 return f"!!! failure 'When translating to Isabelle, the Juvix compiler found the following error:'\n\n    {juvix_isabelle_error_message}\n\n"
+
         except Exception as e:
             log.error(f"Error running Juvix to Isabelle pass on file: {fposix} -\n {e}")
             return None
@@ -734,11 +760,41 @@ Environment variables relevant:
         isabelle_output: str = result_isabelle.stdout.decode("utf-8")
 
         try:
+            isabelle_output = self._fix_unclosed_snippet_annotations(isabelle_output)
             cache_isabelle_filepath.write_text(isabelle_output)
         except Exception as e:
             log.error(f"Error writing to cache Isabelle file: {e}")
             return None
         return isabelle_output
+
+    # TODO: remove when the compiler respects the closing annotation in the comments
+    def _fix_unclosed_snippet_annotations(self, isabelle_output: str) -> str:
+        # process each line of the output and if the line matches RE
+        lines = isabelle_output.split("\n")
+        counted_lines = len(lines)
+        closed_successfully = False
+        JLine: Optional[int] = None
+        for i, _l in enumerate(lines):
+            m = RE_SNIPPET_SECTION.match(_l)
+            if m and m.group("type") == "start":
+                section_name = m.group("name")
+                closed_successfully = False
+                JLine = None
+                for j in range(i + 1, counted_lines):
+                    if lines[j].strip() == "" and JLine is not None:
+                        JLine = j
+                    if (
+                        (m2 := RE_SNIPPET_SECTION.match(lines[j]))
+                        and m2.group("type") == "end"
+                        and m2.group("name") == section_name
+                    ):
+                        closed_successfully = True
+                        break
+                if not closed_successfully and JLine:
+                    lines[JLine] = lines[JLine].replace("start", "end")
+                    log.warning("Could not close the last opened snippet section")
+                    return isabelle_output
+        return "\n".join(lines)
 
     def _run_juvix_markdown(self, _filepath: Path) -> Optional[str]:
         filepath = _filepath.absolute()

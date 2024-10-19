@@ -17,7 +17,6 @@ plugins:
   - juvix
 ```
 
-
 ## Creating a new project (optional but recommended)
 
 This website is an example of a documentation website that is built using this
@@ -175,9 +174,7 @@ To incorporate the excerpt elsewhere, specify its path and tag:
 ;--8<-- "path/to/file.ext:TAG"
 ```
 
-## Snippets of Juvix code
-
-### Snippet for Juvix Markdown files Raw and Postprocessed
+### Snippets of Juvix code
 
 You can also include **snippets of Juvix code** in your Markdown files. This is done
 by adding the `--8<--` comment followed by the path to the file, and optionally
@@ -203,6 +200,15 @@ a snippet identifier.
 For including generated Isabelle files, the path of the file must end with
 `!thy`, the raw content of the Isabelle theory file will be included.
 
+```markdown
+;--8<-- "docs/isabelle.juvix.md!thy:isabelle-add-def"
+```
+
+This provides the following output:
+
+```isabelle title="isabelle.thy from isabelle.juvix.md"
+--8<-- "docs/isabelle.juvix.md!thy:isabelle-add-def"
+```
 
 ## Support for Wiki Links
 

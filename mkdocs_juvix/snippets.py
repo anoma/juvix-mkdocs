@@ -53,6 +53,38 @@ DEFAULT_URL_TIMEOUT = 10.0  # in seconds
 DEFAULT_URL_REQUEST_HEADERS = {}
 
 
+RE_ALL_SNIPPETS = re.compile(
+    r"""(?x)
+    ^(?P<space>[ \t]*)
+    (?P<escape>;*)
+    (?P<all>
+        (?P<inline_marker>-{1,}8<-{1,}[ \t]+)
+        (?P<snippet>(?:"(?:\\"|[^"\n\r])+?"|'(?:\\'|[^'\n\r])+?'))(?![ \t]) |
+        (?P<block_marker>-{1,}8<-{1,})(?![ \t])
+    )\r?$
+    """
+)
+
+RE_SNIPPET = re.compile(
+    r"""(?x)
+    ^(?P<space>[ \t]*)
+    (?P<snippet>.*?)\r?$
+    """
+)
+
+RE_SNIPPET_SECTION = re.compile(
+    r"""(?xi)
+    ^(?P<pre>.*?)
+    (?P<escape>;*)
+    (?P<inline_marker>-{1,}8<-{1,}[ \t]+)
+    (?P<section>\[[ \t]*(?P<type>start|end)[ \t]*:[ \t]*(?P<name>[a-z][-_0-9a-z]*)[ \t]*\])
+    (?P<post>.*?)$
+    """
+)
+
+RE_SNIPPET_FILE = re.compile(r"(?i)(.*?)(?:(:[0-9]*)?(:[0-9]*)?|(:[a-z][-_0-9a-z]*)?)$")
+
+
 class SnippetMissingError(Exception):
     """Snippet missing exception."""
 
@@ -60,38 +92,6 @@ class SnippetMissingError(Exception):
 class SnippetPreprocessor(Preprocessor):
     """Handle snippets in Markdown content."""
 
-    RE_ALL_SNIPPETS = re.compile(
-        r"""(?x)
-        ^(?P<space>[ \t]*)
-        (?P<escape>;*)
-        (?P<all>
-            (?P<inline_marker>-{1,}8<-{1,}[ \t]+)
-            (?P<snippet>(?:"(?:\\"|[^"\n\r])+?"|'(?:\\'|[^'\n\r])+?'))(?![ \t]) |
-            (?P<block_marker>-{1,}8<-{1,})(?![ \t])
-        )\r?$
-        """
-    )
-
-    RE_SNIPPET = re.compile(
-        r"""(?x)
-        ^(?P<space>[ \t]*)
-        (?P<snippet>.*?)\r?$
-        """
-    )
-
-    RE_SNIPPET_SECTION = re.compile(
-        r"""(?xi)
-        ^(?P<pre>.*?)
-        (?P<escape>;*)
-        (?P<inline_marker>-{1,}8<-{1,}[ \t]+)
-        (?P<section>\[[ \t]*(?P<type>start|end)[ \t]*:[ \t]*(?P<name>[a-z][-_0-9a-z]*)[ \t]*\])
-        (?P<post>.*?)$
-        """
-    )
-
-    RE_SNIPPET_FILE = re.compile(
-        r"(?i)(.*?)(?:(:[0-9]*)?(:[0-9]*)?|(:[a-z][-_0-9a-z]*)?)$"
-    )
     env: ENV
 
     def __init__(self, config, md: Any, env: ENV):
@@ -118,7 +118,13 @@ class SnippetPreprocessor(Preprocessor):
         self.download.cache_clear()
 
     def extract_section(
-        self, section, lines, is_juvix=False, backup_lines=None, backup_path=None
+        self,
+        section,
+        lines,
+        is_juvix=False,
+        is_isabelle=False,
+        backup_lines=None,
+        backup_path=None,
     ):
         """Extract the specified section from the lines."""
 
@@ -128,7 +134,7 @@ class SnippetPreprocessor(Preprocessor):
         for _l in lines:
             ln = _l
             # Found a snippet section marker with our specified name
-            m = self.RE_SNIPPET_SECTION.match(ln)
+            m = RE_SNIPPET_SECTION.match(ln)
 
             # Handle escaped line
             if m and start and m.group("escape"):
@@ -179,6 +185,7 @@ class SnippetPreprocessor(Preprocessor):
                     section,
                     backup_lines,
                     is_juvix=False,
+                    is_isabelle=False,
                     backup_lines=None,
                     backup_path=backup_path,
                 )
@@ -264,7 +271,9 @@ Error found in the file '{backup_path}' for the section '{section}'.
                 ln.decode(self.encoding).rstrip("\r\n") for ln in response.readlines()
             ]
 
-    def parse_snippets(self, lines, file_name=None, is_url=False):
+    def parse_snippets(
+        self, lines, file_name=None, is_url=False, is_juvix=False, is_isabelle=False
+    ):
         """Parse snippets snippet."""
 
         if file_name:
@@ -277,7 +286,7 @@ Error found in the file '{backup_path}' for the section '{section}'.
         for idx, line in enumerate(lines):
             # Check for snippets on line
             inline = False
-            m = self.RE_ALL_SNIPPETS.match(line)
+            m = RE_ALL_SNIPPETS.match(line)
             if m:
                 if m.group("escape"):
                     # The snippet has been escaped, replace first `;` and continue.
@@ -306,7 +315,7 @@ Error found in the file '{backup_path}' for the section '{section}'.
             if block and not inline:
                 # We are in a block and we didn't just find a nested inline
                 # So check if a block path
-                m = self.RE_SNIPPET.match(line)
+                m = RE_SNIPPET.match(line)
 
             if m:
                 # Get spaces and snippet path.  Remove quotes if inline.
@@ -332,7 +341,7 @@ Error found in the file '{backup_path}' for the section '{section}'.
                 end = None
                 start = None
                 section = None
-                m = self.RE_SNIPPET_FILE.match(path)
+                m = RE_SNIPPET_FILE.match(path)
                 if m is None:
                     continue
                 path = m.group(1).strip()
@@ -367,9 +376,11 @@ Error found in the file '{backup_path}' for the section '{section}'.
                 if just_raw:
                     path = path[:-1]
 
+                is_isabelle = False
                 requires_generated_thy = path and path.endswith("!thy")
                 if requires_generated_thy:
                     path = path[:-4]
+                    is_isabelle = True
 
                 snippet = self.get_snippet_path(path) if not url else path
 
@@ -392,7 +403,7 @@ Error found in the file '{backup_path}' for the section '{section}'.
                         if not snippet.exists():
                             log.warning(
                                 f"Isabelle file does not exist: {snippet}, "
-                                f"did you forget to add `isabelle: true` to the meta in the corresponding Juvix file?"
+                                f"did you forget e.g. to add `isabelle: true` to the meta in the corresponding Juvix file?"
                             )
                             snippet = original
                         else:
@@ -429,7 +440,12 @@ Error found in the file '{backup_path}' for the section '{section}'.
                                 )
                             elif section:
                                 s_lines = self.extract_section(
-                                    section, s_lines, is_juvix, original_lines, original
+                                    section,
+                                    s_lines,
+                                    is_juvix,
+                                    is_isabelle,
+                                    original_lines,
+                                    original,
                                 )
                             else:
                                 in_metadata = False
@@ -453,7 +469,9 @@ Error found in the file '{backup_path}' for the section '{section}'.
                                     else s_lines[s]
                                 )
                             elif section:
-                                s_lines = self.extract_section(section, s_lines)
+                                s_lines = self.extract_section(
+                                    section, s_lines, is_juvix, is_isabelle
+                                )
                         except SnippetMissingError:
                             if self.check_paths:
                                 raise
@@ -463,7 +481,13 @@ Error found in the file '{backup_path}' for the section '{section}'.
                     new_lines.extend(
                         [
                             space + l2
-                            for l2 in self.parse_snippets(s_lines, snippet, is_url=url)
+                            for l2 in self.parse_snippets(
+                                s_lines,
+                                file_name=snippet,
+                                is_url=url,
+                                is_juvix=is_juvix,
+                                is_isabelle=is_isabelle,
+                            )
                         ]
                     )
 

@@ -14,16 +14,20 @@ from mkdocs.structure.files import Files
 from mkdocs.structure.pages import Page
 
 from mkdocs_juvix.common.models.loc import FileLoc as Todo
+from mkdocs_juvix.env import ENV
 
 log = get_plugin_logger("TodosPlugin")
 
 
 class RTExtension(Extension):
+    env: ENV
+
     def __repr__(self):
         return "RTExtension"
 
     def __init__(self, mkconfig):
         self.mkconfig = mkconfig
+        self.env = ENV(mkconfig)
 
     def extendMarkdown(self, md):  # noqa: N802
         self.md = md
@@ -34,16 +38,19 @@ class RTExtension(Extension):
 
 
 class RTPreprocessor(Preprocessor):
+    env: ENV
+
     def __init__(self, mkconfig: MkDocsConfig):
         self.mkconfig = mkconfig
+        self.env = ENV(mkconfig)
 
     def run(self, lines: List[str]) -> List[str]:
         config = self.mkconfig
         current_page_url = None
-        preprocess_page = config["SHOW_TODOS_IN_MD"]
+        preprocess_page = self.env.SHOW_TODOS_IN_MD
 
         if "current_page" in config and isinstance(config["current_page"], Page):
-            url_relative = config["DOCS_PATH"] / Path(
+            url_relative = self.env.DOCS_PATH / Path(
                 config["current_page"].url.replace(".html", ".md")
             )
             current_page_url = url_relative.as_posix()
@@ -91,13 +98,13 @@ class RTPreprocessor(Preprocessor):
                         column=0,
                         text=message,
                     )
-                    if config["REPORT_TODOS"]:
+                    if self.env.REPORT_TODOS:
                         log.warning(todo)
             else:
                 without_todos.append(line)
             I += 1  # noqa: E741
 
-        return lines if config["SHOW_TODOS_IN_MD"] else without_todos
+        return lines if self.env.SHOW_TODOS_IN_MD else without_todos
 
 
 class TodosPlugin(BasePlugin):

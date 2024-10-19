@@ -9,9 +9,7 @@ from markdown.preprocessors import Preprocessor  # type: ignore
 from mkdocs.structure.pages import Page
 
 from mkdocs_juvix.common.models import FileLoc, WikiLink
-
-ROOT_DIR = Path(__file__).parent.parent.absolute()
-DOCS_DIR = ROOT_DIR / "docs"
+from mkdocs_juvix.env import ENV
 
 WIKILINK_PATTERN = re.compile(
     r"""
@@ -26,16 +24,19 @@ WIKILINK_PATTERN = re.compile(
 )
 
 log: logging.Logger = logging.getLogger("mkdocs")
-SITE_URL = os.environ.get("SITE_URL", "/nspec/")
+
 REPORT_BROKEN_WIKILINKS = bool(os.environ.get("REPORT_BROKEN_WIKILINKS", False))
 
 
 class WLPreprocessor(Preprocessor):
+    env: ENV
+
     def __init__(self, mkconfig, snippet_preprocessor):
         self.mkconfig = mkconfig
         self.snippet_preprocessor = snippet_preprocessor
         self.current_file = None
         self.links_found = []
+        self.env = ENV(mkconfig)
 
     def run(self, lines):
         lines = self.snippet_preprocessor.run(lines)
@@ -52,7 +53,7 @@ class WLPreprocessor(Preprocessor):
 
         if "current_page" in config and isinstance(config["current_page"], Page):
             page = config["current_page"]
-            url_relative = DOCS_DIR / Path(page.url.replace(".html", ".md"))
+            url_relative = self.env.DOCS_PATH / Path(page.url.replace(".html", ".md"))
             current_page_url = url_relative.as_posix()
             log.debug(f"CURRENT PAGE: {current_page_url}")
 

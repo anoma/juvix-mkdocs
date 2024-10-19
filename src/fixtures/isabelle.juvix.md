@@ -15,9 +15,11 @@ module isabelle;
 
 type Nat : Type := zero | succ Nat;
 
+-- --8<-- [start:isabelle-add-def]
 add : Nat -> Nat -> Nat
   | zero n := n
   | (succ m) n := succ (add m n);
+-- --8<-- [end:isabelle-add-def]
 ```
 <!-- --8<-- [end:isabelle-module] -->
 

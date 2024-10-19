@@ -93,6 +93,7 @@ class ENV:
     JUVIX_FOOTER_CSS_FILEPATH: Path  # The path to the Juvix footer CSS file
     CACHE_JUVIX_VERSION_FILEPATH: Path  # The path to the Juvix version file
     TOKEN_ISABELLE_THEORY: str = "<!-- ISABELLE_THEORY -->"
+    SHOW_TODOS_IN_MD: bool
 
     def __init__(self, config: Config):
         config_file = config.config_file_path
@@ -108,7 +109,11 @@ class ENV:
         self.CACHE_PATH = self.ROOT_PATH / self.CACHE_DIRNAME
         self.CACHE_PATH.mkdir(parents=True, exist_ok=True)
         self.SITE_URL = config.get("site_url", "")
-        self.DIFF_ENABLED: bool = bool(getenv("DIFF_ENABLED", True))
+
+        self.SHOW_TODOS_IN_MD = bool(getenv("SHOW_TODOS_IN_MD", False))
+        self.REPORT_TODOS = bool(getenv("REPORT_TODOS", False))
+
+        self.DIFF_ENABLED: bool = bool(getenv("DIFF_ENABLED", False))
 
         self.DIFF_BIN: str = getenv("DIFF_BIN", "diff")
         self.DIFF_AVAILABLE = shutil.which(self.DIFF_BIN) is not None
@@ -117,8 +122,6 @@ class ENV:
         self.DIFF_DIR.mkdir(parents=True, exist_ok=True)
 
         if self.DIFF_ENABLED:
-            log.info("Diff plugin enabled.")
-
             self.DIFF_OPTIONS = ["--unified", "--new-file", "--text"]
 
             try:
