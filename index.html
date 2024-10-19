@@ -303,13 +303,6 @@
     </span>
 </a>
 </li>
-<li class="md-nav__item">
-<a class="md-nav__link" href="#extract-inner-module-statements">
-<span class="md-ellipsis">
-      Extract inner module statements
-    </span>
-</a>
-</li>
 </ul>
 </nav>
 </li>
@@ -452,6 +445,162 @@
     </span>
 </a>
 </li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#hide-juvix-code-blocks_1">
+<span class="md-ellipsis">
+      Hide Juvix code blocks
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#extract-inner-module-statements">
+<span class="md-ellipsis">
+      Extract inner module statements
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#isabelle-generated-content-from-juvix-markdown-files_1">
+<span class="md-ellipsis">
+      Isabelle generated content from Juvix Markdown files
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#snippets-plugin_1">
+<span class="md-ellipsis">
+      Snippets Plugin
+    </span>
+</a>
+<nav aria-label="Snippets Plugin" class="md-nav">
+<ul class="md-nav__list">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#excerpt-wrapping-syntax_1">
+<span class="md-ellipsis">
+      Excerpt Wrapping Syntax
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#snippet-inclusion-syntax_1">
+<span class="md-ellipsis">
+      Snippet Inclusion Syntax
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#snippets-of-juvix-code_1">
+<span class="md-ellipsis">
+      Snippets of Juvix code
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#snippet-for-generated-isabelle-files_1">
+<span class="md-ellipsis">
+      Snippet for generated Isabelle files
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#support-for-wiki-links_1">
+<span class="md-ellipsis">
+      Support for Wiki Links
+    </span>
+</a>
+<nav aria-label="Support for Wiki Links" class="md-nav">
+<ul class="md-nav__list">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#basic-syntax_1">
+<span class="md-ellipsis">
+      Basic Syntax
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#full-syntax_1">
+<span class="md-ellipsis">
+      Full Syntax
+    </span>
+</a>
+<nav aria-label="Full Syntax" class="md-nav">
+<ul class="md-nav__list">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#page-title_1">
+<span class="md-ellipsis">
+      Page Title
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#path-hints_1">
+<span class="md-ellipsis">
+      Path Hints
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#anchors_1">
+<span class="md-ellipsis">
+      Anchors
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#custom-captions_1">
+<span class="md-ellipsis">
+      Custom captions
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#list-of-wiki-style-links-per-page_1">
+<span class="md-ellipsis">
+      List of wiki-style links per Page
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#todos-plugin_1">
+<span class="md-ellipsis">
+      Todos Plugin
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#diagrams-using-kroki_1">
+<span class="md-ellipsis">
+      Diagrams using Kroki
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#bibliography-support_1">
+<span class="md-ellipsis">
+      Bibliography support
+    </span>
+</a>
+<nav aria-label="Bibliography support" class="md-nav">
+<ul class="md-nav__list">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#citing-in-markdown_1">
+<span class="md-ellipsis">
+      Citing in Markdown
+    </span>
+</a>
+</li>
 </ul>
 </nav>
 </li>
@@ -549,60 +698,60 @@ expressions. This means submodules cannot be split across blocks. The name of
  module must follow the folder structure of the file is in. For example, the
  file <code>tutorial/basics.juvix.md</code> must declare the module
 <code>tutorial.basics</code>.</p>
-<pre><code>```juvix
-module tutorial.basics;
--- ...
-```</code></pre>
-<p>Refer to the [[everything|everything.juvix.md]] file located in the
+<div class="language-text highlight"><pre><span></span><code><span id="__ispan-9-1">module tutorial.basics;
+</span><span id="__ispan-9-2">-- ...
+</span></code></pre></div>
+<p>Refer to the <a href="https://anoma.github.io/juvix-mkdocs/everything.html">everything.juvix.md</a> file located in the
 <code>docs</code> folder to see an example.</p>
 <h3 id="hide-juvix-code-blocks">Hide Juvix code blocks<a class="headerlink" href="#hide-juvix-code-blocks" title="Permanent link">¶</a></h3>
 <p>Juvix code blocks come with a few extra features, such as the ability to hide
 the code block from the final output. This is done by adding the <code>hide</code>
 attribute to the code block. For example:</p>
-<pre><code>```juvix hide
+<p>```juvix hide
 module tutorial.basics;
 -- ...
-```</code></pre>
-<h3 id="extract-inner-module-statements">Extract inner module statements<a class="headerlink" href="#extract-inner-module-statements" title="Permanent link">¶</a></h3>
-<p>Another feature is the ability to extract inner module statements from the code
-block. This is done by adding the <code>extract-module-statements</code> attribute to the
-code block. This option can be accompanied by a number to indicate the number of
-statements to extract. For example, the following would only display the content
-inside the module <code>B</code>, that is, the module <code>C</code>.</p>
-<pre><code>```juvix extract-module-statements
-module B;
-module C;
--- ...
-```</code></pre>
+<div class="language-text highlight"><pre><span></span><code><span id="__ispan-10-1">### Extract inner module statements
+</span><span id="__ispan-10-2">
+</span><span id="__ispan-10-3">Another feature is the ability to extract inner module statements from the code
+</span><span id="__ispan-10-4">block. This is done by adding the `extract-module-statements` attribute to the
+</span><span id="__ispan-10-5">code block. This option can be accompanied by a number to indicate the number of
+</span><span id="__ispan-10-6">statements to extract. For example, the following would only display the content
+</span><span id="__ispan-10-7">inside the module `B`, that is, the module `C`.
+</span><span id="__ispan-10-8">
+</span><span id="__ispan-10-9">``juvix extract-module-statements
+</span><span id="__ispan-10-10">module B;
+</span><span id="__ispan-10-11">module C;
+</span><span id="__ispan-10-12">-- ...
+</span></code></pre></div></p>
 <h2 id="isabelle-generated-content-from-juvix-markdown-files">Isabelle generated content from Juvix Markdown files<a class="headerlink" href="#isabelle-generated-content-from-juvix-markdown-files" title="Permanent link">¶</a></h2>
 <p>Check out the [[isabelle|Isabelle generated content from Juvix]] page for more
 information.</p>
-<div class="language-yaml highlight"><pre><span></span><code><span id="__ispan-9-1"><span class="nn">---</span>
-</span><span id="__ispan-9-2"><span class="nt">isabelle</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
-</span><span id="__ispan-9-3"><span class="nn">---</span>
+<div class="language-yaml highlight"><pre><span></span><code><span id="__ispan-11-1"><span class="nn">---</span>
+</span><span id="__ispan-11-2"><span class="nt">isabelle</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
+</span><span id="__ispan-11-3"><span class="nn">---</span>
 </span></code></pre></div>
 <p>Or</p>
-<div class="language-yaml highlight"><pre><span></span><code><span id="__ispan-10-1"><span class="nn">---</span>
-</span><span id="__ispan-10-2"><span class="nt">isabelle</span><span class="p">:</span>
-</span><span id="__ispan-10-3"><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">generate</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
-</span><span id="__ispan-10-4"><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">include_at_bottom</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
-</span><span id="__ispan-10-5"><span class="nn">---</span>
+<div class="language-yaml highlight"><pre><span></span><code><span id="__ispan-12-1"><span class="nn">---</span>
+</span><span id="__ispan-12-2"><span class="nt">isabelle</span><span class="p">:</span>
+</span><span id="__ispan-12-3"><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">generate</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
+</span><span id="__ispan-12-4"><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">include_at_bottom</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
+</span><span id="__ispan-12-5"><span class="nn">---</span>
 </span></code></pre></div>
 <h2 id="snippets-plugin">Snippets Plugin<a class="headerlink" href="#snippets-plugin" title="Permanent link">¶</a></h2>
-<div class="language-yaml highlight"><span class="filename">mkdocs.yml</span><pre><span></span><code><span id="__ispan-11-1"><span class="nt">plugins</span><span class="p">:</span>
-</span><span id="__ispan-11-2"><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">snippets</span>
+<div class="language-yaml highlight"><span class="filename">mkdocs.yml</span><pre><span></span><code><span id="__ispan-13-1"><span class="nt">plugins</span><span class="p">:</span>
+</span><span id="__ispan-13-2"><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">snippets</span>
 </span></code></pre></div>
 <h3 id="excerpt-wrapping-syntax">Excerpt Wrapping Syntax<a class="headerlink" href="#excerpt-wrapping-syntax" title="Permanent link">¶</a></h3>
 <p>Enclose the excerpt with the following tags:</p>
-<div class="language-markdown highlight"><pre><span></span><code><span id="__ispan-12-1">&lt;!-- Start snippet --&gt;
-</span><span id="__ispan-12-2">;--8&lt;-- [start:TAG]
-</span><span id="__ispan-12-3">...
-</span><span id="__ispan-12-4">;--8&lt;-- [end:TAG]
-</span><span id="__ispan-12-5">&lt;!-- End snippet --&gt;
+<div class="language-markdown highlight"><pre><span></span><code><span id="__ispan-14-1">&lt;!-- Start snippet --&gt;
+</span><span id="__ispan-14-2">;--8&lt;-- [start:TAG]
+</span><span id="__ispan-14-3">...
+</span><span id="__ispan-14-4">;--8&lt;-- [end:TAG]
+</span><span id="__ispan-14-5">&lt;!-- End snippet --&gt;
 </span></code></pre></div>
 <h3 id="snippet-inclusion-syntax">Snippet Inclusion Syntax<a class="headerlink" href="#snippet-inclusion-syntax" title="Permanent link">¶</a></h3>
 <p>To incorporate the excerpt elsewhere, specify its path and tag:</p>
-<div class="language-markdown highlight"><pre><span></span><code><span id="__ispan-13-1">--8&lt;-- "path/to/file.ext:TAG"
+<div class="language-markdown highlight"><pre><span></span><code><span id="__ispan-15-1">--8&lt;-- "path/to/file.ext:TAG"
 </span></code></pre></div>
 <h3 id="snippets-of-juvix-code">Snippets of Juvix code<a class="headerlink" href="#snippets-of-juvix-code" title="Permanent link">¶</a></h3>
 <p>You can also include <strong>snippets of Juvix code</strong> in your Markdown files. This is done
@@ -625,18 +774,18 @@ use the standard <code>--8&lt;--</code> markers within the code and extract the 
 <h3 id="snippet-for-generated-isabelle-files">Snippet for generated Isabelle files<a class="headerlink" href="#snippet-for-generated-isabelle-files" title="Permanent link">¶</a></h3>
 <p>For including generated Isabelle files, the path of the file must end with
 <code>!thy</code>, the raw content of the Isabelle theory file will be included.</p>
-<div class="language-markdown highlight"><pre><span></span><code><span id="__ispan-14-1">--8&lt;-- "docs/isabelle.juvix.md!thy:isabelle-add-def"
+<div class="language-markdown highlight"><pre><span></span><code><span id="__ispan-16-1">--8&lt;-- "docs/isabelle.juvix.md!thy:isabelle-add-def"
 </span></code></pre></div>
 <p>This provides the following output:</p>
-<div class="language-isabelle highlight"><span class="filename">isabelle.thy from isabelle.juvix.md</span><pre><span></span><code><span id="__ispan-15-1"><span class="k">fun</span><span class="w"> </span><span class="n">add</span><span class="w"> </span><span class="o">::</span><span class="w"> </span><span class="s">"Nat </span><span class="ss">\&lt;Rightarrow&gt;</span><span class="s"> Nat </span><span class="ss">\&lt;Rightarrow&gt;</span><span class="s"> Nat"</span><span class="w"> </span><span class="kp">where</span>
-</span><span id="__ispan-15-2"><span class="w">  </span><span class="s">"add zero n = n"</span><span class="w"> </span><span class="o">|</span>
-</span><span id="__ispan-15-3"><span class="w">  </span><span class="s">"add (succ m) n = (succ (add m n))"</span>
-</span><span id="__ispan-15-4">
-</span><span id="__ispan-15-5"><span class="k">end</span>
+<div class="language-isabelle highlight"><span class="filename">isabelle.thy from isabelle.juvix.md</span><pre><span></span><code><span id="__ispan-17-1"><span class="k">fun</span><span class="w"> </span><span class="n">add</span><span class="w"> </span><span class="o">::</span><span class="w"> </span><span class="s">"Nat </span><span class="ss">\&lt;Rightarrow&gt;</span><span class="s"> Nat </span><span class="ss">\&lt;Rightarrow&gt;</span><span class="s"> Nat"</span><span class="w"> </span><span class="kp">where</span>
+</span><span id="__ispan-17-2"><span class="w">  </span><span class="s">"add zero n = n"</span><span class="w"> </span><span class="o">|</span>
+</span><span id="__ispan-17-3"><span class="w">  </span><span class="s">"add (succ m) n = (succ (add m n))"</span>
+</span><span id="__ispan-17-4">
+</span><span id="__ispan-17-5"><span class="k">end</span>
 </span></code></pre></div>
 <h2 id="support-for-wiki-links">Support for Wiki Links<a class="headerlink" href="#support-for-wiki-links" title="Permanent link">¶</a></h2>
-<div class="language-yaml highlight"><span class="filename">mkdocs.yml</span><pre><span></span><code><span id="__ispan-16-1"><span class="nt">plugins</span><span class="p">:</span>
-</span><span id="__ispan-16-2"><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">wikilinks</span>
+<div class="language-yaml highlight"><span class="filename">mkdocs.yml</span><pre><span></span><code><span id="__ispan-18-1"><span class="nt">plugins</span><span class="p">:</span>
+</span><span id="__ispan-18-2"><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">wikilinks</span>
 </span></code></pre></div>
 <p>Wiki links offer a simple method for citing and referencing other pages in the
 documentation without lengthy URLs. <strong>Wiki links are the preferred method for
@@ -644,7 +793,7 @@ linking to other pages</strong> in the documentation, so please use them wheneve
 possible.</p>
 <h3 id="basic-syntax">Basic Syntax<a class="headerlink" href="#basic-syntax" title="Permanent link">¶</a></h3>
 <p>The basic syntax for a wiki link is:</p>
-<div class="language-text highlight"><pre><span></span><code><span id="__ispan-17-1">page
+<div class="language-text highlight"><pre><span></span><code><span id="__ispan-19-1">page
 </span></code></pre></div>
 <p>Where:</p>
 <ul>
@@ -652,22 +801,22 @@ possible.</p>
 </ul>
 <h3 id="full-syntax">Full Syntax<a class="headerlink" href="#full-syntax" title="Permanent link">¶</a></h3>
 <p>The full syntax for a wiki link is:
-<div class="language-markdown highlight"><span class="filename">Wiki Link Syntax</span><pre><span></span><code><span id="__ispan-18-1">  Custom caption
+<div class="language-markdown highlight"><span class="filename">Wiki Link Syntax</span><pre><span></span><code><span id="__ispan-20-1">  Custom caption
 </span></code></pre></div></p>
 <p>When resolving a wiki link, the system follows these rules:</p>
 <h4 id="page-title">Page Title<a class="headerlink" href="#page-title" title="Permanent link">¶</a></h4>
 <p>(<strong>Mandatory</strong>) The 'page' in a wiki link refers to the title
 specified in the <code>nav</code> attribute of the <code>mkdocs.yml</code> file. For example,</p>
-<div class="language-yaml highlight"><span class="filename">mkdocs.yml</span><pre><span></span><code><span id="__ispan-19-1"><span class="nt">nav</span><span class="p">:</span>
-</span><span id="__ispan-19-2"><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">Home</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">index.md</span>
-</span><span id="__ispan-19-3"><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">MyRef X</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">reference.md</span>
+<div class="language-yaml highlight"><span class="filename">mkdocs.yml</span><pre><span></span><code><span id="__ispan-21-1"><span class="nt">nav</span><span class="p">:</span>
+</span><span id="__ispan-21-2"><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">Home</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">index.md</span>
+</span><span id="__ispan-21-3"><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">MyRef X</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">reference.md</span>
 </span></code></pre></div>
 <p>provides the following wiki link:</p>
-<div class="language-markdown highlight"><pre><span></span><code><span id="__ispan-20-1">MyRef X
+<div class="language-markdown highlight"><pre><span></span><code><span id="__ispan-22-1">MyRef X
 </span></code></pre></div>
 <h4 id="path-hints">Path Hints<a class="headerlink" href="#path-hints" title="Permanent link">¶</a></h4>
 <p>(<strong>Optional</strong>) You can use path hints to specify the location of the file. The syntax is:</p>
-<div class="language-markdown highlight"><span class="filename">Path Hints</span><pre><span></span><code><span id="__ispan-21-1">page
+<div class="language-markdown highlight"><span class="filename">Path Hints</span><pre><span></span><code><span id="__ispan-23-1">page
 </span></code></pre></div>
 <p>Where:</p>
 <ul>
@@ -678,7 +827,7 @@ specified in the <code>nav</code> attribute of the <code>mkdocs.yml</code> file.
 <p>(<strong>Optional</strong>) Use anchors to link to specific sections within a page. If the
 page does not have an anchor, the link would render as the caption provided,
 and you'll find a warning in the build process.</p>
-<div class="language-markdown highlight"><span class="filename">Anchors</span><pre><span></span><code><span id="__ispan-22-1">page
+<div class="language-markdown highlight"><span class="filename">Anchors</span><pre><span></span><code><span id="__ispan-24-1">page
 </span></code></pre></div>
 <p>Where:</p>
 <ul>
@@ -687,7 +836,7 @@ and you'll find a warning in the build process.</p>
 </ul>
 <h4 id="custom-captions">Custom captions<a class="headerlink" href="#custom-captions" title="Permanent link">¶</a></h4>
 <p>(<strong>Optional</strong>) Provide custom text to display for the link instead of the page title.</p>
-<div class="language-markdown highlight"><span class="filename">Custom Captions</span><pre><span></span><code><span id="__ispan-23-1">Custom caption
+<div class="language-markdown highlight"><span class="filename">Custom Captions</span><pre><span></span><code><span id="__ispan-25-1">Custom caption
 </span></code></pre></div>
 <p>Where:</p>
 <ul>
@@ -698,7 +847,7 @@ and you'll find a warning in the build process.</p>
 <div class="tabbed-set tabbed-alternate" data-tabs="1:2"><input checked="checked" id="markdown" name="__tabbed_1" type="radio"><input id="preview" name="__tabbed_1" type="radio"><div class="tabbed-labels"><label for="markdown">Markdown</label><label for="preview">Preview</label></div>
 <div class="tabbed-content">
 <div class="tabbed-block">
-<div class="language-markdown highlight"><pre><span></span><code><span id="__ispan-24-1">:material-link: this is a caption with an icon
+<div class="language-markdown highlight"><pre><span></span><code><span id="__ispan-26-1">:material-link: this is a caption with an icon
 </span></code></pre></div>
 </div>
 <div class="tabbed-block">
@@ -712,16 +861,16 @@ page. This list is displayed at the bottom of the page, and it is useful for
 identifying broken links or pages that are not linked to from other pages.</p>
 <p>To disable this feature, set the <code>list_wikilinks</code> option to <code>false</code> in the front
 matter of the page.</p>
-<div class="language-yaml highlight"><pre><span></span><code><span id="__ispan-25-1"><span class="nt">list_wikilinks</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">false</span>
+<div class="language-yaml highlight"><pre><span></span><code><span id="__ispan-27-1"><span class="nt">list_wikilinks</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">false</span>
 </span></code></pre></div>
 <h2 id="todos-plugin">Todos Plugin<a class="headerlink" href="#todos-plugin" title="Permanent link">¶</a></h2>
-<div class="language-yaml highlight"><span class="filename">mkdocs.yml</span><pre><span></span><code><span id="__ispan-26-1"><span class="nt">plugins</span><span class="p">:</span>
-</span><span id="__ispan-26-2"><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">todos</span>
+<div class="language-yaml highlight"><span class="filename">mkdocs.yml</span><pre><span></span><code><span id="__ispan-28-1"><span class="nt">plugins</span><span class="p">:</span>
+</span><span id="__ispan-28-2"><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">todos</span>
 </span></code></pre></div>
 <p>Incorporate todos with the following syntax:</p>
-<div class="language-text highlight"><pre><span></span><code><span id="__ispan-27-1">!!! todo
-</span><span id="__ispan-27-2">
-</span><span id="__ispan-27-3">    Content of the todo
+<div class="language-text highlight"><pre><span></span><code><span id="__ispan-29-1">!!! todo
+</span><span id="__ispan-29-2">
+</span><span id="__ispan-29-3">    Content of the todo
 </span></code></pre></div>
 <p>The above renders as:</p>
 <div class="admonition todo">
@@ -733,23 +882,23 @@ matter of the page.</p>
 <p>Be aware that todos are automatically removed from the online version. If you want to keep them, set <code>todos: True</code> in the front matter.</p>
 </div>
 <h2 id="diagrams-using-kroki">Diagrams using Kroki<a class="headerlink" href="#diagrams-using-kroki" title="Permanent link">¶</a></h2>
-<div class="language-text highlight"><pre><span></span><code><span id="__ispan-28-1"># mkdocs.yml
-</span><span id="__ispan-28-2">plugins:
-</span><span id="__ispan-28-3">  - kroki:  # docs: https://github.com/AVATEAM-IT-SYSTEMHAUS/mkdocs-kroki-plugin#readme
-</span><span id="__ispan-28-4">      ServerURL: !ENV [KROKI_SERVER_URL, 'https://kroki.io'] #https://kroki.io/examples.html
-</span><span id="__ispan-28-5">      FileTypes:
-</span><span id="__ispan-28-6">        - png
-</span><span id="__ispan-28-7">        - svg
-</span><span id="__ispan-28-8">      FileTypeOverrides:
-</span><span id="__ispan-28-9">        mermaid: png
-</span><span id="__ispan-28-10">      FailFast: !ENV CI
+<div class="language-text highlight"><pre><span></span><code><span id="__ispan-30-1"># mkdocs.yml
+</span><span id="__ispan-30-2">plugins:
+</span><span id="__ispan-30-3">  - kroki:  # docs: https://github.com/AVATEAM-IT-SYSTEMHAUS/mkdocs-kroki-plugin#readme
+</span><span id="__ispan-30-4">      ServerURL: !ENV [KROKI_SERVER_URL, 'https://kroki.io'] #https://kroki.io/examples.html
+</span><span id="__ispan-30-5">      FileTypes:
+</span><span id="__ispan-30-6">        - png
+</span><span id="__ispan-30-7">        - svg
+</span><span id="__ispan-30-8">      FileTypeOverrides:
+</span><span id="__ispan-30-9">        mermaid: png
+</span><span id="__ispan-30-10">      FailFast: !ENV CI
 </span></code></pre></div>
 <p>Check out the [[diagrams|Diagrams using Kroki]] page for more some examples.</p>
 <h2 id="bibliography-support">Bibliography support<a class="headerlink" href="#bibliography-support" title="Permanent link">¶</a></h2>
-<div class="language-text highlight"><pre><span></span><code><span id="__ispan-29-1"># mkdocs.yml
-</span><span id="__ispan-29-2">plugins:
-</span><span id="__ispan-29-3">  - bibtex:
-</span><span id="__ispan-29-4">      bib_dir: "docs/references"
+<div class="language-text highlight"><pre><span></span><code><span id="__ispan-31-1"># mkdocs.yml
+</span><span id="__ispan-31-2">plugins:
+</span><span id="__ispan-31-3">  - bibtex:
+</span><span id="__ispan-31-4">      bib_dir: "docs/references"
 </span></code></pre></div>
 <p>Place your <code>.bib</code> files within the <code>docs/references</code> directory.</p>
 <p>Any new <code>.bib</code>
@@ -757,9 +906,213 @@ file added to this folder will automatically be processed.</p>
 <h3 id="citing-in-markdown">Citing in Markdown<a class="headerlink" href="#citing-in-markdown" title="Permanent link">¶</a></h3>
 <p>Use the citation key from your <code>.bib</code> files to cite references in your markdown
 files. The syntax is as follows:</p>
-<div class="language-text highlight"><pre><span></span><code><span id="__ispan-30-1">This statement requires a citation [@citation_key].
+<div class="language-text highlight"><pre><span></span><code><span id="__ispan-32-1">This statement requires a citation [@citation_key].
 </span></code></pre></div>
-<!-- list_wikilinks -->
+<h3 id="hide-juvix-code-blocks_1">Hide Juvix code blocks<a class="headerlink" href="#hide-juvix-code-blocks_1" title="Permanent link">¶</a></h3>
+<p>Juvix code blocks come with a few extra features, such as the ability to hide
+the code block from the final output. This is done by adding the <code>hide</code>
+attribute to the code block. For example:</p>
+<pre><code>```juvix hide
+module tutorial.basics;
+-- ...
+```</code></pre>
+<h3 id="extract-inner-module-statements">Extract inner module statements<a class="headerlink" href="#extract-inner-module-statements" title="Permanent link">¶</a></h3>
+<p>Another feature is the ability to extract inner module statements from the code
+block. This is done by adding the <code>extract-module-statements</code> attribute to the
+code block. This option can be accompanied by a number to indicate the number of
+statements to extract. For example, the following would only display the content
+inside the module <code>B</code>, that is, the module <code>C</code>.</p>
+<pre><code>```juvix extract-module-statements
+module B;
+module C;
+-- ...
+```</code></pre>
+<h2 id="isabelle-generated-content-from-juvix-markdown-files_1">Isabelle generated content from Juvix Markdown files<a class="headerlink" href="#isabelle-generated-content-from-juvix-markdown-files_1" title="Permanent link">¶</a></h2>
+<p>Check out the [[isabelle|Isabelle generated content from Juvix]] page for more
+information.</p>
+<div class="language-yaml highlight"><pre><span></span><code><span id="__ispan-33-1"><span class="nn">---</span>
+</span><span id="__ispan-33-2"><span class="nt">isabelle</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
+</span><span id="__ispan-33-3"><span class="nn">---</span>
+</span></code></pre></div>
+<p>Or</p>
+<div class="language-yaml highlight"><pre><span></span><code><span id="__ispan-34-1"><span class="nn">---</span>
+</span><span id="__ispan-34-2"><span class="nt">isabelle</span><span class="p">:</span>
+</span><span id="__ispan-34-3"><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">generate</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
+</span><span id="__ispan-34-4"><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">include_at_bottom</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
+</span><span id="__ispan-34-5"><span class="nn">---</span>
+</span></code></pre></div>
+<h2 id="snippets-plugin_1">Snippets Plugin<a class="headerlink" href="#snippets-plugin_1" title="Permanent link">¶</a></h2>
+<div class="language-yaml highlight"><span class="filename">mkdocs.yml</span><pre><span></span><code><span id="__ispan-35-1"><span class="nt">plugins</span><span class="p">:</span>
+</span><span id="__ispan-35-2"><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">snippets</span>
+</span></code></pre></div>
+<h3 id="excerpt-wrapping-syntax_1">Excerpt Wrapping Syntax<a class="headerlink" href="#excerpt-wrapping-syntax_1" title="Permanent link">¶</a></h3>
+<p>Enclose the excerpt with the following tags:</p>
+<div class="language-markdown highlight"><pre><span></span><code><span id="__ispan-36-1">&lt;!-- Start snippet --&gt;
+</span><span id="__ispan-36-2">;--8&lt;-- [start:TAG]
+</span><span id="__ispan-36-3">...
+</span><span id="__ispan-36-4">;--8&lt;-- [end:TAG]
+</span><span id="__ispan-36-5">&lt;!-- End snippet --&gt;
+</span></code></pre></div>
+<h3 id="snippet-inclusion-syntax_1">Snippet Inclusion Syntax<a class="headerlink" href="#snippet-inclusion-syntax_1" title="Permanent link">¶</a></h3>
+<p>To incorporate the excerpt elsewhere, specify its path and tag:</p>
+<div class="language-markdown highlight"><pre><span></span><code><span id="__ispan-37-1">--8&lt;-- "path/to/file.ext:TAG"
+</span></code></pre></div>
+<h3 id="snippets-of-juvix-code_1">Snippets of Juvix code<a class="headerlink" href="#snippets-of-juvix-code_1" title="Permanent link">¶</a></h3>
+<p>You can also include <strong>snippets of Juvix code</strong> in your Markdown files. This is done
+by adding the <code>--8&lt;--</code> comment followed by the path to the file, and optionally
+a snippet identifier.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>If the path of the file ends with <code>!</code>, the raw content of the file
+will be included. Otherwise, for Juvix Markdown files, the content will be
+preprocessed by the Juvix compiler and then the generated HTML will be
+included.</p>
+</div>
+<div class="admonition info">
+<p class="admonition-title">Snippet identifier</p>
+<p>To use a snippet identifier, you must wrap the Juvix code block with the syntax
+<code>&lt;!-- --8&lt;-- [start:snippet_identifier] --&gt;</code> and <code>&lt;!-- --8&lt;-- [end:snippet_identifier] --&gt;</code>.
+This technique is useful for including specific sections of a file. Alternatively, you
+use the standard <code>--8&lt;--</code> markers within the code and extract the snippet by appending a ! at the end of the path.</p>
+</div>
+<h3 id="snippet-for-generated-isabelle-files_1">Snippet for generated Isabelle files<a class="headerlink" href="#snippet-for-generated-isabelle-files_1" title="Permanent link">¶</a></h3>
+<p>For including generated Isabelle files, the path of the file must end with
+<code>!thy</code>, the raw content of the Isabelle theory file will be included.</p>
+<div class="language-markdown highlight"><pre><span></span><code><span id="__ispan-38-1">--8&lt;-- "docs/isabelle.juvix.md!thy:isabelle-add-def"
+</span></code></pre></div>
+<p>This provides the following output:</p>
+<div class="language-isabelle highlight"><span class="filename">isabelle.thy from isabelle.juvix.md</span><pre><span></span><code><span id="__ispan-39-1"><span class="k">fun</span><span class="w"> </span><span class="n">add</span><span class="w"> </span><span class="o">::</span><span class="w"> </span><span class="s">"Nat </span><span class="ss">\&lt;Rightarrow&gt;</span><span class="s"> Nat </span><span class="ss">\&lt;Rightarrow&gt;</span><span class="s"> Nat"</span><span class="w"> </span><span class="kp">where</span>
+</span><span id="__ispan-39-2"><span class="w">  </span><span class="s">"add zero n = n"</span><span class="w"> </span><span class="o">|</span>
+</span><span id="__ispan-39-3"><span class="w">  </span><span class="s">"add (succ m) n = (succ (add m n))"</span>
+</span><span id="__ispan-39-4">
+</span><span id="__ispan-39-5"><span class="k">end</span>
+</span></code></pre></div>
+<h2 id="support-for-wiki-links_1">Support for Wiki Links<a class="headerlink" href="#support-for-wiki-links_1" title="Permanent link">¶</a></h2>
+<div class="language-yaml highlight"><span class="filename">mkdocs.yml</span><pre><span></span><code><span id="__ispan-40-1"><span class="nt">plugins</span><span class="p">:</span>
+</span><span id="__ispan-40-2"><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">wikilinks</span>
+</span></code></pre></div>
+<p>Wiki links offer a simple method for citing and referencing other pages in the
+documentation without lengthy URLs. <strong>Wiki links are the preferred method for
+linking to other pages</strong> in the documentation, so please use them whenever
+possible.</p>
+<h3 id="basic-syntax_1">Basic Syntax<a class="headerlink" href="#basic-syntax_1" title="Permanent link">¶</a></h3>
+<p>The basic syntax for a wiki link is:</p>
+<div class="language-text highlight"><pre><span></span><code><span id="__ispan-41-1">page
+</span></code></pre></div>
+<p>Where:</p>
+<ul>
+<li><code>page</code> is the title of the target page</li>
+</ul>
+<h3 id="full-syntax_1">Full Syntax<a class="headerlink" href="#full-syntax_1" title="Permanent link">¶</a></h3>
+<p>The full syntax for a wiki link is:
+<div class="language-markdown highlight"><span class="filename">Wiki Link Syntax</span><pre><span></span><code><span id="__ispan-42-1">  Custom caption
+</span></code></pre></div></p>
+<p>When resolving a wiki link, the system follows these rules:</p>
+<h4 id="page-title_1">Page Title<a class="headerlink" href="#page-title_1" title="Permanent link">¶</a></h4>
+<p>(<strong>Mandatory</strong>) The 'page' in a wiki link refers to the title
+specified in the <code>nav</code> attribute of the <code>mkdocs.yml</code> file. For example,</p>
+<div class="language-yaml highlight"><span class="filename">mkdocs.yml</span><pre><span></span><code><span id="__ispan-43-1"><span class="nt">nav</span><span class="p">:</span>
+</span><span id="__ispan-43-2"><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">Home</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">index.md</span>
+</span><span id="__ispan-43-3"><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">MyRef X</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">reference.md</span>
+</span></code></pre></div>
+<p>provides the following wiki link:</p>
+<div class="language-markdown highlight"><pre><span></span><code><span id="__ispan-44-1">MyRef X
+</span></code></pre></div>
+<h4 id="path-hints_1">Path Hints<a class="headerlink" href="#path-hints_1" title="Permanent link">¶</a></h4>
+<p>(<strong>Optional</strong>) You can use path hints to specify the location of the file. The syntax is:</p>
+<div class="language-markdown highlight"><span class="filename">Path Hints</span><pre><span></span><code><span id="__ispan-45-1">page
+</span></code></pre></div>
+<p>Where:</p>
+<ul>
+<li><code>hintpath/to</code> is the path (or prefix) to the file</li>
+<li><code>page</code> is the title of the target page</li>
+</ul>
+<h4 id="anchors_1">Anchors<a class="headerlink" href="#anchors_1" title="Permanent link">¶</a></h4>
+<p>(<strong>Optional</strong>) Use anchors to link to specific sections within a page. If the
+page does not have an anchor, the link would render as the caption provided,
+and you'll find a warning in the build process.</p>
+<div class="language-markdown highlight"><span class="filename">Anchors</span><pre><span></span><code><span id="__ispan-46-1">page
+</span></code></pre></div>
+<p>Where:</p>
+<ul>
+<li><code>page</code> is the title of the target page</li>
+<li><code>anchor</code> is a specific section within the page</li>
+</ul>
+<h4 id="custom-captions_1">Custom captions<a class="headerlink" href="#custom-captions_1" title="Permanent link">¶</a></h4>
+<p>(<strong>Optional</strong>) Provide custom text to display for the link instead of the page title.</p>
+<div class="language-markdown highlight"><span class="filename">Custom Captions</span><pre><span></span><code><span id="__ispan-47-1">Custom caption
+</span></code></pre></div>
+<p>Where:</p>
+<ul>
+<li><code>page</code> is the title of the target page</li>
+<li><code>anchor</code> is a specific section within the page</li>
+</ul>
+<p>Captions can include icons, for example:</p>
+<div class="tabbed-set tabbed-alternate" data-tabs="2:2"><input checked="checked" id="markdown_1" name="__tabbed_2" type="radio"><input id="preview_1" name="__tabbed_2" type="radio"><div class="tabbed-labels"><label for="markdown_1">Markdown</label><label for="preview_1">Preview</label></div>
+<div class="tabbed-content">
+<div class="tabbed-block">
+<div class="language-markdown highlight"><pre><span></span><code><span id="__ispan-48-1">:material-link: this is a caption with an icon
+</span></code></pre></div>
+</div>
+<div class="tabbed-block">
+<p>[[Home | <span class="twemoji"><svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7a5 5 0 0 0-5 5 5 5 0 0 0 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1M8 13h8v-2H8zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4a5 5 0 0 0 5-5 5 5 0 0 0-5-5"></path></svg></span> this is a caption with an icon ]]</p>
+</div>
+</div>
+</input></input></div>
+<h3 id="list-of-wiki-style-links-per-page_1">List of wiki-style links per Page<a class="headerlink" href="#list-of-wiki-style-links-per-page_1" title="Permanent link">¶</a></h3>
+<p>By default, the build process will generate a list of all wiki-style links per
+page. This list is displayed at the bottom of the page, and it is useful for
+identifying broken links or pages that are not linked to from other pages.</p>
+<p>To disable this feature, set the <code>list_wikilinks</code> option to <code>false</code> in the front
+matter of the page.</p>
+<div class="language-yaml highlight"><pre><span></span><code><span id="__ispan-49-1"><span class="nt">list_wikilinks</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">false</span>
+</span></code></pre></div>
+<h2 id="todos-plugin_1">Todos Plugin<a class="headerlink" href="#todos-plugin_1" title="Permanent link">¶</a></h2>
+<div class="language-yaml highlight"><span class="filename">mkdocs.yml</span><pre><span></span><code><span id="__ispan-50-1"><span class="nt">plugins</span><span class="p">:</span>
+</span><span id="__ispan-50-2"><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">todos</span>
+</span></code></pre></div>
+<p>Incorporate todos with the following syntax:</p>
+<div class="language-text highlight"><pre><span></span><code><span id="__ispan-51-1">!!! todo
+</span><span id="__ispan-51-2">
+</span><span id="__ispan-51-3">    Content of the todo
+</span></code></pre></div>
+<p>The above renders as:</p>
+<div class="admonition todo">
+<p class="admonition-title">Todo</p>
+<p>Content of the todo</p>
+</div>
+<div class="admonition info">
+<p class="admonition-title">Info</p>
+<p>Be aware that todos are automatically removed from the online version. If you want to keep them, set <code>todos: True</code> in the front matter.</p>
+</div>
+<h2 id="diagrams-using-kroki_1">Diagrams using Kroki<a class="headerlink" href="#diagrams-using-kroki_1" title="Permanent link">¶</a></h2>
+<div class="language-text highlight"><pre><span></span><code><span id="__ispan-52-1"># mkdocs.yml
+</span><span id="__ispan-52-2">plugins:
+</span><span id="__ispan-52-3">  - kroki:  # docs: https://github.com/AVATEAM-IT-SYSTEMHAUS/mkdocs-kroki-plugin#readme
+</span><span id="__ispan-52-4">      ServerURL: !ENV [KROKI_SERVER_URL, 'https://kroki.io'] #https://kroki.io/examples.html
+</span><span id="__ispan-52-5">      FileTypes:
+</span><span id="__ispan-52-6">        - png
+</span><span id="__ispan-52-7">        - svg
+</span><span id="__ispan-52-8">      FileTypeOverrides:
+</span><span id="__ispan-52-9">        mermaid: png
+</span><span id="__ispan-52-10">      FailFast: !ENV CI
+</span></code></pre></div>
+<p>Check out the [[diagrams|Diagrams using Kroki]] page for more some examples.</p>
+<h2 id="bibliography-support_1">Bibliography support<a class="headerlink" href="#bibliography-support_1" title="Permanent link">¶</a></h2>
+<div class="language-text highlight"><pre><span></span><code><span id="__ispan-53-1"># mkdocs.yml
+</span><span id="__ispan-53-2">plugins:
+</span><span id="__ispan-53-3">  - bibtex:
+</span><span id="__ispan-53-4">      bib_dir: "docs/references"
+</span></code></pre></div>
+<p>Place your <code>.bib</code> files within the <code>docs/references</code> directory.</p>
+<p>Any new <code>.bib</code>
+file added to this folder will automatically be processed.</p>
+<h3 id="citing-in-markdown_1">Citing in Markdown<a class="headerlink" href="#citing-in-markdown_1" title="Permanent link">¶</a></h3>
+<p>Use the citation key from your <code>.bib</code> files to cite references in your markdown
+files. The syntax is as follows:</p>
+<div class="language-text highlight"><pre><span></span><code><span id="__ispan-54-1">This statement requires a citation [@citation_key].
+</span></code></pre></div>
+<details class="quote"><summary>Wiki links on this page</summary><ul><li><a alt="everything.juvix.md" href="https://anoma.github.io/juvix-mkdocs/everything.html">everything</a></li></ul></details>
 <!-- mermaid_wikilinks -->
 </article>
 </div>
@@ -776,7 +1129,7 @@ files. The syntax is as follows:</p>
 <div class="md-copyright">
 <div class="md-copyright__highlight">
     © 2024 <a href="https://github.com/anoma/juvix-mkdocs">juvix-mkdocs</a> - Last updated: October 19, 2024
-    at 04:57 AM UTC - Powered by Mkdocs, Material for Mkdocs, Juvix, and
+    at 06:03 AM UTC - Powered by Mkdocs, Material for Mkdocs, Juvix, and
     Juvix-Mkdocs.
   </div>
 </div>
