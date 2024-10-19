@@ -521,7 +521,6 @@ Environment variables relevant:
             log.info(f"No Isabelle file in cache for {filepath}")
             return self._run_juvix_isabelle(filepath)
 
-        log.debug(f"Reading cache for file: {filepath}")
         if isabelle_filepath is None:
             log.error(f"Isabelle filepath not found for {filepath}")
             return None

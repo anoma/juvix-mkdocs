@@ -1,4 +1,3 @@
-import json
 import logging
 import os
 import re
@@ -47,7 +46,6 @@ class WLPreprocessor(Preprocessor):
 
         if "current_page" in config and isinstance(config["current_page"], Page):
             page = config.get("current_page", None)
-            log.debug(f"page: {page}")
             if page:
                 url_relative = self.env.DOCS_PATH / Path(
                     page.url.replace(".html", ".md")
@@ -67,32 +65,13 @@ class WLPreprocessor(Preprocessor):
         html_comments = list(re.finditer(r"<!--[\s\S]*?-->", full_text))
         script_tags = list(re.finditer(r"<script>[\s\S]*?</script>", full_text))
 
-        log.debug(f"number of code blocks: {len(code_blocks)}")
-        log.debug(f"number of html comments: {len(html_comments)}")
-        log.debug(f"number of script tags: {len(script_tags)}")
         # Create a set of ranges to ignore
         ignore_ranges = set()
         for match in code_blocks + html_comments + script_tags:
             ignore_ranges.add((match.start(), match.end()))
 
-        # print ignore range showing line number by type
-        for match in code_blocks:
-            log.debug(
-                f"ignore range:\n{match.group()}\nshowing line number:\n{full_text[:match.start()].count('\n') + 1}"
-            )
-        for match in html_comments:
-            log.debug(
-                f"ignore range:\n{match.group()}\nshowing line number:\n{full_text[:match.start()].count('\n') + 1}"
-            )
-        for match in script_tags:
-            log.debug(
-                f"ignore range:\n{match.group()}\nshowing line number:\n{full_text[:match.start()].count('\n') + 1}"
-            )
-
-        log.debug(f"length of ignore ranges: {len(ignore_ranges)}")
         # Find all wikilinks
         str_wikilinks = list(WIKILINK_PATTERN.finditer(full_text))
-        log.debug(f"number of wikilinks: {len(str_wikilinks)}")
 
         replacements = []
         for str_wikilink_detected in str_wikilinks:
@@ -105,7 +84,6 @@ class WLPreprocessor(Preprocessor):
                 link = self.process_wikilink(
                     config, full_text, str_wikilink_detected, current_page_url
                 )
-                log.debug(f"link: {link}")
 
                 replacements.append(
                     (
@@ -114,7 +92,6 @@ class WLPreprocessor(Preprocessor):
                         link.markdown(),
                     )
                 )
-                log.debug(f"replacements: {replacements}")
 
         for start, end, new_text in reversed(replacements):
             full_text = full_text[:start] + new_text + full_text[end:]
@@ -138,12 +115,6 @@ class WLPreprocessor(Preprocessor):
 
         link_page = link.page
         # print white space with "X"
-        log.debug(f"Processing link_page: {link_page.replace(" ", "X")}")
-        log.debug(f"Processing link_page: {link}")
-        log.debug(
-            f"config['url_for'] for link_page: {config['url_for'].get(link_page, [])}"
-        )
-        log.debug(json.dumps(config["url_for"], indent=4))  # noqa: F821
 
         if (
             len(config["url_for"].get(link_page, [])) > 1
@@ -152,13 +123,9 @@ class WLPreprocessor(Preprocessor):
             possible_pages = config["url_for"][link_page]
             hint = link.hint if link.hint else ""
             token = hint + link_page
-            log.debug(f"Multiple pages found. Possible pages: {possible_pages}")
-            log.debug(f"Hint: {hint}, Token: {token}")
             coefficients = {
                 p: fuzz.WRatio(fun_normalise(p), token) for p in possible_pages
             }
-
-            log.debug(f"Calculated coefficients: {coefficients}")
 
             sorted_pages = sorted(
                 possible_pages, key=lambda p: coefficients[p], reverse=True
@@ -203,9 +170,6 @@ class WLPreprocessor(Preprocessor):
 
             except Exception as e:
                 log.error(f"Error processing link: {link_page}\n {e}")
-
-            # Replace the wikilink with the resolved link
-            log.debug(f"{loc}:\nResolved link for page:\n  {link_page} -> {html_path}")
         else:
             msg = f"{loc}:\nUnable to resolve reference\n  {link_page}"
             if REPORT_BROKEN_WIKILINKS:

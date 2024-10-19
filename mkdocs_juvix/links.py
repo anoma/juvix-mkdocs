@@ -7,7 +7,7 @@ import os
 import re
 from os import getenv
 from pathlib import Path
-from typing import List, Optional
+from typing import Dict, List, Optional
 from urllib.parse import urljoin
 
 import mkdocs.plugins
@@ -19,7 +19,6 @@ from mkdocs.structure.pages import Page
 from mkdocs.utils import meta
 
 from mkdocs_juvix.common.models.entry import ResultEntry
-from mkdocs_juvix.common.models.wikilink import WikiLink
 from mkdocs_juvix.common.preprocesors.links import WLPreprocessor
 from mkdocs_juvix.common.utils import (
     create_mermaid_diagram,
