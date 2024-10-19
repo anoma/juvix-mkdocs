@@ -19,6 +19,7 @@ from mkdocs.structure.pages import Page
 from mkdocs.utils import meta
 
 from mkdocs_juvix.common.models.entry import ResultEntry
+from mkdocs_juvix.common.models.wikilink import WikiLink
 from mkdocs_juvix.common.preprocesors.links import WLPreprocessor
 from mkdocs_juvix.common.utils import (
     create_mermaid_diagram,
@@ -222,7 +223,7 @@ class WikilinksPlugin(BasePlugin):
 
         if url not in config["nodes"] or "index" not in config["nodes"][url]:
             return html
-        links_number = config.get("links_number", [])
+        links_number: List[Dict[str, int]] = config.get("links_number", [])
         if len(links_number) > 0:
             actualindex = config["nodes"][url]["index"]
             result_entry = ResultEntry(

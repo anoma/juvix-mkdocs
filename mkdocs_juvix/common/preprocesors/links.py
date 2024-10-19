@@ -1,7 +1,9 @@
+import json
 import logging
 import os
 import re
 from pathlib import Path
+from typing import Any, Dict, List
 from urllib.parse import urljoin
 
 from fuzzywuzzy import fuzz  # type: ignore
@@ -33,7 +35,7 @@ class WLPreprocessor(Preprocessor):
         self.mkconfig = mkconfig
         self.snippet_preprocessor = snippet_preprocessor
         self.current_file = None
-        self.links_found = []
+        self.links_found: List[Dict[str, Any]] = []
         self.env = env
 
     def run(self, lines):
@@ -41,16 +43,11 @@ class WLPreprocessor(Preprocessor):
         config = self.mkconfig
         current_page_url = None
 
-        in_code_block = False
-        in_html_comment = False
-        in_script = False
-
-        inside_wikilink = False
-        wikilink_buffer = []
-        wikilink_buffer_pos = []
         page = None
+
         if "current_page" in config and isinstance(config["current_page"], Page):
             page = config.get("current_page", None)
+            log.debug(f"page: {page}")
             if page:
                 url_relative = self.env.DOCS_PATH / Path(
                     page.url.replace(".html", ".md")
@@ -61,184 +58,171 @@ class WLPreprocessor(Preprocessor):
             log.warning("Current page URL not found. Wikilinks will not be processed.")
             return lines
 
-        for i, line in enumerate(lines.copy()):
-            if line.strip().startswith("```"):
-                in_code_block = not in_code_block
-            if "<!--" in line:
-                in_html_comment = True
-            if "-->" in line:
-                in_html_comment = False
-            if "<script" in line:
-                in_script = True
-            if "</script>" in line:
-                in_script = False
-            if in_code_block or in_html_comment or in_script:
-                continue
+        # Combine all lines into a single string
+        full_text = "\n".join(lines)
 
-            matches = WIKILINK_PATTERN.finditer(line)
-            # If we're inside a wikilink, keep adding lines to the buffer
-            if inside_wikilink:
-                wikilink_buffer.append(line)
-                wikilink_buffer_pos.append(i)
-                if "]]" in line:
-                    # End of the wikilink
-                    inside_wikilink = False
-                    combined_wikilink = "".join(wikilink_buffer)
-                    matches = WIKILINK_PATTERN.finditer(combined_wikilink)
-                    self.generate_wikilink(
-                        config,
-                        wikilink_buffer_pos[0],
-                        lines,
-                        matches,
-                        current_page_url,
-                        wikilink_buffer[0],
-                    )
-                    # clean next lines
-                    for pos in wikilink_buffer_pos[1:]:
-                        lines[pos] = ""
-                    wikilink_buffer = []
-                    continue
-            else:
-                # Check if the line starts a new wikilink
-                count_open, count_close = count_bracket_pairs(line)
-                if "[[" in line and "]]" not in line:
-                    inside_wikilink = True
-                    wikilink_buffer_pos.append(i)
-                    wikilink_buffer.append(line)
-                if count_open != count_close and count_close > 0:
-                    inside_wikilink = True
-                    last_pos = line.rfind("[[")
-                    last_partial = line[last_pos:]
-                    wikilink_buffer.append(last_partial)
-                    wikilink_buffer_pos.append(i)
+        # Find all code blocks, HTML comments, and script tags
+        code_blocks = list(re.finditer(r"```(?:[\s\S]*?)```", full_text, re.DOTALL))
 
-            self.generate_wikilink(config, i, lines, matches, current_page_url)
-        return lines
+        html_comments = list(re.finditer(r"<!--[\s\S]*?-->", full_text))
+        script_tags = list(re.finditer(r"<script>[\s\S]*?</script>", full_text))
 
-    def generate_wikilink(
-        self, config, i, lines, matches, current_page_url, partial: str = ""
-    ):
-        for match in matches:
-            loc = FileLoc(current_page_url, i + 1, match.start() + 2)
-            link = WikiLink(
-                page=match.group("page"),
-                hint=match.group("hint"),
-                anchor=match.group("anchor"),
-                display=match.group("display"),
-                loc=loc,
+        log.debug(f"number of code blocks: {len(code_blocks)}")
+        log.debug(f"number of html comments: {len(html_comments)}")
+        log.debug(f"number of script tags: {len(script_tags)}")
+        # Create a set of ranges to ignore
+        ignore_ranges = set()
+        for match in code_blocks + html_comments + script_tags:
+            ignore_ranges.add((match.start(), match.end()))
+
+        # print ignore range showing line number by type
+        for match in code_blocks:
+            log.debug(
+                f"ignore range:\n{match.group()}\nshowing line number:\n{full_text[:match.start()].count('\n') + 1}"
+            )
+        for match in html_comments:
+            log.debug(
+                f"ignore range:\n{match.group()}\nshowing line number:\n{full_text[:match.start()].count('\n') + 1}"
+            )
+        for match in script_tags:
+            log.debug(
+                f"ignore range:\n{match.group()}\nshowing line number:\n{full_text[:match.start()].count('\n') + 1}"
             )
 
-            link_page = link.page.replace("-", " ")
-            if (
-                len(config["url_for"].get(link_page, [])) > 1
-                and link_page in config["url_for"]
-            ):
-                possible_pages = config["url_for"][link_page]
+        log.debug(f"length of ignore ranges: {len(ignore_ranges)}")
+        # Find all wikilinks
+        str_wikilinks = list(WIKILINK_PATTERN.finditer(full_text))
+        log.debug(f"number of wikilinks: {len(str_wikilinks)}")
 
-                # heuristic to suggest the most likely page
-                hint = link.hint if link.hint else ""
-                token = hint + link_page
+        replacements = []
+        for str_wikilink_detected in str_wikilinks:
+            is_in_ignore_range = False
+            for start, end in ignore_ranges:
+                if start <= str_wikilink_detected.start() < end:
+                    is_in_ignore_range = True
+                    break
+            if not is_in_ignore_range:
+                link = self.process_wikilink(
+                    config, full_text, str_wikilink_detected, current_page_url
+                )
+                log.debug(f"link: {link}")
 
-                def fun_normalise(s):
-                    return (
-                        s.replace("_", " ")
-                        .replace("-", " ")
-                        .replace(":", " ")
-                        .replace("/", " ")
-                        .replace(".md", "")
+                replacements.append(
+                    (
+                        str_wikilink_detected.start(),
+                        str_wikilink_detected.end(),
+                        link.markdown(),
                     )
-
-                coefficients = {
-                    p: fuzz.WRatio(fun_normalise(p), token) for p in possible_pages
-                }
-
-                sorted_pages = sorted(
-                    possible_pages, key=lambda p: coefficients[p], reverse=True
                 )
+                log.debug(f"replacements: {replacements}")
 
-                list_possible_pages_with_score = [
-                    f"{p} ({coefficients[p]})" for p in sorted_pages
-                ]
+        for start, end, new_text in reversed(replacements):
+            full_text = full_text[:start] + new_text + full_text[end:]
 
-                list_possible_pages_with_score[0] = (
-                    f"{list_possible_pages_with_score[0]} (most likely, used for now)"
-                )
+        return full_text.split("\n")
 
-                _list = "\n  ".join(list_possible_pages_with_score)
+    def process_wikilink(self, config, full_text, match, current_page_url) -> WikiLink:
+        """Adds the link to the links_found list and return the link"""
+        loc = FileLoc(
+            current_page_url,
+            full_text[: match.start()].count("\n") + 1,
+            match.start() - full_text.rfind("\n", 0, match.start()),
+        )
+        link = WikiLink(
+            page=match.group("page"),
+            hint=match.group("hint"),
+            anchor=match.group("anchor"),
+            display=match.group("display"),
+            loc=loc,
+        )
 
-                log.warning(
-                    f"""{loc}\nReference: '{link_page}' at '{loc}' is ambiguous. It could refer to any of the
-                    following pages:\n  {_list}\nPlease revise the page alias or add a path hint to disambiguate,
-                    e.g. [[folderHintA/subfolderHintB:page#anchor|display text]]. """
-                )
+        link_page = link.page
+        # print white space with "X"
+        log.debug(f"Processing link_page: {link_page.replace(" ", "X")}")
+        log.debug(f"Processing link_page: {link}")
+        log.debug(
+            f"config['url_for'] for link_page: {config['url_for'].get(link_page, [])}"
+        )
+        log.debug(json.dumps(config["url_for"], indent=4))  # noqa: F821
 
-                config["wikilinks_issues"] += 1
-                config["url_for"][link_page] = [sorted_pages[0]]
+        if (
+            len(config["url_for"].get(link_page, [])) > 1
+            and link_page in config["url_for"]
+        ):
+            possible_pages = config["url_for"][link_page]
+            hint = link.hint if link.hint else ""
+            token = hint + link_page
+            log.debug(f"Multiple pages found. Possible pages: {possible_pages}")
+            log.debug(f"Hint: {hint}, Token: {token}")
+            coefficients = {
+                p: fuzz.WRatio(fun_normalise(p), token) for p in possible_pages
+            }
 
-            if (
-                link_page in config["url_for"]
-                and len(config["url_for"][link_page]) == 1
-            ):
-                if "url_for" not in config:
-                    config["url_for"] = {}
-                path = config["url_for"][link_page][0]
-                page = match.group("page").strip()
-                if page in config["url_for"]:
-                    url_page = config["url_for"][page][0]
-                    if url_page in config["nodes"]:
-                        actuallink = config["nodes"][url_page]
-                        if actuallink:
-                            pageName = ""
-                            if (
-                                "names" in actuallink["page"]
-                                and len(actuallink["page"]["names"]) > 0
-                            ):
-                                pageName = actuallink["page"]["names"][0]
+            log.debug(f"Calculated coefficients: {coefficients}")
 
-                            self.links_found.append(
-                                {
-                                    "index": actuallink["index"],
-                                    "path": actuallink["page"]["path"],
-                                    "url": path.replace(".md", ".html"),
-                                    "name": pageName,
-                                }
-                            )
-                    else:
-                        config["wikilinks_issues"] += 1
-                else:
-                    config["wikilinks_issues"] += 1
+            sorted_pages = sorted(
+                possible_pages, key=lambda p: coefficients[p], reverse=True
+            )
 
-                html_path = urljoin(
-                    config["site_url"],
-                    path.replace(".juvix", "").replace(".md", ".html"),
-                )
+            link.html_path = sorted_pages[0]
+            log.warning(
+                f"""{loc}\nReference: '{link_page}' at '{loc}' is ambiguous. It could refer to any of the
+                following pages:\n  {', '.join(sorted_pages)}\nPlease revise the page alias or add a path hint to disambiguate,
+                e.g. [[folderHintA/subfolderHintB:page#anchor|display text]].
+                Our choice: {link.html_path}"""
+            )
 
-                md_link = f"[{link.display or link.page}]({html_path}{f'#{link.anchor}' if link.anchor else ''})"
+        elif link_page in config["url_for"]:
+            link.html_path = config["url_for"].get(link_page, [""])[0]
+            log.debug(f"Single page found. html_path: {link.html_path}")
+        else:
+            log.debug("Link page not in config['url_for']")
 
-                lines[i] = lines[i].replace(
-                    partial if partial else match.group(0), md_link
-                )
+        if link.html_path:
+            link.html_path = urljoin(
+                config["site_url"],
+                (link.html_path.replace(".juvix", "").replace(".md", ".html")),
+            )
 
-                log.debug(
-                    f"{loc}:\nResolved link for page:\n  {link_page} -> {html_path}"
-                )
+            # Update links_found TODO: move this to the model
+            try:
+                url_page = config["url_for"][link_page][0]
+                if url_page in config["nodes"]:
+                    actuallink = config["nodes"][url_page]
+                    if actuallink:
+                        pageName = actuallink["page"].get("names", [""])[0]
+                        html_path: str = link.html_path if link.html_path else ""
+                        self.links_found.append(
+                            {
+                                "index": actuallink["index"],
+                                "path": actuallink["page"]["path"],
+                                "url": html_path,
+                                "name": pageName,
+                            }
+                        )
 
-            else:
-                msg = f"{loc}:\nUnable to resolve reference\n  {link_page}"
+            except Exception as e:
+                log.error(f"Error processing link: {link_page}\n {e}")
 
-                if REPORT_BROKEN_WIKILINKS:
-                    log.warning(msg)
-
-                lines[i] = lines[i].replace(match.group(0), link.text)
-                config["wikilinks_issues"] += 1
+            # Replace the wikilink with the resolved link
+            log.debug(f"{loc}:\nResolved link for page:\n  {link_page} -> {html_path}")
+        else:
+            msg = f"{loc}:\nUnable to resolve reference\n  {link_page}"
+            if REPORT_BROKEN_WIKILINKS:
+                log.warning(msg)
+            config["wikilinks_issues"] += 1
 
         if len(self.links_found) > 0:
             config.update({"links_number": self.links_found})
-        return lines
+
+        return link
 
 
-def count_bracket_pairs(text: str):
-    # Count occurrences of [[ and ]]
-    count_open = text.count("[[")
-    count_close = text.count("]]")
-    return count_open, count_close
+def fun_normalise(s):
+    return (
+        s.replace("_", " ")
+        .replace("-", " ")
+        .replace(":", " ")
+        .replace("/", " ")
+        .replace(".md", "")
+    )
