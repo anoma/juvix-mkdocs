@@ -9,8 +9,8 @@ from typing import Any, Callable, Dict, List, Optional, Tuple
 from urllib.parse import urljoin
 
 import pathspec
-import yaml
-from bs4 import BeautifulSoup
+import yaml  # type:ignore
+from bs4 import BeautifulSoup  # type:ignore
 from dotenv import load_dotenv
 from mkdocs.config.defaults import MkDocsConfig
 from mkdocs.plugins import BasePlugin, get_plugin_logger
@@ -549,28 +549,35 @@ Environment variables relevant:
             metadata_block = content.split("---")
             if len(metadata_block) < 3:
                 return markdown_output
+
             metadata = metadata_block[1].strip()
             try:
                 metadata = yaml.safe_load(metadata)
+                if isinstance(metadata, dict):
+                    isabelle_meta = metadata.get("isabelle", {})
+                    if not isinstance(isabelle_meta, dict):
+                        isabelle_meta = {}
+
+                    generate_isabelle = isabelle_meta.get(
+                        "generate", False
+                    ) or metadata.get("isabelle", False)
+
+                    include_isabelle_at_bottom = isabelle_meta.get(
+                        "include_at_bottom", False
+                    )
+                    if generate_isabelle or include_isabelle_at_bottom:
+                        try:
+                            log.info(f"Generating Isabelle HTML for {filepath}")
+                            self._generate_isabelle_html(filepath)
+                        except Exception as e:
+                            log.error(
+                                f"Error generating Isabelle HTML for {filepath}: {e}"
+                            )
+
             except Exception as e:
                 log.error(f"Error parsing metadata block: {e}")
                 return markdown_output
 
-            isabelle_meta = metadata.get("isabelle", {})
-            if not isinstance(isabelle_meta, dict):
-                isabelle_meta = {}
-
-            generate_isabelle = isabelle_meta.get("generate", False) or metadata.get(
-                "isabelle", False
-            )
-
-            include_isabelle_at_bottom = isabelle_meta.get("include_at_bottom", False)
-            if generate_isabelle or include_isabelle_at_bottom:
-                try:
-                    log.info(f"Generating Isabelle HTML for {filepath}")
-                    self._generate_isabelle_html(filepath)
-                except Exception as e:
-                    log.error(f"Error generating Isabelle HTML for {filepath}: {e}")
         except Exception as e:
             log.error(f"Error generating Isabelle output files for {filepath}: {e}")
 
@@ -680,7 +687,7 @@ Environment variables relevant:
 
         if cache_isabelle_filepath is None:
             log.debug(f"Could not determine the Isabelle file name for: {fposix}")
-            return
+            return None
 
         cache_isabelle_filepath.parent.mkdir(parents=True, exist_ok=True)
 
@@ -783,7 +790,7 @@ Environment variables relevant:
             cache_markdown_filepath.write_text(md_output)
         except Exception as e:
             log.error(f"Error writing to cache markdown file: {e}")
-            return
+            return md_output
         self._update_markdown_file_as_in_docs(filepath)
         self._update_hash_file(filepath)
         return md_output

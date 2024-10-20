@@ -12,6 +12,7 @@ from typing import List, Optional, Tuple
 from urllib.parse import urljoin
 
 from mkdocs.config import Config
+from mkdocs.config.defaults import MkDocsConfig
 from mkdocs.plugins import BasePlugin, get_plugin_logger
 from mkdocs.structure.files import Files
 from mkdocs.structure.pages import Page
@@ -26,7 +27,7 @@ VERSIONED_FILE_PATTERN = r"(.+)?v(\d+)((\.\w+)?\.md)"
 class DifferPlugin(BasePlugin):
     env: ENV
 
-    def on_config(self, config: Config) -> Config:
+    def on_config(self, config: MkDocsConfig) -> MkDocsConfig:
         self.env = ENV(config)
         config["docs_dir"] = self.env.DOCS_PATH
         return config

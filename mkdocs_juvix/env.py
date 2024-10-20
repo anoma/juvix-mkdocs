@@ -10,7 +10,7 @@ from os import getenv
 from pathlib import Path
 from typing import List, Optional
 
-from mkdocs.config import Config
+from mkdocs.config.defaults import MkDocsConfig
 from mkdocs.plugins import get_plugin_logger
 from semver import Version
 
@@ -45,7 +45,6 @@ class ENV:
         getenv("JUVIX_ENABLED", True)
     )  # Whether the user wants to use Juvix
     JUVIX_FULL_VERSION: str
-    JUVIX_VERSION: str
     JUVIX_BIN_NAME: str = getenv("JUVIX_BIN", "juvix")  # The name of the Juvix binary
     JUVIX_BIN_PATH: str = getenv("JUVIX_PATH", "")  # The path to the Juvix binary
     JUVIX_BIN: str = (
@@ -104,20 +103,27 @@ class ENV:
     TOKEN_ISABELLE_THEORY: str = "<!-- ISABELLE_THEORY -->"
     SHOW_TODOS_IN_MD: bool
 
-    def __init__(self, config: Config):
-        config_file = config.config_file_path
+    def __init__(self, config: Optional[MkDocsConfig] = None):
+        if config:
+            config_file = config.config_file_path
 
-        if config.get("use_directory_urls", False):
-            log.error(
-                "use_directory_urls has been set to True to work with Juvix Markdown files."
-            )
-            exit(1)
+            if config.get("use_directory_urls", False):
+                log.error(
+                    "use_directory_urls has been set to True to work with Juvix Markdown files."
+                )
+                exit(1)
 
-        self.ROOT_PATH = Path(config_file).parent.absolute()
+            self.ROOT_PATH = Path(config_file).parent
+            self.SITE_URL = config.get("site_url", "")
+        else:
+            self.ROOT_PATH = Path(".").resolve()
+            self.SITE_URL = ""
+
+        self.ROOT_ABSPATH = self.ROOT_PATH.absolute()
+
         self.DOCS_PATH = self.ROOT_PATH / self.DOCS_DIRNAME
         self.CACHE_PATH = self.ROOT_PATH / self.CACHE_DIRNAME
         self.CACHE_PATH.mkdir(parents=True, exist_ok=True)
-        self.SITE_URL = config.get("site_url", "")
 
         self.SHOW_TODOS_IN_MD = bool(getenv("SHOW_TODOS_IN_MD", False))
         self.REPORT_TODOS = bool(getenv("REPORT_TODOS", False))
@@ -140,7 +146,6 @@ class ENV:
                     "The diff binary is not available. Please install diff and make sure it's available in the PATH."
                 )
 
-        self.ROOT_ABSPATH = Path(config_file).parent.absolute()
         self.CACHE_ABSPATH = self.ROOT_ABSPATH / self.CACHE_DIRNAME
         self.CACHE_ORIGINAL_JUVIX_MARKDOWN_FILES_ABSPATH: Path = (
             self.CACHE_ABSPATH / self.CACHE_JUVIX_MARKDOWN_DIRNAME
@@ -236,7 +241,7 @@ class ENV:
             self.JUVIX_ENABLED = False
             self.JUVIX_AVAILABLE = False
 
-            return config
+            return
 
         if Version.parse(self.JUVIX_VERSION) < MIN_JUVIX_VERSION:
             log.debug(
@@ -244,4 +249,4 @@ class ENV:
             )
             self.JUVIX_ENABLED = False
             self.JUVIX_AVAILABLE = False
-            return config
+            return

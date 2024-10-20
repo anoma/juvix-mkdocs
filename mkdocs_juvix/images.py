@@ -6,8 +6,8 @@ import subprocess
 from pathlib import Path
 from urllib.parse import urljoin
 
-from common.models.loc import FileLoc
-from common.utils import fix_site_url
+from common.models.loc import FileLoc  # type: ignore
+from common.utils import fix_site_url  # type:ignore
 from markdown.extensions import Extension  # type: ignore
 from markdown.preprocessors import Preprocessor  # type: ignore
 from mkdocs.config.defaults import MkDocsConfig

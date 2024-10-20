@@ -4,7 +4,7 @@ This plugin is used to find and report TODOs in the documentation.
 
 from os import getenv
 from pathlib import Path
-from typing import List
+from typing import List, Optional
 
 from markdown.extensions import Extension  # type: ignore
 from markdown.preprocessors import Preprocessor  # type: ignore
@@ -54,7 +54,7 @@ class RTPreprocessor(Preprocessor):
                 config["current_page"].url.replace(".html", ".md")
             )
             current_page_url = url_relative.as_posix()
-            current_page_abs = config["current_page"].file.abs_src_path
+            current_page_abs: Optional[str] = config["current_page"].file.abs_src_path
 
             if "todos" in config["current_page"].meta:
                 preprocess_page = bool(config["current_page"].meta["todos"])
@@ -65,12 +65,14 @@ class RTPreprocessor(Preprocessor):
         without_todos = []
 
         offset = 1
-        with open(current_page_abs, "r") as f:
-            first_line = f.readline()
-            if first_line.startswith("---"):
-                while f.readline().strip() != "---":
+
+        if current_page_abs:
+            with open(current_page_abs, "r") as f:
+                first_line = f.readline()
+                if first_line.startswith("---"):
+                    while f.readline().strip() != "---":
+                        offset += 1
                     offset += 1
-                offset += 1
 
         I: int = 0  # noqa: E741
         while I < len(lines):

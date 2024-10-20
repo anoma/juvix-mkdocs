@@ -6,7 +6,7 @@ from pathlib import Path
 
 import click
 import questionary
-import toml
+import toml  # type: ignore
 from dotenv import load_dotenv
 from semver import Version
 

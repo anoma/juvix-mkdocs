@@ -37,4 +37,8 @@ theme:
     code: !ENV [FONT_CODE, '{font_code}']
 {anoma_theme_config}
 {theme_features}
+markdown_extensions:
+  - mkdocs_juvix.snippets:
+      check_paths: true
+      url_download: true
 {markdown_extensions}

@@ -3,7 +3,6 @@ Support for wiki-style links in MkDocs in tandem of pydownx_snippets.
 """
 
 import json
-import os
 import re
 from os import getenv
 from pathlib import Path
@@ -11,7 +10,7 @@ from typing import Dict, List, Optional
 from urllib.parse import urljoin
 
 import mkdocs.plugins
-from markdown.extensions import Extension
+from markdown.extensions import Extension  # type: ignore
 from mkdocs.config.defaults import MkDocsConfig
 from mkdocs.plugins import BasePlugin, get_plugin_logger
 from mkdocs.structure.files import Files
@@ -45,24 +44,6 @@ class WLExtension(Extension):
         self.config = config
         self.env = ENV(config)
 
-        if "pymdownx.snippets" in self.config.mdx_configs:
-            bpath = self.config.mdx_configs["pymdownx.snippets"].get(
-                "base_path", [".", "includes"]
-            )
-
-            excluded_dirs = [".", "__", "site", "env", "venv"]
-
-            for root, dirs, _ in os.walk("."):
-                dirs[:] = [
-                    d
-                    for d in dirs
-                    if not any(d.startswith(exclude) for exclude in excluded_dirs)
-                ]
-
-                bpath.extend(os.path.relpath(os.path.join(root, d), ".") for d in dirs)
-
-            self.config.mdx_configs["pymdownx.snippets"]["base_path"] = bpath
-
     def __repr__(self):
         return "WLExtension"
 
@@ -71,7 +52,7 @@ class WLExtension(Extension):
         md.registerExtension(self)
 
         # Snippet extension preprocessor
-        sc = self.config.mdx_configs.get("pymdownx.snippets", {})
+        sc = self.config.mdx_configs.get("mkdocs_juvix.snippets", {})
         sc.setdefault("dedent_subsections", True)
         sc.setdefault("url_request_headers", {})
         sc.setdefault("url_timeout", DEFAULT_URL_TIMEOUT)
@@ -83,7 +64,7 @@ class WLExtension(Extension):
         sc.setdefault("restrict_base_path", True)
         sc.setdefault("base_path", [".", "includes"])
 
-        sp = SnippetPreprocessor(sc, md, self.env)
+        sp = SnippetPreprocessor(sc, md)
         self.wlpp = WLPreprocessor(self.config, sp, self.env)
         md.preprocessors.register(self.wlpp, "wl-pp", 100)
 
@@ -113,8 +94,8 @@ class WikilinksPlugin(BasePlugin):
         self.PAGE_LINK_DIAGS = self.env.CACHE_PATH / self.PAGE_LINK_DIAGSNAME
         self.PAGE_LINK_DIAGS.mkdir(parents=True, exist_ok=True)
 
-        if "pymdownx.snippets" in config["markdown_extensions"]:
-            config["markdown_extensions"].remove("pymdownx.snippets")
+        if "mkdocs_juvix.snippets" in config["markdown_extensions"]:
+            config["markdown_extensions"].remove("mkdocs_juvix.snippets")
 
         wl_extension = WLExtension(config)
         config.markdown_extensions.append(wl_extension)  # type: ignore

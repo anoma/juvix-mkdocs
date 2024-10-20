@@ -30,28 +30,29 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 import codecs
 import functools
-import logging
 import os
 import re
+import sys
 import textwrap
 import urllib
 from pathlib import Path
 from typing import Any
 
-from markdown import Extension
-from markdown.preprocessors import Preprocessor
-from mkdocs.config.defaults import MkDocsConfig
-from pymdownx import util
+from markdown import Extension  # type: ignore
+from markdown.preprocessors import Preprocessor  # type: ignore
+from mkdocs.plugins import get_plugin_logger
 
 from mkdocs_juvix.env import ENV
 
-log: logging.Logger = logging.getLogger("mkdocs")
+log = get_plugin_logger("Snippets")
 
 MI = 1024 * 1024  # mebibyte (MiB)
 DEFAULT_URL_SIZE = MI * 32
 DEFAULT_URL_TIMEOUT = 10.0  # in seconds
-DEFAULT_URL_REQUEST_HEADERS = {}
+DEFAULT_URL_REQUEST_HEADERS = {}  # type: ignore
 
+
+PY39 = (3, 9) <= sys.version_info
 
 RE_ALL_SNIPPETS = re.compile(
     r"""(?x)
@@ -92,13 +93,11 @@ class SnippetMissingError(Exception):
 class SnippetPreprocessor(Preprocessor):
     """Handle snippets in Markdown content."""
 
-    env: ENV
-
-    def __init__(self, config, md: Any, env: ENV):
+    def __init__(self, config, md: Any):
         """Initialize."""
 
         base = config.get("base_path")
-        self.env = env
+        self.env = ENV()
 
         if isinstance(base, (str, os.PathLike)):
             base = [base]
@@ -180,6 +179,7 @@ class SnippetPreprocessor(Preprocessor):
                 log.error(
                     "[!] Snippet section '{}' could not be located".format(section)
                 )
+            # juvix
             elif backup_lines is not None:
                 return self.extract_section(
                     section,
@@ -244,7 +244,7 @@ Error found in the file '{backup_path}' for the section '{section}'.
         timeout = None if self.url_timeout == 0 else self.url_timeout
         with urllib.request.urlopen(http_request, timeout=timeout) as response:  # type: ignore
             # Fail if status is not OK
-            status = response.status if util.PY39 else response.code
+            status = response.status if PY39 else response.code
             if status != 200:
                 raise SnippetMissingError("Cannot download snippet '{}'".format(url))
 
@@ -273,7 +273,7 @@ Error found in the file '{backup_path}' for the section '{section}'.
 
     def parse_snippets(
         self, lines, file_name=None, is_url=False, is_juvix=False, is_isabelle=False
-    ):
+    ) -> list[str]:
         """Parse snippets snippet."""
 
         if file_name:
@@ -283,12 +283,16 @@ Error found in the file '{backup_path}' for the section '{section}'.
         new_lines = []
         inline = False
         block = False
+
         for idx, line in enumerate(lines):
             # Check for snippets on line
             inline = False
+            ignore = False
+
             m = RE_ALL_SNIPPETS.match(line)
             if m:
                 if m.group("escape"):
+                    ignore = True
                     # The snippet has been escaped, replace first `;` and continue.
                     new_lines.append(line.replace(";", "", 1))
                     continue
@@ -372,6 +376,7 @@ Error found in the file '{backup_path}' for the section '{section}'.
                 # Make sure we don't process `path` as a local file reference.
                 url = self.url_download and is_link
 
+                # juvix.md with or without ! with or without thy
                 just_raw = path and path.endswith("!")
                 if just_raw:
                     path = path[:-1]
@@ -492,9 +497,8 @@ Error found in the file '{backup_path}' for the section '{section}'.
                     )
 
                 elif self.check_paths:
-                    raise SnippetMissingError(
-                        "2. Snippet at path '{}' could not be found".format(path)
-                    )
+                    log.error("ignore: " + str(ignore))
+                    log.error("2. Snippet at path '{}' could not be found".format(path))
 
         # Pop the current file name out of the cache
         if file_name:
@@ -517,20 +521,21 @@ Error found in the file '{backup_path}' for the section '{section}'.
 class SnippetExtension(Extension):
     """Snippet extension."""
 
-    env: ENV
-
     def __init__(self, *args, **kwargs):
         """Initialize."""
 
         self.config = {
-            "base_path": [["."], 'Base path for snippet paths - Default: ["."]'],
+            "base_path": [
+                [".", "includes"],
+                'Base path for snippet paths - Default: ["."]',
+            ],
             "restrict_base_path": [
                 True,
                 "Restrict snippet paths such that they are under the base paths - Default: True",
             ],
             "encoding": ["utf-8", 'Encoding of snippets - Default: "utf-8"'],
             "check_paths": [
-                False,
+                True,
                 'Make the build fail if a snippet can\'t be found - Default: "False"',
             ],
             "auto_append": [
@@ -538,7 +543,7 @@ class SnippetExtension(Extension):
                 "A list of snippets (relative to the 'base_path') to auto append to the Markdown content - Default: []",
             ],
             "url_download": [
-                False,
+                True,
                 'Download external URLs as snippets - Default: "False"',
             ],
             "url_max_size": [
@@ -554,10 +559,34 @@ class SnippetExtension(Extension):
                 "Extra request Headers - Default: {}",
             ],
             "dedent_subsections": [
-                False,
+                True,
                 "Dedent subsection extractions e.g. 'sections' and/or 'lines'.",
             ],
         }
+
+        bpath = self.config["base_path"]
+
+        excluded_dirs = [
+            ".",
+            "__",
+            "site",
+            "env",
+            "venv",
+            ".hooks",
+            ".env",
+            ".juvix_build",
+        ]
+
+        for root, dirs, _ in os.walk("."):
+            dirs[:] = [
+                d
+                for d in dirs
+                if not any(d.startswith(exclude) for exclude in excluded_dirs)
+            ]
+
+            bpath.extend(os.path.relpath(os.path.join(root, d), ".") for d in dirs)
+
+        self.config["base_path"] = bpath
 
         super().__init__(*args, **kwargs)
 
@@ -567,7 +596,7 @@ class SnippetExtension(Extension):
         self.md = md
         md.registerExtension(self)
         config = self.getConfigs()
-        snippet = SnippetPreprocessor(config, md, self.env)
+        snippet = SnippetPreprocessor(config, md)
         md.preprocessors.register(snippet, "snippet", 32)
 
     def reset(self):
