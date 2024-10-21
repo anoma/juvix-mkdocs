@@ -36,7 +36,7 @@ import sys
 import textwrap
 import urllib
 from pathlib import Path
-from typing import Any
+from typing import Any, Optional
 
 from markdown import Extension  # type: ignore
 from markdown.preprocessors import Preprocessor  # type: ignore
@@ -103,6 +103,24 @@ class SnippetPreprocessor(Preprocessor):
             base = [base]
 
         self.base_path = [os.path.abspath(b) for b in base]  # type: ignore
+        excluded_dirs = [
+            ".",
+            "__",
+            "site",
+            "env",
+            "venv",
+            ".hooks",
+            ".env",
+            ".juvix_build",
+        ]
+
+        for root in Path(self.env.ROOT_ABSPATH).rglob("*"):
+            if root.is_dir() and not any(
+                part.startswith(tuple(excluded_dirs)) for part in root.parts
+            ):
+                self.base_path.append(root.as_posix())
+
+        self.snippet_cache: dict[str, Optional[str]] = {}
         self.restrict_base_path = config["restrict_base_path"]
         self.encoding = config.get("encoding")
         self.check_paths = config.get("check_paths")
@@ -207,29 +225,35 @@ Error found in the file '{backup_path}' for the section '{section}'.
 
         return textwrap.dedent("\n".join(lines)).split("\n")
 
-    def get_snippet_path(self, path):
+ 
+
+    def get_snippet_path(self, path) -> Optional[str]:
         """Get snippet path."""
+        if path in self.snippet_cache:
+            return self.snippet_cache[path]
 
         snippet = None
         for base in self.base_path:
-            if os.path.exists(base):
-                if os.path.isdir(base):
+            base_path = Path(base)
+            if base_path.exists():
+                if base_path.is_dir():
                     if self.restrict_base_path:
-                        filename = os.path.abspath(os.path.join(base, path))
-                        # If the absolute path is no longer under the specified base path, reject the file
-                        if not filename.startswith(base):
+                        filename = (base_path / path).resolve()
+                        if not str(filename).startswith(str(base_path)):
                             continue
                     else:
-                        filename = os.path.join(base, path)
-                    if os.path.exists(filename):
-                        snippet = filename
+                        filename = base_path / path
+                    if filename.exists():
+                        snippet = str(filename)
                         break
                 else:
-                    dirname = os.path.dirname(base)
-                    filename = os.path.join(dirname, path)
-                    if os.path.exists(filename) and os.path.samefile(filename, base):
-                        snippet = filename
+                    dirname = base_path.parent
+                    filename = dirname / path
+                    if filename.exists() and filename.samefile(base_path):
+                        snippet = str(filename)
                         break
+
+        self.snippet_cache[path] = snippet
         return snippet
 
     @functools.lru_cache()  # noqa: B019
@@ -275,6 +299,7 @@ Error found in the file '{backup_path}' for the section '{section}'.
         self, lines, file_name=None, is_url=False, is_juvix=False, is_isabelle=False
     ) -> list[str]:
         """Parse snippets snippet."""
+        log.debug(f"Parsing snippets {file_name if file_name else ''}")
 
         if file_name:
             # Track this file.
@@ -287,12 +312,10 @@ Error found in the file '{backup_path}' for the section '{section}'.
         for idx, line in enumerate(lines):
             # Check for snippets on line
             inline = False
-            ignore = False
 
             m = RE_ALL_SNIPPETS.match(line)
             if m:
                 if m.group("escape"):
-                    ignore = True
                     # The snippet has been escaped, replace first `;` and continue.
                     new_lines.append(line.replace(";", "", 1))
                     continue
@@ -497,7 +520,7 @@ Error found in the file '{backup_path}' for the section '{section}'.
                     )
 
                 elif self.check_paths:
-                    log.error("ignore: " + str(ignore))
+                    # print base path
                     log.error("2. Snippet at path '{}' could not be found".format(path))
 
         # Pop the current file name out of the cache
@@ -563,30 +586,6 @@ class SnippetExtension(Extension):
                 "Dedent subsection extractions e.g. 'sections' and/or 'lines'.",
             ],
         }
-
-        bpath = self.config["base_path"]
-
-        excluded_dirs = [
-            ".",
-            "__",
-            "site",
-            "env",
-            "venv",
-            ".hooks",
-            ".env",
-            ".juvix_build",
-        ]
-
-        for root, dirs, _ in os.walk("."):
-            dirs[:] = [
-                d
-                for d in dirs
-                if not any(d.startswith(exclude) for exclude in excluded_dirs)
-            ]
-
-            bpath.extend(os.path.relpath(os.path.join(root, d), ".") for d in dirs)
-
-        self.config["base_path"] = bpath
 
         super().__init__(*args, **kwargs)
 

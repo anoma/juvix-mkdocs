@@ -1,11 +1,10 @@
 import json
-import os
 import shutil
 import subprocess
-from functools import lru_cache, wraps
+from functools import wraps
 from os import getenv
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from typing import Any, Callable, Dict, List, Optional
 from urllib.parse import urljoin
 
 import pathspec
@@ -22,10 +21,8 @@ from watchdog.events import FileSystemEvent
 from mkdocs_juvix.env import ENV, FIXTURES_PATH
 from mkdocs_juvix.snippets import RE_SNIPPET_SECTION
 from mkdocs_juvix.utils import (
-    compute_hash_filepath,
     compute_sha_over_folder,
     fix_site_url,
-    hash_file,
 )
 
 load_dotenv()
@@ -151,8 +148,8 @@ Environment variables relevant:
             )
             self.juvix_md_files.append(
                 {
-                    "module_name": self._unqualified_module_name(filepath),
-                    "qualified_module_name": self._qualified_module_name(filepath),
+                    "module_name": self.env.unqualified_module_name(filepath),
+                    "qualified_module_name": self.env.qualified_module_name(filepath),
                     "url": url,
                     "file": filepath.absolute().as_posix(),
                 }
@@ -270,7 +267,7 @@ Environment variables relevant:
                 return markdown
             filepath = Path(src_path)
             isabelle_path = (
-                self._get_expected_filepath_for_juvix_isabelle_output_in_cache(filepath)
+                self.env.get_expected_filepath_for_juvix_isabelle_output_in_cache(filepath)
             )
             if isabelle_path and not isabelle_path.exists():
                 log.error(
@@ -391,14 +388,6 @@ Environment variables relevant:
         shutil.copytree(self.env.CACHE_HTML_PATH, dest_folder, dirs_exist_ok=True)
         return
 
-    def _new_or_changed_or_no_exist(self, filepath: Path) -> bool:
-        content_hash = hash_file(filepath)
-        path_hash = compute_hash_filepath(filepath, hash_dir=self.env.CACHE_HASHES_PATH)
-        if not path_hash.exists():
-            log.debug(f"File: {filepath} does not have a hash file.")
-            return True
-        fresh_content_hash = path_hash.read_text()
-        return content_hash != fresh_content_hash
 
     def _generate_html(self, generate: bool = True, move_cache: bool = True) -> None:
         everythingJuvix = self.env.DOCS_ABSPATH.joinpath("everything.juvix.md")
@@ -416,8 +405,8 @@ Environment variables relevant:
             else [
                 {
                     "file": everythingJuvix,
-                    "module_name": self._unqualified_module_name(everythingJuvix),
-                    "qualified_module_name": self._qualified_module_name(
+                    "module_name": self.env.unqualified_module_name(everythingJuvix),
+                    "qualified_module_name": self.env.qualified_module_name(
                         everythingJuvix
                     ),
                     "url": urljoin(self.env.SITE_URL, everythingJuvix.name).replace(
@@ -488,22 +477,6 @@ Environment variables relevant:
         except Exception as e:
             log.error(f"Error copying folder: {e}")
 
-    @lru_cache(maxsize=128)
-    def _get_filepath_for_juvix_markdown_in_cache(
-        self, _filepath: Path
-    ) -> Optional[Path]:
-        filepath = _filepath.absolute()
-        md_filename = filepath.name.replace(".juvix.md", ".md")
-        rel_to_docs = filepath.relative_to(self.env.DOCS_ABSPATH)
-        return (
-            self.env.CACHE_MARKDOWN_JUVIX_OUTPUT_PATH / rel_to_docs.parent / md_filename
-        )
-
-    @lru_cache(maxsize=128)
-    def _read_markdown_file_from_cache(self, filepath: Path) -> Optional[str]:
-        if cache_ABSpath := self._get_filepath_for_juvix_markdown_in_cache(filepath):
-            return cache_ABSpath.read_text()
-        return None
 
     def _generate_isabelle_html(self, filepath: Path) -> Optional[str]:
         if not filepath.as_posix().endswith(".juvix.md"):
@@ -511,13 +484,13 @@ Environment variables relevant:
 
         # check the theory file in the cache
         isabelle_filepath = (
-            self._get_expected_filepath_for_juvix_isabelle_output_in_cache(filepath)
+            self.env.get_expected_filepath_for_juvix_isabelle_output_in_cache(filepath)
         )
         cache_available: bool = (
             isabelle_filepath is not None and isabelle_filepath.exists()
         )
 
-        if not cache_available or self._new_or_changed_or_no_exist(filepath):
+        if not cache_available or self.env.new_or_changed_or_no_exist(filepath):
             log.info(f"No Isabelle file in cache for {filepath}")
             return self._run_juvix_isabelle(filepath)
 
@@ -533,11 +506,11 @@ Environment variables relevant:
         if not filepath.as_posix().endswith(".juvix.md"):
             return None
 
-        new_or_changed = self._new_or_changed_or_no_exist(filepath)
+        new_or_changed = self.env.new_or_changed_or_no_exist(filepath)
 
         if not new_or_changed:
             log.info(f"Reading cached file for: {filepath}")
-            return self._read_markdown_file_from_cache(filepath)
+            return self.env.read_markdown_file_from_cache(filepath)
 
         markdown_output = self._run_juvix_markdown(filepath)
 
@@ -583,61 +556,7 @@ Environment variables relevant:
 
         return markdown_output
 
-    def _unqualified_module_name(self, filepath: Path) -> Optional[str]:
-        fposix: str = filepath.as_posix()
-        if not fposix.endswith(".juvix.md"):
-            return None
-        return os.path.basename(fposix).replace(".juvix.md", "")
 
-    def _qualified_module_name(self, filepath: Path) -> Optional[str]:
-        absolute_path = filepath.absolute()
-        cmd = [self.env.JUVIX_BIN, "dev", "root", absolute_path.as_posix()]
-        pp = subprocess.run(cmd, cwd=self.env.DOCS_ABSPATH, capture_output=True)
-        root = None
-        try:
-            root = pp.stdout.decode("utf-8").strip()
-        except Exception as e:
-            log.error(f"Error running Juvix dev root: {e}")
-            return None
-
-        if not root:
-            return None
-
-        relative_to_root = filepath.relative_to(Path(root))
-
-        qualified_name = (
-            relative_to_root.as_posix()
-            .replace(".juvix.md", "")
-            .replace("./", "")
-            .replace("/", ".")
-        )
-
-        return qualified_name if qualified_name else None
-
-    def _get_filename_module_by_extension(
-        self, filepath: Path, extension: str = ".md"
-    ) -> Optional[str]:
-        """
-        The markdown filename is the same as the juvix file name but without the .juvix.md extension.
-        """
-        module_name = self._unqualified_module_name(filepath)
-        return module_name + extension if module_name else None
-
-    def _get_expected_filepath_for_juvix_isabelle_output_in_cache(
-        self, filepath: Path
-    ) -> Optional[Path]:
-        cache_isabelle_filename: Optional[str] = self._get_filename_module_by_extension(
-            filepath, extension=".thy"
-        )
-        if cache_isabelle_filename is None:
-            return None
-        rel_to_docs = filepath.relative_to(self.env.DOCS_ABSPATH)
-        cache_isabelle_filepath: Path = (
-            self.env.CACHE_ISABELLE_OUTPUT_PATH
-            / rel_to_docs.parent
-            / cache_isabelle_filename
-        )
-        return cache_isabelle_filepath
 
     def _run_juvix_isabelle(self, _filepath: Path) -> Optional[str]:
         filepath: Path = _filepath.absolute()
@@ -682,7 +601,7 @@ Environment variables relevant:
             return None
 
         cache_isabelle_filepath: Optional[Path] = (
-            self._get_expected_filepath_for_juvix_isabelle_output_in_cache(filepath)
+            self.env.get_expected_filepath_for_juvix_isabelle_output_in_cache(filepath)
         )
 
         if cache_isabelle_filepath is None:
@@ -771,7 +690,7 @@ Environment variables relevant:
             log.error(f"Error running Juvix on file: {fposix} -\n {e}")
             return None
 
-        cache_markdown_filename: Optional[str] = self._get_filename_module_by_extension(
+        cache_markdown_filename: Optional[str] = self.env.get_filename_module_by_extension(
             filepath, extension=".md"
         )
         if cache_markdown_filename is None:
@@ -792,7 +711,7 @@ Environment variables relevant:
             log.error(f"Error writing to cache markdown file: {e}")
             return md_output
         self._update_markdown_file_as_in_docs(filepath)
-        self._update_hash_file(filepath)
+        self.env.update_hash_file(filepath)
         return md_output
 
     def _update_markdown_file_as_in_docs(self, filepath: Path) -> None:
@@ -806,18 +725,6 @@ Environment variables relevant:
         except Exception as e:
             log.error(f"Error copying file: {e}")
 
-    def _update_hash_file(self, filepath: Path) -> Optional[Tuple[Path, str]]:
-        filepath_hash = compute_hash_filepath(
-            filepath, hash_dir=self.env.CACHE_HASHES_PATH
-        )
-        try:
-            with open(filepath_hash, "w") as f:
-                content_hash = hash_file(filepath)
-                f.write(content_hash)
-                return (filepath_hash, content_hash)
-        except Exception as e:
-            log.error(f"Error updating hash file: {e}")
-            return None
 
     def _generate_code_block_footer_css_file(
         self, css_file: Path, compiler_version: Optional[str] = None

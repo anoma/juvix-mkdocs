@@ -1,10 +1,10 @@
-import logging
 import os
 import re
 from pathlib import Path
 from typing import Any, Dict, List
 from urllib.parse import urljoin
 
+from mkdocs.plugins import get_plugin_logger
 from fuzzywuzzy import fuzz  # type: ignore
 from markdown.preprocessors import Preprocessor  # type: ignore
 from mkdocs.structure.pages import Page
@@ -24,21 +24,32 @@ WIKILINK_PATTERN = re.compile(
     re.VERBOSE,
 )
 
-log: logging.Logger = logging.getLogger("mkdocs")
+log = get_plugin_logger("Wikilinks")
 
 REPORT_BROKEN_WIKILINKS = bool(os.environ.get("REPORT_BROKEN_WIKILINKS", False))
 
 
 class WLPreprocessor(Preprocessor):
+
+    run_snippet_preprocessor: bool = True
+    
     def __init__(self, mkconfig, snippet_preprocessor, env: ENV):
         self.mkconfig = mkconfig
+
         self.snippet_preprocessor = snippet_preprocessor
+        # remove the mkdocs_juvix.snippets plugin from the config
+        if "mkdocs_juvix.snippets" in self.mkconfig.mdx_configs:
+            self.mkconfig.mdx_configs.pop("mkdocs_juvix.snippets")
+            self.run_snippet_preprocessor = False
+
         self.current_file = None
         self.links_found: List[Dict[str, Any]] = []
         self.env = env
 
     def run(self, lines):
-        lines = self.snippet_preprocessor.run(lines)
+        if self.run_snippet_preprocessor:
+            lines = self.snippet_preprocessor.run(lines)
+            
         config = self.mkconfig
         current_page_url = None
 
@@ -46,6 +57,9 @@ class WLPreprocessor(Preprocessor):
 
         if "current_page" in config and isinstance(config["current_page"], Page):
             page = config.get("current_page", None)
+
+            log.debug(f"Processing wikilinks on file {page.url}")
+            
             if page:
                 url_relative = self.env.DOCS_PATH / Path(
                     page.url.replace(".html", ".md")
@@ -58,16 +72,11 @@ class WLPreprocessor(Preprocessor):
 
         # Combine all lines into a single string
         full_text = "\n".join(lines)
-
-        # Find all code blocks, HTML comments, and script tags
-        code_blocks = list(re.finditer(r"```(?:[\s\S]*?)```", full_text, re.DOTALL))
-
-        html_comments = list(re.finditer(r"<!--[\s\S]*?-->", full_text))
-        script_tags = list(re.finditer(r"<script>[\s\S]*?</script>", full_text))
-
-        # Create a set of ranges to ignore
+        # Find all code blocks, HTML comments, and script tags in a single pass
         ignore_ranges = set()
-        for match in code_blocks + html_comments + script_tags:
+        pattern = re.compile(r'(```(?:[\s\S]*?)```|<!--[\s\S]*?-->|<script>[\s\S]*?</script>)', re.DOTALL)
+        
+        for match in pattern.finditer(full_text):
             ignore_ranges.add((match.start(), match.end()))
 
         # Find all wikilinks

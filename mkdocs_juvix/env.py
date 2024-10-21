@@ -4,17 +4,20 @@ mkdocs-juvix. It manages the different paths, mkdocs configurations, and
 Juvix settings.
 """
 
+from functools import lru_cache
+import os
 import shutil
 import subprocess
 from os import getenv
 from pathlib import Path
-from typing import List, Optional
+from typing import List, Optional, Tuple
 
 from mkdocs.config.defaults import MkDocsConfig
 from mkdocs.plugins import get_plugin_logger
 from semver import Version
 
 from mkdocs_juvix.juvix_version import MIN_JUVIX_VERSION
+from mkdocs_juvix.utils import compute_hash_filepath, hash_file
 
 log = get_plugin_logger("ENV")
 
@@ -250,3 +253,99 @@ class ENV:
             self.JUVIX_ENABLED = False
             self.JUVIX_AVAILABLE = False
             return
+
+    @lru_cache(maxsize=128)
+    def read_markdown_file_from_cache(self, filepath: Path) -> Optional[str]:
+        if cache_ABSpath := self.get_filepath_for_juvix_markdown_in_cache(filepath):
+            return cache_ABSpath.read_text()
+        return None
+
+
+    def new_or_changed_or_no_exist(self, filepath: Path) -> bool:
+        content_hash = hash_file(filepath)
+        path_hash = compute_hash_filepath(filepath, hash_dir=self.CACHE_HASHES_PATH)
+        if not path_hash.exists():
+            log.debug(f"File: {filepath} does not have a hash file.")
+            return True
+        fresh_content_hash = path_hash.read_text()
+        return content_hash != fresh_content_hash
+    
+    @lru_cache(maxsize=128)
+    def get_filepath_for_juvix_markdown_in_cache(
+        self, _filepath: Path
+    ) -> Optional[Path]:
+        filepath = _filepath.absolute()
+        md_filename = filepath.name.replace(".juvix.md", ".md")
+        rel_to_docs = filepath.relative_to(self.DOCS_ABSPATH)
+        return (
+            self.CACHE_MARKDOWN_JUVIX_OUTPUT_PATH / rel_to_docs.parent / md_filename
+        )
+
+    def unqualified_module_name(self, filepath: Path) -> Optional[str]:
+        fposix: str = filepath.as_posix()
+        if not fposix.endswith(".juvix.md"):
+            return None
+        return os.path.basename(fposix).replace(".juvix.md", "")
+
+    def qualified_module_name(self, filepath: Path) -> Optional[str]:
+        absolute_path = filepath.absolute()
+        cmd = [self.JUVIX_BIN, "dev", "root", absolute_path.as_posix()]
+        pp = subprocess.run(cmd, cwd=self.DOCS_ABSPATH, capture_output=True)
+        root = None
+        try:
+            root = pp.stdout.decode("utf-8").strip()
+        except Exception as e:
+            log.error(f"Error running Juvix dev root: {e}")
+            return None
+
+        if not root:
+            return None
+
+        relative_to_root = filepath.relative_to(Path(root))
+
+        qualified_name = (
+            relative_to_root.as_posix()
+            .replace(".juvix.md", "")
+            .replace("./", "")
+            .replace("/", ".")
+        )
+
+        return qualified_name if qualified_name else None
+
+    def get_filename_module_by_extension(
+        self, filepath: Path, extension: str = ".md"
+    ) -> Optional[str]:
+        """
+        The markdown filename is the same as the juvix file name but without the .juvix.md extension.
+        """
+        module_name = self.unqualified_module_name(filepath)
+        return module_name + extension if module_name else None
+
+    def update_hash_file(self, filepath: Path) -> Optional[Tuple[Path, str]]:  # noqa: F821
+        filepath_hash = compute_hash_filepath(
+            filepath, hash_dir=self.CACHE_HASHES_PATH
+        )
+        try:
+            with open(filepath_hash, "w") as f:
+                content_hash = hash_file(filepath)
+                f.write(content_hash)
+                return (filepath_hash, content_hash)
+        except Exception as e:
+            log.error(f"Error updating hash file: {e}")
+            return None
+
+    def get_expected_filepath_for_juvix_isabelle_output_in_cache(
+        self, filepath: Path
+    ) -> Optional[Path]:
+        cache_isabelle_filename: Optional[str] = self.get_filename_module_by_extension(
+            filepath, extension=".thy"
+        )
+        if cache_isabelle_filename is None:
+            return None
+        rel_to_docs = filepath.relative_to(self.DOCS_ABSPATH)
+        cache_isabelle_filepath: Path = (
+            self.CACHE_ISABELLE_OUTPUT_PATH
+            / rel_to_docs.parent
+            / cache_isabelle_filename
+        )
+        return cache_isabelle_filepath

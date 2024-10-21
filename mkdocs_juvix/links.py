@@ -181,6 +181,7 @@ class WikilinksPlugin(BasePlugin):
                 indent=2,
             )
 
+
     @mkdocs.plugins.event_priority(-200)
     def on_page_markdown(
         self, markdown, page: Page, config: MkDocsConfig, files: Files
@@ -215,7 +216,7 @@ class WikilinksPlugin(BasePlugin):
             )
             files_relation.append(result_entry)
 
-            if page.meta.get("list_wikilinks", True):
+            if page.meta.get("list_wikilinks", False):
                 # Creat a bullet list of links
                 wrapped_links = "<details class='quote'><summary>Wiki links on this page</summary><ul>"
                 unique_links = {
