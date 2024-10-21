@@ -27,7 +27,7 @@ WIKILINK_PATTERN = re.compile(
     re.VERBOSE,
 )
 
-log = get_plugin_logger("Wikilinks")
+log = get_plugin_logger("\033[94m[wikilinks_preprocessor]\033[0m")
 
 REPORT_BROKEN_WIKILINKS = bool(os.environ.get("REPORT_BROKEN_WIKILINKS", False))
 
@@ -102,10 +102,9 @@ class WLPreprocessor(Preprocessor):
             time_start = time.time()
             lines = self.snippet_preprocessor.run(lines)
             time_end = time.time()
-            log.info(f"Time taken to run snippet preprocessor: {time_end - time_start} seconds")
+            log.info(f"Snippet finished in {(time_end - time_start):.5f} seconds")
 
         log.info(f"Processing wikilinks on file {filepath}")
-
         # Combine all lines into a single string
         full_text = "\n".join(lines)
         # Find all code blocks, HTML comments, and script tags in a single pass
@@ -152,7 +151,7 @@ class WLPreprocessor(Preprocessor):
             full_text = full_text[:start] + new_text + full_text[end:]
         time_end = time.time()
         
-        log.info(f"Processing wikilinks took {(time_end - time_start):.2f} seconds")
+        log.info(f"Processing wikilinks took {(time_end - time_start):.5f} seconds")
 
         if cache_filepath:
             log.debug(f"Writing wikilinks to cache for file {original_filepath}")

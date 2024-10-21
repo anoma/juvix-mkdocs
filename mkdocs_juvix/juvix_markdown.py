@@ -160,8 +160,10 @@ Environment variables relevant:
 
         juvix_md_files = list(self.env.DOCS_ABSPATH.rglob("*.juvix.md"))
         with ThreadPoolExecutor() as executor:
-            list(executor.map(process_file, juvix_md_files))
+            results = list(executor.map(process_file, juvix_md_files))
             executor.shutdown(wait=True)
+        while len(results) != len(juvix_md_files):
+            log.error("Not all Juvix Markdown files were processed.")
         time_end = time.time()
 
         log.info(f"\033[92mGenerated Markdown for {len(self.juvix_md_files)} Juvix Markdown files in {time_end - time_start} seconds\033[0m")

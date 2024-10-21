@@ -2,7 +2,6 @@ site_name: !ENV [SITE_NAME, '{project_name}']
 site_author: !ENV [SITE_AUTHOR, "{site_author}"]
 site_description: !ENV [SITE_DESCRIPTION, "Documentation project with support
 for Juvix code blocks syntax highlighting."]
-site_url: !ENV [SITE_URL, 'https://github.com/anoma/juvix-mkdocs']
 site_dir: !ENV [SITE_DIR, '{site_dir}']
 copyright: !ENV [COPYRIGHT, "&copy; {year} <a
 href=\"https://github.com/anoma/juvix-mkdocs\">juvix-mkdocs</a>"]
@@ -38,7 +37,4 @@ theme:
 {anoma_theme_config}
 {theme_features}
 markdown_extensions:
-  - mkdocs_juvix.snippets:
-      check_paths: true
-      url_download: true
 {markdown_extensions}

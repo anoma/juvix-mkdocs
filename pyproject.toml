@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "mkdocs-juvix-plugin"
-version = "0.3.9"
+version = "0.3.9b"
 description = "Support for Juvix Markdown files in MkDocs"
 authors = ["Jonathan Prieto-Cubides, and GitHub contributors"]
 license = "MIT"
@@ -28,7 +28,7 @@ wikilinks = "mkdocs_juvix.links:WikilinksPlugin"
 # differ = "mkdocs_juvix.differ:DifferPlugin"
 
 [tool.poetry.dependencies]
-python = ">=3.10"
+python = ">=3.10,<4"
 mkdocs = "^1.6.1"
 click = "^8.1.7"
 semver = "^3.0.2"
@@ -53,7 +53,6 @@ pytest = "^8.3.3"
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
-
 
 
 [tool.poetry.group.test.dependencies]

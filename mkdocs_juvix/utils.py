@@ -26,6 +26,8 @@ def fix_site_url(config: MkDocsConfig) -> MkDocsConfig:
             config["docs_version"] = mike_docs_version
 
     # Ensure site_url ends with a slash
+    if not config.get("site_url", None):
+        config["site_url"] = ""
     if not config["site_url"].endswith("/"):
         config["site_url"] += "/"
 

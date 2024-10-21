@@ -24,7 +24,6 @@ log = get_plugin_logger("ENV")
 BASE_PATH = Path(__file__).parent
 FIXTURES_PATH = BASE_PATH / "fixtures"
 
-
 class ENV:
     ROOT_PATH: Path
     DOCS_DIRNAME: str = getenv("DOCS_DIRNAME", "docs")
@@ -39,6 +38,10 @@ class ENV:
     SITE_URL: str
     SITE_DIR: Optional[str]
     JUVIX_VERSION: str = ""
+    USE_DOT: bool
+    DOT_BIN: str
+    DOT_FLAGS: str
+    IMAGES_ENABLED: bool
 
     REMOVE_CACHE: bool = bool(
         getenv("REMOVE_CACHE", False)
@@ -56,6 +59,11 @@ class ENV:
         else JUVIX_BIN_NAME
     )  # The full path to the Juvix binary
     JUVIX_AVAILABLE: bool = shutil.which(JUVIX_BIN) is not None
+
+    FIRST_RUN: bool = bool(
+        getenv("FIRST_RUN", True)
+    )  # Whether this is the first time the plugin is run
+
     JUVIX_FOOTER_CSS_FILENAME: str = getenv(
         "JUVIX_FOOTER_CSS_FILENAME", "juvix_codeblock_footer.css"
     )
@@ -76,9 +84,8 @@ class ENV:
     CACHE_HTML_DIRNAME: str = getenv(
         "CACHE_HTML_DIRNAME", ".html"
     )  # The name of the directory where the HTML files are cached
-    FIRST_RUN: bool = bool(
-        getenv("FIRST_RUN", True)
-    )  # Whether this is the first time the plugin is run
+
+    DOCS_INDEXES_DIRNAME: str = getenv("DOCS_INDEXES_DIRNAME", "indexes")
     CACHE_MARKDOWN_JUVIX_OUTPUT_DIRNAME: str = getenv(
         "CACHE_MARKDOWN_JUVIX_OUTPUT_DIRNAME",
         ".markdown_output_from_juvix_markdown_files",
@@ -86,7 +93,8 @@ class ENV:
     CACHE_WIKILINKS_DIRNAME: str = getenv(
         "CACHE_WIKILINKS_DIRNAME", ".wikilinks"
     )  # The name of the file where the Juvix Markdown files are stored
-
+    DOCS_IMAGES_DIRNAME: str = getenv("DOCS_IMAGES_DIRNAME", "images")
+    CACHE_IMAGES_DIRNAME: str = getenv("CACHE_IMAGES_DIRNAME", ".images")
     CACHE_JUVIX_VERSION_FILENAME: str = getenv(
         "CACHE_JUVIX_VERSION_FILENAME", ".juvix_version"
     )  # The name of the file where the Juvix version is stored
@@ -110,6 +118,9 @@ class ENV:
     CACHE_JUVIX_VERSION_FILEPATH: Path  # The path to the Juvix version file
     TOKEN_ISABELLE_THEORY: str = "<!-- ISABELLE_THEORY -->"
     SHOW_TODOS_IN_MD: bool
+    INDEXES_PATH: Path
+    IMAGES_PATH: Path
+    CACHE_IMAGES_PATH: Path
 
     def __init__(self, config: Optional[MkDocsConfig] = None):
         if config:
@@ -128,6 +139,7 @@ class ENV:
             self.SITE_URL = ""
 
         self.ROOT_ABSPATH = self.ROOT_PATH.absolute()
+        self.CACHE_ABSPATH = self.ROOT_ABSPATH / self.CACHE_DIRNAME
 
         self.DOCS_PATH = self.ROOT_PATH / self.DOCS_DIRNAME
         self.CACHE_PATH = self.ROOT_PATH / self.CACHE_DIRNAME
@@ -154,7 +166,6 @@ class ENV:
                     "The diff binary is not available. Please install diff and make sure it's available in the PATH."
                 )
 
-        self.CACHE_ABSPATH = self.ROOT_ABSPATH / self.CACHE_DIRNAME
         self.CACHE_ORIGINAL_JUVIX_MARKDOWN_FILES_ABSPATH: Path = (
             self.CACHE_ABSPATH / self.CACHE_JUVIX_MARKDOWN_DIRNAME
         )  # The path to the Juvix Markdown cache directory
@@ -164,6 +175,10 @@ class ENV:
         self.DOCS_ABSPATH: Path = (
             self.ROOT_ABSPATH / self.DOCS_DIRNAME
         )  # The path to the documentation directory
+        self.IMAGES_PATH: Path = (
+            self.DOCS_ABSPATH / self.DOCS_IMAGES_DIRNAME
+        )  # The path to the images directory
+
         self.CACHE_MARKDOWN_JUVIX_OUTPUT_PATH: Path = (
             self.CACHE_ABSPATH / self.CACHE_MARKDOWN_JUVIX_OUTPUT_DIRNAME
         )  # The path to the Juvix Markdown output directory
@@ -181,6 +196,9 @@ class ENV:
         self.CACHE_HASHES_PATH: Path = (
             self.CACHE_ABSPATH / self.CACHE_HASHES_DIRNAME
         )  # The path where hashes are stored (not the project hash)
+        self.CACHE_IMAGES_PATH: Path = (
+            self.CACHE_ABSPATH / self.CACHE_IMAGES_DIRNAME
+        )  # The path to the images cache directory
 
         self.JUVIX_FOOTER_CSS_FILEPATH: Path = (
             self.DOCS_ABSPATH / "assets" / "css" / self.JUVIX_FOOTER_CSS_FILENAME
@@ -206,6 +224,7 @@ class ENV:
             self.CACHE_HASHES_PATH,
             self.JUVIX_FOOTER_CSS_FILEPATH.parent,
             self.CACHE_WIKILINKS_PATH,
+            self.CACHE_IMAGES_PATH,
         ]
 
         for directory in directories:
@@ -262,6 +281,11 @@ class ENV:
             self.JUVIX_ENABLED = False
             self.JUVIX_AVAILABLE = False
             return
+    
+        self.USE_DOT = bool(getenv("USE_DOT", True))
+        self.DOT_BIN = getenv("DOT_BIN", "dot")
+        self.DOT_FLAGS = getenv("DOT_FLAGS", "-Tsvg")
+        self.IMAGES_ENABLED = bool(getenv("IMAGES_ENABLED", True))
 
     @lru_cache(maxsize=128)
     def read_markdown_file_from_cache(self, filepath: Path) -> Optional[str]:

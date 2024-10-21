@@ -45,7 +45,7 @@ from mkdocs.plugins import get_plugin_logger
 
 from mkdocs_juvix.env import ENV
 
-log = get_plugin_logger("Snippets")
+log = get_plugin_logger("\033[94m[snippets]\033[0m")
 
 MI = 1024 * 1024  # mebibyte (MiB)
 DEFAULT_URL_SIZE = MI * 32
@@ -520,32 +520,18 @@ Error found in the file '{backup_path}' for the section '{section}'.
     def run(self, lines):
         """Process snippets."""
 
-        time_start = time.time()
         self.seen = set()
         if self.auto_append:
             lines.extend(
                 "\n\n-8<-\n{}\n-8<-\n".format("\n\n".join(self.auto_append)).split("\n")
             )
-        time_end = time.time()
-        diff = time_end - time_start
-        # if # is more than 5 seconds, exit
-        log.info(
-            f"Processing snippets took {(time_end - time_start):.2f} seconds"
-        )
-        if diff > 5:
-            exit(1)
         time_start = time.time()
         lines = self.parse_snippets(lines)
         time_end = time.time()
-        diff = time_end - time_start
-        # if # is more than 5 seconds, exit
         log.info(
-            f"Parsing snippets took {(time_end - time_start):.2f} seconds"
+            f"Parsing snippets took {(time_end - time_start):.5f} seconds"
         )
-        if diff > 5:
-            exit(1)
         return lines
-
 
 class SnippetExtension(Extension):
     """Snippet extension."""

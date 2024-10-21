@@ -3,6 +3,7 @@ Support for wiki-style links in MkDocs in tandem of pydownx_snippets.
 """
 
 from concurrent.futures import ThreadPoolExecutor
+from functools import lru_cache
 import json
 import re
 from os import getenv
@@ -197,7 +198,6 @@ class WikilinksPlugin(BasePlugin):
             executor.shutdown(wait=True)
 
         if self.LINKS_JSON.exists():
-            log.info(f"Removing existing {self.LINKS_JSON}")
             self.LINKS_JSON.unlink()
 
         log.info(f"Writing aliases to {self.LINKS_JSON}")
@@ -216,7 +216,6 @@ class WikilinksPlugin(BasePlugin):
                 f,
                 indent=2,
             )
-        log.info(f"Finished writing aliases to {self.LINKS_JSON}")
 
     @mkdocs.plugins.event_priority(-200)
     def on_page_markdown(
@@ -267,9 +266,7 @@ class WikilinksPlugin(BasePlugin):
         return html
 
     def on_post_build(self, config: MkDocsConfig):
-        log.info(f"Processing {len(files_relation)} links to create graph")
         if self.GRAPH_JSON.exists():
-            log.info(f"Removing existing {self.GRAPH_JSON}")
             self.GRAPH_JSON.unlink()
 
         serialized_files_relation = [entry.to_dict() for entry in files_relation]
