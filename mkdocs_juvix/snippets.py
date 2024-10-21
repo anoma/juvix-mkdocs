@@ -34,6 +34,7 @@ import os
 import re
 import sys
 import textwrap
+import time
 import urllib
 from pathlib import Path
 from typing import Any, Optional
@@ -92,34 +93,21 @@ class SnippetMissingError(Exception):
 
 class SnippetPreprocessor(Preprocessor):
     """Handle snippets in Markdown content."""
-
-    def __init__(self, config, md: Any):
+    env : ENV
+    def __init__(self, config, md: Any, env: Optional[ENV] = None):
         """Initialize."""
 
+        if env is None:
+            self.env = ENV(config)
+        else:
+            self.env = env
+
         base = config.get("base_path")
-        self.env = ENV()
 
         if isinstance(base, (str, os.PathLike)):
             base = [base]
 
         self.base_path = [os.path.abspath(b) for b in base]  # type: ignore
-        excluded_dirs = [
-            ".",
-            "__",
-            "site",
-            "env",
-            "venv",
-            ".hooks",
-            ".env",
-            ".juvix_build",
-        ]
-
-        for root in Path(self.env.ROOT_ABSPATH).rglob("*"):
-            if root.is_dir() and not any(
-                part.startswith(tuple(excluded_dirs)) for part in root.parts
-            ):
-                self.base_path.append(root.as_posix())
-
         self.snippet_cache: dict[str, Optional[str]] = {}
         self.restrict_base_path = config["restrict_base_path"]
         self.encoding = config.get("encoding")
@@ -532,13 +520,31 @@ Error found in the file '{backup_path}' for the section '{section}'.
     def run(self, lines):
         """Process snippets."""
 
+        time_start = time.time()
         self.seen = set()
         if self.auto_append:
             lines.extend(
                 "\n\n-8<-\n{}\n-8<-\n".format("\n\n".join(self.auto_append)).split("\n")
             )
-
-        return self.parse_snippets(lines)
+        time_end = time.time()
+        diff = time_end - time_start
+        # if # is more than 5 seconds, exit
+        log.info(
+            f"Processing snippets took {(time_end - time_start):.2f} seconds"
+        )
+        if diff > 5:
+            exit(1)
+        time_start = time.time()
+        lines = self.parse_snippets(lines)
+        time_end = time.time()
+        diff = time_end - time_start
+        # if # is more than 5 seconds, exit
+        log.info(
+            f"Parsing snippets took {(time_end - time_start):.2f} seconds"
+        )
+        if diff > 5:
+            exit(1)
+        return lines
 
 
 class SnippetExtension(Extension):

@@ -4,8 +4,10 @@ import subprocess
 from functools import wraps
 from os import getenv
 from pathlib import Path
+import time
 from typing import Any, Callable, Dict, List, Optional
 from urllib.parse import urljoin
+from concurrent.futures import ThreadPoolExecutor
 
 import pathspec
 import yaml  # type:ignore
@@ -27,7 +29,7 @@ from mkdocs_juvix.utils import (
 
 load_dotenv()
 
-log = get_plugin_logger("JuvixPlugin")
+log = get_plugin_logger("\033[94m[juvix_mkdocs]\033[0m")
 
 _pipeline: str = """ For reference, the Mkdocs Pipeline is the following:
 ├── on_startup(command, dirty)
@@ -94,9 +96,6 @@ class JuvixPlugin(BasePlugin):
 
         if css_path not in self.mkconfig["extra_css"]:
             self.mkconfig["extra_css"].append(css_path)
-
-        log.info("Added CSS file to extra_css: %s", css_path)
-
         self.juvix_md_files: List[Dict[str, Any]] = []
 
         self.env.SITE_DIR = self.mkconfig.get("site_dir", getenv("SITE_DIR", None))
@@ -131,16 +130,19 @@ Environment variables relevant:
     def on_pre_build(self, config: MkDocsConfig) -> None:
         if self.env.FIRST_RUN:
             try:
-                log.info("Updating Juvix dependencies...")
+                time_start = time.time()
                 subprocess.run(
                     [self.env.JUVIX_BIN, "dependencies", "update"], capture_output=True
                 )
+                time_end = time.time()
+                log.info(f"\033[92mUpdated Juvix dependencies in {time_end - time_start} seconds\033[0m")
                 self.env.FIRST_RUN = False
             except Exception as e:
                 log.error(f"A problem occurred while updating Juvix dependencies: {e}")
                 return
 
-        for _file in self.env.DOCS_ABSPATH.rglob("*.juvix.md"):
+        time_start = time.time()
+        def process_file(_file: Path) -> None:
             filepath: Path = _file.absolute()
             relative_to: Path = filepath.relative_to(self.env.DOCS_ABSPATH)
             url = urljoin(
@@ -156,14 +158,16 @@ Environment variables relevant:
             )
             self._generate_output_files_for_juvix_markdown(filepath)
 
+        juvix_md_files = list(self.env.DOCS_ABSPATH.rglob("*.juvix.md"))
+        with ThreadPoolExecutor() as executor:
+            list(executor.map(process_file, juvix_md_files))
+            executor.shutdown(wait=True)
+        time_end = time.time()
+
+        log.info(f"\033[92mGenerated Markdown for {len(self.juvix_md_files)} Juvix Markdown files in {time_end - time_start} seconds\033[0m")
         self.juvix_md_files.sort(key=lambda x: x["qualified_module_name"])
         juvix_modules = self.env.CACHE_ABSPATH.joinpath("juvix_modules.json")
-
-        if juvix_modules.exists():
-            juvix_modules.unlink()
-
-        with open(juvix_modules, "w") as f:
-            json.dump(self.juvix_md_files, f, indent=4)
+        juvix_modules.write_text(json.dumps(self.juvix_md_files, indent=4))
 
         sha_filecontent = (
             self.env.CACHE_JUVIX_PROJECT_HASH_FILEPATH.read_text()
@@ -176,12 +180,12 @@ Environment variables relevant:
         )
         equal_hashes = current_sha == sha_filecontent
 
-        log.info("Computed Juvix content hash: %s", current_sha)
+        log.info("\033[95mComputed Hash for Juvix Markdown files: %s\033[0m", current_sha)
 
         if not equal_hashes:
-            log.info("Cache Juvix content hash: %s", sha_filecontent)
+            log.info("\033[95mThe hashes are different (previous: %s)\033[0m", sha_filecontent)
         else:
-            log.info("The Juvix Markdown content has not changed.")
+            log.info("\033[93mThe Juvix Markdown content has not changed.\033[0m")
 
         generate: bool = (
             self.env.JUVIX_ENABLED
@@ -196,7 +200,7 @@ Environment variables relevant:
         )
 
         if not generate:
-            log.info("Skipping Juvix HTML generation for Juvix files.")
+            log.info("\033[92mSkipping Juvix HTML generation for Juvix files.\033[0m")
         else:
             log.debug(
                 "Generating auxiliary HTML for Juvix files. This may take a while... It's only generated once per session."
@@ -416,13 +420,21 @@ Environment variables relevant:
             ]
         )
 
-        for filepath_info in files_to_process:
+        def process_file(filepath_info: dict) -> None:
             filepath = Path(filepath_info["file"])
 
             if generate:
                 self._generate_html_per_file(filepath)
             if self.env.SITE_DIR and move_cache:
                 self._move_html_cache_to_site_dir(filepath, Path(self.env.SITE_DIR))
+
+        time_start = time.time()
+        with ThreadPoolExecutor() as executor:
+            executor.map(process_file, files_to_process)
+            executor.shutdown(wait=True)
+        time_end = time.time()
+        log.info(f"\033[92mGenerated HTML for {len(files_to_process)} files in {time_end - time_start} seconds\033[0m")
+
         return
 
     def _generate_html_per_file(
@@ -448,11 +460,15 @@ Environment variables relevant:
             + [filepath.as_posix()]
         )
 
-        log.info(f"Juvix call:\n  {' '.join(juvix_html_cmd)}")
+        log.info(f"{' '.join(juvix_html_cmd)}")
+
+        time_start = time.time()
 
         cd = subprocess.run(
             juvix_html_cmd, cwd=self.env.DOCS_ABSPATH, capture_output=True
         )
+        time_end = time.time()
+        log.info(f"Time taken to run Juvix HTML: {time_end - time_start} seconds")
         if cd.returncode != 0:
             log.error(cd.stderr.decode("utf-8") + "\n\n" + "Fix the error first.")
             return
@@ -509,13 +525,10 @@ Environment variables relevant:
         new_or_changed = self.env.new_or_changed_or_no_exist(filepath)
 
         if not new_or_changed:
-            log.info(f"Reading cached file for: {filepath}")
-            return self.env.read_markdown_file_from_cache(filepath)
-
+            log.debug(f"Reading cached file for: {filepath}")
+            if cache_filepath := self.env.get_filepath_for_juvix_markdown_in_cache(filepath):
+                return cache_filepath.read_text()
         markdown_output = self._run_juvix_markdown(filepath)
-
-        log.debug(f"New or changed file: {filepath}")
-
         try:
             content = filepath.read_text()
             # Extract metadata block checking it has exist it may not be
@@ -670,7 +683,7 @@ Environment variables relevant:
             "--no-colors",
         ]
         try:
-            log.info(f"Processing Juvix Markdown on file: {filepath}")
+            log.info(f"Generating Markdown for '{filepath.name}'")
             result_markdown = subprocess.run(
                 juvix_markdown_cmd, cwd=self.env.DOCS_ABSPATH, capture_output=True
             )

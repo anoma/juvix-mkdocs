@@ -2,25 +2,26 @@
 Support for wiki-style links in MkDocs in tandem of pydownx_snippets.
 """
 
+from concurrent.futures import ThreadPoolExecutor
 import json
 import re
 from os import getenv
 from pathlib import Path
 from typing import Dict, List, Optional
 from urllib.parse import urljoin
+import time
 
 import mkdocs.plugins
 from markdown.extensions import Extension  # type: ignore
 from mkdocs.config.defaults import MkDocsConfig
 from mkdocs.plugins import BasePlugin, get_plugin_logger
-from mkdocs.structure.files import Files
+from mkdocs.structure.files import File, Files
 from mkdocs.structure.pages import Page
 from mkdocs.utils import meta
 
 from mkdocs_juvix.common.models.entry import ResultEntry
 from mkdocs_juvix.common.preprocesors.links import WLPreprocessor
 from mkdocs_juvix.common.utils import (
-    create_mermaid_diagram,
     fix_site_url,
     get_page_title,
 )
@@ -31,18 +32,38 @@ from mkdocs_juvix.snippets import (
     SnippetPreprocessor,
 )
 
-log = get_plugin_logger("Wikilinks")
+log = get_plugin_logger("\033[94m[wikilinks]\033[0m")
 
 files_relation: List[ResultEntry] = []
+EXCLUDED_DIRS = [
+    ".",
+    "__",
+    "site",
+    "env",
+    "venv",
+    ".hooks",
+    ".env",
+    ".juvix_build",
+]
 
 
 class WLExtension(Extension):
     config: MkDocsConfig
-    env: ENV
+    env: Optional[ENV] = None
+    base_path: List[str] = []
 
-    def __init__(self, config: MkDocsConfig):
+    def __init__(self, config: MkDocsConfig, env: Optional[ENV] = None):
         self.config = config
-        self.env = ENV(config)
+        if env is None:
+            self.env = ENV(config)
+        else:
+            self.env = env
+
+        for root in Path(self.env.ROOT_ABSPATH).rglob("*"):
+            if root.is_dir() and not any(
+                part.startswith(tuple(EXCLUDED_DIRS)) for part in root.parts
+            ):
+                self.base_path.append(root.as_posix())
 
     def __repr__(self):
         return "WLExtension"
@@ -64,7 +85,8 @@ class WLExtension(Extension):
         sc.setdefault("restrict_base_path", True)
         sc.setdefault("base_path", [".", "includes"])
 
-        sp = SnippetPreprocessor(sc, md)
+        sp = SnippetPreprocessor(sc, md, self.env)
+        sp.base_path = self.base_path
         self.wlpp = WLPreprocessor(self.config, sp, self.env)
         md.preprocessors.register(self.wlpp, "wl-pp", 100)
 
@@ -76,28 +98,29 @@ class WikilinksPlugin(BasePlugin):
     PAGE_LINK_DIAGS: Path
     REPORT_BROKEN_WIKILINKS: bool = bool(getenv("REPORT_BROKEN_WIKILINKS", True))
     TOKEN_LIST_WIKILINKS: str = "<!-- list_wikilinks -->"
-    TOKEN_MERMAID_WIKILINKS: str = "<!-- mermaid_wikilinks -->"
 
     LINKS_JSONNAME: str = getenv("LINKS_JSONNAME", "aliases.json")
     GRAPH_JSONNAME: str = getenv("GRAPH_JSONNAME", "graph.json")
     NODES_JSONNAME: str = getenv("NODES_JSONNAME", "nodes.json")
     PAGE_LINK_DIAGSNAME: str = getenv("PAGE_LINK_DIAGSNAME", "page_link_diags")
-    env: ENV
+    env: Optional[ENV] = None
 
     def on_config(self, config: MkDocsConfig, **kwargs) -> MkDocsConfig:
         config = fix_site_url(config)
-        self.env = ENV(config)
+        if self.env is None:
+            self.env = ENV(config)
 
         self.LINKS_JSON = self.env.CACHE_PATH / self.LINKS_JSONNAME
         self.GRAPH_JSON = self.env.CACHE_PATH / self.GRAPH_JSONNAME
         self.NODES_JSON = self.env.CACHE_PATH / self.NODES_JSONNAME
+
         self.PAGE_LINK_DIAGS = self.env.CACHE_PATH / self.PAGE_LINK_DIAGSNAME
         self.PAGE_LINK_DIAGS.mkdir(parents=True, exist_ok=True)
 
         if "mkdocs_juvix.snippets" in config["markdown_extensions"]:
             config["markdown_extensions"].remove("mkdocs_juvix.snippets")
 
-        wl_extension = WLExtension(config)
+        wl_extension = WLExtension(config, self.env)
         config.markdown_extensions.append(wl_extension)  # type: ignore
         return config
 
@@ -128,6 +151,7 @@ class WikilinksPlugin(BasePlugin):
         if self.NODES_JSON.exists():
             self.NODES_JSON.unlink()
 
+        log.info(f"Writing nodes to {self.NODES_JSON}")
         with open(self.NODES_JSON, "w") as f:
             json.dump(
                 {
@@ -143,7 +167,9 @@ class WikilinksPlugin(BasePlugin):
         """When MkDocs loads its files, extract aliases from any Markdown files
         that were found.
         """
-        for file in filter(lambda f: f.is_documentation_page(), files):
+        log.info(f"Processing {len(files)} files to extract aliases")
+
+        def process_file(file: File) -> None:
             pathFile: str | None = file.abs_src_path
             if pathFile is not None:
                 with open(pathFile, encoding="utf-8-sig", errors="strict") as handle:
@@ -162,9 +188,19 @@ class WikilinksPlugin(BasePlugin):
                                 config["url_for"][_title] = [url]
                                 config["aliases_for"][url] = [_title]
 
+        with ThreadPoolExecutor() as executor:
+            list(
+                executor.map(
+                    process_file, filter(lambda f: f.is_documentation_page(), files)
+                )
+            )
+            executor.shutdown(wait=True)
+
         if self.LINKS_JSON.exists():
+            log.info(f"Removing existing {self.LINKS_JSON}")
             self.LINKS_JSON.unlink()
 
+        log.info(f"Writing aliases to {self.LINKS_JSON}")
         with open(self.LINKS_JSON, "w") as f:
             json.dump(
                 {
@@ -180,7 +216,7 @@ class WikilinksPlugin(BasePlugin):
                 f,
                 indent=2,
             )
-
+        log.info(f"Finished writing aliases to {self.LINKS_JSON}")
 
     @mkdocs.plugins.event_priority(-200)
     def on_page_markdown(
@@ -189,12 +225,12 @@ class WikilinksPlugin(BasePlugin):
         config["current_page"] = page  # needed for the preprocessor
         config["links_number"] = []
         markdown += "\n" + self.TOKEN_LIST_WIKILINKS + "\n"
-        markdown += "\n" + self.TOKEN_MERMAID_WIKILINKS + "\n"
         return markdown
 
     def on_page_content(
         self, html, page: Page, config: MkDocsConfig, files: Files
     ) -> str:
+        log.debug(f"Processing page: {page.title}")
         if "current_page" not in config or "nodes" not in config:
             return html
         current_page = config["current_page"]
@@ -228,44 +264,22 @@ class WikilinksPlugin(BasePlugin):
 
                 html = html.replace(self.TOKEN_LIST_WIKILINKS, wrapped_links)
 
-            if page.meta.get("mermaid_wikilinks", False):
-                mermaid_structure = create_mermaid_diagram([result_entry])
-                file_path = (
-                    result_entry.file.replace("\\", "_")
-                    .replace("/", "_")
-                    .replace(".html", ".mmd")
-                )
-                file_path = (self.PAGE_LINK_DIAGS / file_path).as_posix()
-                with open(file_path, "w") as f:
-                    f.write(mermaid_structure)
-
-                wrapped_mermaid = f"""
-                    <details class="quote">
-                    <summary>Link graph</summary>
-                    <div style="text-align: center;">
-                    <pre class="mermaid" ><code>{mermaid_structure}</code></pre>
-                    </div>
-                    </details>
-                """
-                html = html.replace(self.TOKEN_MERMAID_WIKILINKS, wrapped_mermaid)
         return html
 
     def on_post_build(self, config: MkDocsConfig):
+        log.info(f"Processing {len(files_relation)} links to create graph")
         if self.GRAPH_JSON.exists():
+            log.info(f"Removing existing {self.GRAPH_JSON}")
             self.GRAPH_JSON.unlink()
 
         serialized_files_relation = [entry.to_dict() for entry in files_relation]
+        log.info(f"Writing graph to {self.GRAPH_JSON}")
         with open(self.GRAPH_JSON, "w") as graph_json_file:
             json.dump(
                 {"graph": serialized_files_relation},
                 graph_json_file,
                 indent=2,
             )
-
-        mermaid_structure = create_mermaid_diagram(files_relation)
-        file_path = (self.PAGE_LINK_DIAGS / "graph.mmd").as_posix()
-        with open(file_path, "w") as f:
-            f.write(mermaid_structure)
 
     def _extract_aliases_from_nav(self, item, parent_key=None):
         result = []

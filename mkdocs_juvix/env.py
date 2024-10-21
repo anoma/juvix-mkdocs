@@ -83,6 +83,10 @@ class ENV:
         "CACHE_MARKDOWN_JUVIX_OUTPUT_DIRNAME",
         ".markdown_output_from_juvix_markdown_files",
     )  # The name of the file where the Juvix Markdown files are stored
+    CACHE_WIKILINKS_DIRNAME: str = getenv(
+        "CACHE_WIKILINKS_DIRNAME", ".wikilinks"
+    )  # The name of the file where the Juvix Markdown files are stored
+
     CACHE_JUVIX_VERSION_FILENAME: str = getenv(
         "CACHE_JUVIX_VERSION_FILENAME", ".juvix_version"
     )  # The name of the file where the Juvix version is stored
@@ -96,6 +100,7 @@ class ENV:
     CACHE_MARKDOWN_JUVIX_OUTPUT_PATH: (
         Path  # The path to the Juvix Markdown output directory
     )
+    CACHE_WIKILINKS_PATH: Path  # The path to the wikilinks cache directory
     CACHE_HTML_PATH: Path  # The path to the Juvix Markdown output directory
     CACHE_JUVIX_PROJECT_HASH_FILEPATH: (
         Path  # The path to the Juvix Markdown output directory
@@ -183,6 +188,9 @@ class ENV:
         self.CACHE_JUVIX_VERSION_FILEPATH: Path = (
             self.CACHE_ABSPATH / self.CACHE_JUVIX_VERSION_FILENAME
         )  # The path to the Juvix version file
+        self.CACHE_WIKILINKS_PATH: Path = (
+            self.CACHE_ABSPATH / self.CACHE_WIKILINKS_DIRNAME
+        )  # The path to the wikilinks cache directory
 
         if not self.DOCS_ABSPATH.exists():
             log.error(
@@ -197,6 +205,7 @@ class ENV:
             self.CACHE_ABSPATH,
             self.CACHE_HASHES_PATH,
             self.JUVIX_FOOTER_CSS_FILEPATH.parent,
+            self.CACHE_WIKILINKS_PATH,
         ]
 
         for directory in directories:
@@ -260,6 +269,22 @@ class ENV:
             return cache_ABSpath.read_text()
         return None
 
+    @lru_cache(maxsize=128)
+    def read_wikilinks_file_from_cache(self, filepath: Path) -> Optional[str]:
+        if cache_ABSpath := self.get_filepath_for_wikilinks_in_cache(filepath):
+            return cache_ABSpath.read_text()
+        return None
+    
+    def write_wikilinks_file_to_cache(self, filepath: Path, content: str) -> None:
+        if cache_ABSpath := self.get_filepath_for_wikilinks_in_cache(filepath):
+            cache_ABSpath.write_text(content)
+    
+    def get_filepath_for_wikilinks_in_cache(self, filepath: Path) -> Optional[Path]:
+        filepath = filepath.absolute()
+        rel_to_docs = filepath.relative_to(self.DOCS_ABSPATH)
+        return (
+            self.CACHE_WIKILINKS_PATH / rel_to_docs.parent / filepath.name
+        )
 
     def new_or_changed_or_no_exist(self, filepath: Path) -> bool:
         content_hash = hash_file(filepath)
@@ -349,3 +374,4 @@ class ENV:
             / cache_isabelle_filename
         )
         return cache_isabelle_filepath
+    
