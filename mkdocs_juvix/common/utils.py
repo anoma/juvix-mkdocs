@@ -18,12 +18,15 @@ def fix_site_url(config: MkDocsConfig) -> MkDocsConfig:
             config["site_url"] += "/"
         return config
 
-    log.info("SITE_URL environment variable not set")
+    log.debug("SITE_URL environment variable not set")
 
     version = os.environ.get("MIKE_DOCS_VERSION")
 
     if version:
-        log.info(f"Using MIKE_DOCS_VERSION environment variable: {version}")
+        log.debug(f"Using MIKE_DOCS_VERSION environment variable: {version}")
+
+    if "site_url" not in config or not config["site_url"]:
+        config["site_url"] = ""
 
     if not config["site_url"].endswith("/"):
         config["site_url"] += "/"

@@ -39,13 +39,15 @@ import urllib
 from pathlib import Path
 from typing import Any, Optional
 
+from colorama import Fore, Style  # type: ignore
 from markdown import Extension  # type: ignore
 from markdown.preprocessors import Preprocessor  # type: ignore
 from mkdocs.plugins import get_plugin_logger
 
 from mkdocs_juvix.env import ENV
+from mkdocs_juvix.utils import find_file_in_subdirs  # type: ignore
 
-log = get_plugin_logger("\033[94m[snippets]\033[0m")
+log = get_plugin_logger(f"{Fore.BLUE}[juvix_mkdocs-snippets]{Style.RESET_ALL}")
 
 MI = 1024 * 1024  # mebibyte (MiB)
 DEFAULT_URL_SIZE = MI * 32
@@ -93,7 +95,9 @@ class SnippetMissingError(Exception):
 
 class SnippetPreprocessor(Preprocessor):
     """Handle snippets in Markdown content."""
-    env : ENV
+
+    env: ENV
+
     def __init__(self, config, md: Any, env: Optional[ENV] = None):
         """Initialize."""
 
@@ -212,8 +216,6 @@ Error found in the file '{backup_path}' for the section '{section}'.
         """De-indent lines."""
 
         return textwrap.dedent("\n".join(lines)).split("\n")
-
- 
 
     def get_snippet_path(self, path) -> Optional[str]:
         """Get snippet path."""
@@ -398,12 +400,17 @@ Error found in the file '{backup_path}' for the section '{section}'.
                     path = path[:-4]
                     is_isabelle = True
 
-                snippet = self.get_snippet_path(path) if not url else path
+                snippet = (
+                    find_file_in_subdirs(
+                        self.env.ROOT_ABSPATH, self.base_path, Path(path) # type: ignore
+                    )
+                    if not url
+                    else path
+                )
 
                 is_juvix = False
                 if snippet:
                     original = snippet
-
                     if not just_raw and snippet.endswith(".juvix.md"):
                         snippet = self.env.CACHE_MARKDOWN_JUVIX_OUTPUT_PATH / Path(
                             snippet.replace(".juvix.md", ".md")
@@ -509,7 +516,10 @@ Error found in the file '{backup_path}' for the section '{section}'.
 
                 elif self.check_paths:
                     # print base path
+                    log.error(f"Base path: {self.base_path}")
+
                     log.error("2. Snippet at path '{}' could not be found".format(path))
+                    exit(1)
 
         # Pop the current file name out of the cache
         if file_name:
@@ -528,17 +538,15 @@ Error found in the file '{backup_path}' for the section '{section}'.
         time_start = time.time()
         lines = self.parse_snippets(lines)
         time_end = time.time()
-        log.info(
-            f"Parsing snippets took {(time_end - time_start):.5f} seconds"
-        )
+        log.info(f"Parsing snippets took {(time_end - time_start):.5f} seconds")
         return lines
+
 
 class SnippetExtension(Extension):
     """Snippet extension."""
 
     def __init__(self, *args, **kwargs):
         """Initialize."""
-
         self.config = {
             "base_path": [
                 [".", "includes"],

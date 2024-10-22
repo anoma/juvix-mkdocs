@@ -1,16 +1,17 @@
 import os
 import re
-from pathlib import Path
 import time
+from pathlib import Path
 from typing import Any, Dict, List, Optional
 from urllib.parse import urljoin
 
-from mkdocs.plugins import get_plugin_logger
+import numpy as np  # type: ignore
+from colorama import Fore, Style  # type: ignore
 from fuzzywuzzy import fuzz  # type: ignore
 from markdown.preprocessors import Preprocessor  # type: ignore
+from mkdocs.plugins import get_plugin_logger
 from mkdocs.structure.pages import Page
-from ncls import NCLS # type: ignore
-import numpy as np # type: ignore
+from ncls import NCLS  # type: ignore
 
 from mkdocs_juvix.common.models import FileLoc, WikiLink
 from mkdocs_juvix.env import ENV
@@ -27,7 +28,8 @@ WIKILINK_PATTERN = re.compile(
     re.VERBOSE,
 )
 
-log = get_plugin_logger("\033[94m[wikilinks_preprocessor]\033[0m")
+
+log = get_plugin_logger(f"{Fore.BLUE}[juvix_mkdocs-wikilinks]{Style.RESET_ALL}")
 
 REPORT_BROKEN_WIKILINKS = bool(os.environ.get("REPORT_BROKEN_WIKILINKS", False))
 
@@ -94,7 +96,7 @@ class WLPreprocessor(Preprocessor):
             cache_filepath
             and cache_filepath.exists()
             and original_filepath
-            and not self.env.new_or_changed_or_no_exist(original_filepath)
+            and not self.env.new_or_changed_or_not_exists(original_filepath)
         ):
             return cache_filepath.read_text().split("\n")
 
@@ -102,20 +104,24 @@ class WLPreprocessor(Preprocessor):
             time_start = time.time()
             lines = self.snippet_preprocessor.run(lines)
             time_end = time.time()
-            log.info(f"Snippet finished in {(time_end - time_start):.5f} seconds")
+            log.info(
+                f"Snippet finished in {Fore.GREEN}{(time_end - time_start):.5f}{Style.RESET_ALL} seconds"
+            )
 
-        log.info(f"Processing wikilinks on file {filepath}")
+        log.info(
+            f"Processing wikilinks on file {Fore.GREEN}{filepath}{Style.RESET_ALL}"
+        )
         # Combine all lines into a single string
         full_text = "\n".join(lines)
         # Find all code blocks, HTML comments, and script tags in a single pass
-        pattern = re.compile(
+        ignore_blocks = re.compile(
             r"(```(?:[\s\S]*?)```|<!--[\s\S]*?-->|<script>[\s\S]*?</script>)", re.DOTALL
         )
 
         intervals = []
         time_start = time.time()
         try:
-            for match in pattern.finditer(full_text):
+            for match in ignore_blocks.finditer(full_text):
                 intervals.append((match.start(), match.end(), 1))
         except TimeoutError:
             log.error("Timeout occurred while processing ignore patterns")
@@ -150,8 +156,10 @@ class WLPreprocessor(Preprocessor):
         for start, end, new_text in reversed(replacements):
             full_text = full_text[:start] + new_text + full_text[end:]
         time_end = time.time()
-        
-        log.info(f"Processing wikilinks took {(time_end - time_start):.5f} seconds")
+
+        log.info(
+            f"Processing wikilinks took {Fore.GREEN}{(time_end - time_start):.5f}{Style.RESET_ALL} seconds"
+        )
 
         if cache_filepath:
             log.debug(f"Writing wikilinks to cache for file {original_filepath}")

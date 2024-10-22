@@ -1,23 +1,25 @@
-import logging
-import os
 import re
 import shutil
 import subprocess
+import time
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import Optional
-from urllib.parse import urljoin
-from mkdocs.plugins import BasePlugin, get_plugin_logger
-from common.models.loc import FileLoc  # type: ignore
-from common.utils import fix_site_url  # type:ignore
+
+import numpy as np
+from colorama import Fore, Style  # type: ignore
 from markdown.extensions import Extension  # type: ignore
 from markdown.preprocessors import Preprocessor  # type: ignore
 from mkdocs.config.defaults import MkDocsConfig  # type: ignore
+from mkdocs.plugins import BasePlugin, get_plugin_logger
 from mkdocs.structure.files import Files  # type: ignore
 from mkdocs.structure.pages import Page
+from ncls import NCLS  # type: ignore
+
+from mkdocs_juvix.common.utils import fix_site_url  # type:ignore
 from mkdocs_juvix.env import ENV  # type: ignore
 
-log = get_plugin_logger("\033[94m[images]\033[0m")
-
+log = get_plugin_logger(f"{Fore.BLUE}[juvix_mkdocs-images]{Style.RESET_ALL}")
 
 IMAGES_PATTERN = re.compile(
     r"""
@@ -27,6 +29,14 @@ IMAGES_PATTERN = re.compile(
 """,
     re.VERBOSE,
 )
+
+HTML_IMG_PATTERN = re.compile(
+    r"""
+<img\s+src=("|')(?P<url>[^\)]+)("|')
+""",
+    re.VERBOSE,
+)
+
 
 class ImgExtension(Extension):
     config: MkDocsConfig
@@ -46,7 +56,8 @@ class ImgExtension(Extension):
         self.md = md
         md.registerExtension(self)
         self.imgpp = ImgPreprocessor(self.config, self.env)
-        md.preprocessors.register(self.imgpp, "img-pp", 110)
+        md.preprocessors.register(self.imgpp, "img-pp", 90)
+
 
 class ImgPreprocessor(Preprocessor):
     config: MkDocsConfig
@@ -60,6 +71,8 @@ class ImgPreprocessor(Preprocessor):
             self.env = env
 
     def run(self, lines):
+        full_text = "".join(lines)
+
         config = self.config
         current_page_url = None
 
@@ -73,81 +86,83 @@ class ImgPreprocessor(Preprocessor):
             log.error("Current page URL not found. Images will not be processed.")
             return lines
 
-        in_html_comment = False
-        in_div = False
+        ignore_blocks = re.compile(
+            r"(```(?:[\s\S]*?)```|<!--[\s\S]*?-->|<div>[\s\S]*?</div>)", re.DOTALL
+        )
+        intervals = []
+        try:
+            for match in ignore_blocks.finditer(full_text):
+                intervals.append((match.start(), match.end(), 1))
+        except Exception as e:
+            log.error(f"Error occurred while processing ignore patterns: {e}")
+            return lines
 
-        for i, line in enumerate(lines.copy()):
-            if "<!--" in line:
-                in_html_comment = True
-            if "-->" in line:
-                in_html_comment = False
-            if "<div" in line:
-                in_div = True
-            if "</div>" in line:
-                in_div = False
-            if in_html_comment or in_div:
-                continue
+        ignore_tree = None
+        if intervals:
+            starts, ends, ids = map(np.array, zip(*intervals))
+            ignore_tree = NCLS(starts, ends, ids)
 
-            matches = IMAGES_PATTERN.finditer(line)
-
-            for match in matches:
-                _url = match.group("url")
-                url = Path(_url)
-                if url.as_posix().startswith("http"):
-                    continue
-
-                loc = FileLoc(current_page_url, i + 1, match.start() + 2)
-
-                image_fname = url.name
-                img_cache = self.env.CACHE_IMAGES_PATH / image_fname
-
-                if image_fname.endswith(".dot.svg") and self.env.USE_DOT:
-                    dot_file = image_fname.replace(".dot.svg", ".dot")
-                    dot_location = self.env.IMAGES_PATH / dot_file
-                    log.debug(f"{loc}\nGenerating SVG from DOT file: {dot_location}")
-
-                    if not dot_location.exists():
-                        log.info(f"{dot_location} not found. Skipping SVG generation.")
-                        continue
-
-                    cmd = f"{self.env.DOT_BIN} {self.env.DOT_FLAGS} {dot_location.as_posix()} -o {img_cache.absolute().as_posix()}"
-
-                    log.debug(f"Running command: {cmd}")
-
-                    output = subprocess.run(cmd, shell=True, check=True)
-
-                    if output.returncode != 0:
-                        log.error(f"Error running graphviz: {output}")
-
-                    if not img_cache.exists():
-                        config["images_issues"] += 1
-                        log.error(
-                            f"{loc}\n [!] Image not found. Expected location:\n==> {img_cache}"
-                        )
-
-                img_expected_location = self.env.IMAGES_PATH / image_fname
-
-                new_url = urljoin(
-                    config["site_url"],
-                    img_expected_location.relative_to(self.env.DOCS_ABSPATH).as_posix(),
+        def img_markdown_link(match: re.Match, img_expected_location: Path) -> str:
+            if match.group("caption"):
+                return (
+                    f"![{match.group('caption')}]({img_expected_location.as_posix()})"
                 )
+            else:
+                return img_expected_location.as_posix()
 
-                lines[i] = lines[i].replace(_url, new_url)
+        full_text = "".join(lines)
 
-                log.debug(
-                    f"{loc}\n[!] Image URL: {_url}\nwas replaced by the following URL:\n ==> {new_url}"
-                )
-        return lines
+        time_start = time.time()
+
+        def process_matches(pattern, process_func):
+            matches = list(pattern.finditer(full_text))
+            if matches:
+                replacements = []
+                for match in matches:
+                    start, end = match.start(), match.end()
+                    if ignore_tree and not list(ignore_tree.find_overlap(start, end)):
+                        url = Path(match.group("url"))
+                        if url.as_posix().startswith("http"):
+                            continue
+                        image_fname = url.name
+                        img_expected_location = self.env.IMAGES_PATH / image_fname
+                        new_url = process_func(match, img_expected_location)
+                        replacements.append((start, end, new_url))
+                return replacements
+            return []
+
+        replacements = process_matches(
+            IMAGES_PATTERN,
+            lambda match, img_expected_location: img_markdown_link(
+                match, img_expected_location
+            ),
+        )
+
+        for start, end, new_url in reversed(replacements):
+            full_text = full_text[:start] + new_url + full_text[end:]
+
+        replacements = process_matches(
+            HTML_IMG_PATTERN,
+            lambda _,
+            img_expected_location: f'<img src="{img_expected_location.absolute().as_posix()}" />',
+        )
+        for start, end, new_url in reversed(replacements):
+            full_text = full_text[:start] + new_url + full_text[end:]
+
+        time_end = time.time()
+        log.debug(
+            f"Path image resolution took {time_end - time_start:.5f} seconds for {current_page_url}"
+        )
+
+        return full_text.split("\n")
 
 
-class ImagePlugin(BasePlugin):
-    config: MkDocsConfig
+class ImagesPlugin(BasePlugin):
     env: ENV
 
     def on_config(self, config: MkDocsConfig) -> MkDocsConfig:
         config = fix_site_url(config)
-        if self.env is None:
-            self.env = ENV(config)
+        self.env = ENV(config)
 
         if not shutil.which(self.env.DOT_BIN):
             log.warning(
@@ -155,36 +170,77 @@ class ImagePlugin(BasePlugin):
             )
             self.env.USE_DOT = False
 
+        dot_files = list(self.env.IMAGES_PATH.glob("*.dot"))
+
+        def process_dot_file(dot_file: Path):
+            try:
+                cond = self.env.new_or_changed_or_not_exists(dot_file)
+                svg_file = dot_file.with_suffix(".dot.svg")
+                if cond:
+                    self._generate_dot_svg(dot_file)
+                    if svg_file.exists():
+                        log.info(f"Generated SVG: {svg_file}")
+                        self.env.update_hash_file(dot_file)
+                return svg_file
+            except Exception as e:
+                log.error(f"Error generating SVG for {dot_file}: {e}")
+                return None
+
+        if dot_files:
+            log.info(
+                f"Generating {Fore.GREEN}{len(dot_files)}{Style.RESET_ALL} SVG images"
+            )
+            for dot_file in dot_files:
+                process_dot_file(dot_file)
+
+            with ThreadPoolExecutor() as executor:
+                results = list(executor.map(process_dot_file, dot_files))
+                executor.shutdown(wait=True)
+
+            for result in results:
+                if result is None:
+                    log.error("Failed to generate SVG for one of the DOT files")
+                    exit(1)
+
         imgext_instance = ImgExtension(config=config, env=self.env)
         config.markdown_extensions.append(imgext_instance)  # type: ignore
 
         config["images"] = {}  # page: [image]
         config.setdefault("current_page", None)  # current page being processed
-        config["images_issues"] = 0
         return config
 
+    def _generate_dot_svg(self, dot_file: Path) -> Optional[Path]:
+        svg_file = dot_file.with_suffix(".dot.svg")
 
-    def on_page_markdown(self,
-        markdown, page: Page, config: MkDocsConfig, files: Files
+        if not svg_file.exists():
+            self.env.IMAGES_PATH.mkdir(parents=True, exist_ok=True)
+
+        dot_cmd = [
+            self.env.DOT_BIN,
+            self.env.DOT_FLAGS,
+            dot_file.absolute().as_posix(),
+            "-o",
+            svg_file.absolute().as_posix(),
+        ]
+
+        try:
+            time_start = time.time()
+            log.info(f"Generating SVG for {Fore.GREEN}{dot_file}{Style.RESET_ALL}")
+            output = subprocess.run(dot_cmd)
+            time_end = time.time()
+            log.info(
+                f"Generation took {Fore.GREEN}{time_end - time_start:.5f}{Style.RESET_ALL} seconds"
+            )
+            if output.returncode != 0:
+                log.error(f"Error running graphviz: {output}")
+                return None
+            return dot_file
+        except Exception as e:
+            log.error(f"Error running graphviz: {e}")
+            return None
+
+    def on_page_markdown(
+        self, markdown, page: Page, config: MkDocsConfig, files: Files
     ) -> str:
         config["current_page"] = page  # needed for the preprocessor
         return markdown
-
-    def on_post_build(self, config: MkDocsConfig) -> None:
-        if config["images_issues"] > 0:
-            log.error(
-                f"\n[!] {config['images_issues']} image(s) not found. Please check the logs for more details."
-            )
-        else:
-            images_dir = self.env.IMAGES_PATH
-            if not images_dir.exists():
-                log.error(f"Expected images directory {images_dir} not found.")
-                images_dir.mkdir(parents=True, exist_ok=True)
-            try:
-                path_images = self.env.CACHE_IMAGES_PATH
-                if not path_images.exists():
-                    log.error(f"Expected images cache directory {path_images} not found.")
-                    return
-                shutil.copytree(path_images, images_dir, dirs_exist_ok=True)
-            except Exception as e:
-                log.error(f"Error copying images to site directory: {e}")

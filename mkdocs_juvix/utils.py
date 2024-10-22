@@ -3,11 +3,69 @@ import logging
 import os
 from functools import lru_cache
 from pathlib import Path
-from typing import Optional
+from typing import Iterable, Optional
 
 from mkdocs.config.defaults import MkDocsConfig
 
 log = logging.getLogger("mkdocs")
+EXCLUDED_DIRS = {
+    ".git",
+    ".hooks",
+    "env",
+    "venv",
+    ".github",
+    ".juvix_build",
+    ".vscode",
+    "__pycache__",
+    ".mypy_cache",
+    ".pytest_cache",
+    "node_modules",
+    "build",
+    "dist",
+    ".idea",
+}
+
+
+def is_excluded(entry):
+    return (
+        entry.name in EXCLUDED_DIRS
+        or entry.name.startswith(".")
+        or entry.name.endswith("~")
+        or entry.name.endswith(".pyc")
+    )
+
+
+def get_filtered_subdirs(base_dir):
+    for entry in os.scandir(base_dir):
+        if entry.is_dir() and not is_excluded(entry):
+            yield entry.path
+            yield from get_filtered_subdirs(entry.path)
+
+
+def get_all_subdirs(dir_path):
+    try:
+        for entry in os.scandir(dir_path):
+            if entry.is_dir() and not is_excluded(entry):
+                yield entry.path
+                yield from get_all_subdirs(entry.path)
+    except PermissionError:
+        log.warning(f"Permission denied: {dir_path}")
+    except OSError as e:
+        log.error(f"Error accessing {dir_path}: {e}")
+
+
+def find_file_in_subdirs(
+    base_dir: Path, subdirs: Iterable[Path], filepath: Path
+) -> Optional[str]:
+    full_path = base_dir / filepath
+    if full_path.exists():
+        return full_path.absolute().as_posix()
+    subdirs = [base_dir / "images"] + list(subdirs)
+    for subdir in subdirs:
+        full_path = Path(subdir) / filepath.name
+        if full_path.exists():
+            return full_path.absolute().as_posix()
+    return None
 
 
 def fix_site_url(config: MkDocsConfig) -> MkDocsConfig:
@@ -16,11 +74,9 @@ def fix_site_url(config: MkDocsConfig) -> MkDocsConfig:
     if site_url:
         config["site_url"] = site_url
     else:
-        log.info("SITE_URL environment variable not set")
-
         mike_docs_version = os.getenv("MIKE_DOCS_VERSION")
         if mike_docs_version:
-            log.info(
+            log.debug(
                 f"Using MIKE_DOCS_VERSION environment variable: {mike_docs_version}"
             )
             config["docs_version"] = mike_docs_version
@@ -31,8 +87,7 @@ def fix_site_url(config: MkDocsConfig) -> MkDocsConfig:
     if not config["site_url"].endswith("/"):
         config["site_url"] += "/"
 
-    log.info(f"site_url: {config['site_url']}")
-
+    log.debug(f"site_url: {config['site_url']}")
     os.environ["SITE_URL"] = config["site_url"]
     return config
 

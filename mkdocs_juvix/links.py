@@ -2,17 +2,16 @@
 Support for wiki-style links in MkDocs in tandem of pydownx_snippets.
 """
 
-from concurrent.futures import ThreadPoolExecutor
-from functools import lru_cache
 import json
 import re
+from concurrent.futures import ThreadPoolExecutor
 from os import getenv
 from pathlib import Path
 from typing import Dict, List, Optional
 from urllib.parse import urljoin
-import time
 
 import mkdocs.plugins
+from colorama import Fore, Style  # type: ignore
 from markdown.extensions import Extension  # type: ignore
 from mkdocs.config.defaults import MkDocsConfig
 from mkdocs.plugins import BasePlugin, get_plugin_logger
@@ -22,29 +21,24 @@ from mkdocs.utils import meta
 
 from mkdocs_juvix.common.models.entry import ResultEntry
 from mkdocs_juvix.common.preprocesors.links import WLPreprocessor
-from mkdocs_juvix.common.utils import (
-    fix_site_url,
-    get_page_title,
-)
+from mkdocs_juvix.common.utils import fix_site_url, get_page_title
 from mkdocs_juvix.env import ENV
 from mkdocs_juvix.snippets import (
     DEFAULT_URL_SIZE,
     DEFAULT_URL_TIMEOUT,
     SnippetPreprocessor,
 )
+from mkdocs_juvix.utils import get_filtered_subdirs  # type: ignore
 
-log = get_plugin_logger("\033[94m[wikilinks]\033[0m")
+log = get_plugin_logger(f"{Fore.BLUE}[juvix_mkdocs-links]{Style.RESET_ALL}")
 
 files_relation: List[ResultEntry] = []
 EXCLUDED_DIRS = [
-    ".",
-    "__",
-    "site",
-    "env",
-    "venv",
-    ".hooks",
-    ".env",
+    ".git",
     ".juvix_build",
+    ".vscode",
+    ".hooks",
+    ".github",
 ]
 
 
@@ -59,12 +53,6 @@ class WLExtension(Extension):
             self.env = ENV(config)
         else:
             self.env = env
-
-        for root in Path(self.env.ROOT_ABSPATH).rglob("*"):
-            if root.is_dir() and not any(
-                part.startswith(tuple(EXCLUDED_DIRS)) for part in root.parts
-            ):
-                self.base_path.append(root.as_posix())
 
     def __repr__(self):
         return "WLExtension"
@@ -122,6 +110,7 @@ class WikilinksPlugin(BasePlugin):
             config["markdown_extensions"].remove("mkdocs_juvix.snippets")
 
         wl_extension = WLExtension(config, self.env)
+        wl_extension.base_path = list(get_filtered_subdirs(self.env.ROOT_ABSPATH))
         config.markdown_extensions.append(wl_extension)  # type: ignore
         return config
 
