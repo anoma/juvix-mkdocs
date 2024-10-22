@@ -10,7 +10,7 @@
 <link href="https://anoma.github.io/juvix-mkdocs/index.html" rel="canonical"/>
 <link href="test.html" rel="next"/>
 <link href="assets/logo.svg" rel="icon"/>
-<meta content="mkdocs-1.6.1, mkdocs-material-9.5.41" name="generator"/>
+<meta content="mkdocs-1.6.1, mkdocs-material-9.5.42" name="generator"/>
 <title>my-juvix-project</title>
 <link href="assets/stylesheets/main.0253249f.min.css" rel="stylesheet"/>
 <link href="assets/stylesheets/palette.06af60db.min.css" rel="stylesheet"/>
@@ -559,7 +559,7 @@ is in. For example, the file <code>tutorial/basics.juvix.md</code> must declare 
 <div class="language-text highlight"><span class="filename">tutorial/basics.juvix.md</span><pre><span></span><code><span id="__ispan-8-1">module tutorial.basics;
 </span><span id="__ispan-8-2">-- ...
 </span></code></pre></div>
-<p>Refer to the <a href="https://anoma.github.io/juvix-mkdocs/test.html">test.juvix.md</a> file located in the
+<p>Refer to the <a href="/test.html">test.juvix.md</a> file located in the
 <code>docs</code> folder to see an example.</p>
 <h2 id="include-juvix-code-within-code-blocks">Include Juvix code within Code Blocks<a class="headerlink" href="#include-juvix-code-within-code-blocks" title="Permanent link">¶</a></h2>
 <div class="language-yaml highlight"><span class="filename">mkdocs.yml</span><pre><span></span><code><span id="__ispan-9-1"><span class="nt">plugins</span><span class="p">:</span>
@@ -585,7 +585,7 @@ module C;
 -- ...
 ```</code></pre>
 <h2 id="generate-isabelle-theories-for-inclusion-in-the-documentation">Generate Isabelle theories for inclusion in the documentation<a class="headerlink" href="#generate-isabelle-theories-for-inclusion-in-the-documentation" title="Permanent link">¶</a></h2>
-<p>Check out the <a href="https://anoma.github.io/juvix-mkdocs/isabelle.html">Isabelle generated content from Juvix</a> page for more
+<p>Check out the <a href="/isabelle.html">Isabelle generated content from Juvix</a> page for more
 information.</p>
 <div class="language-yaml highlight"><pre><span></span><code><span id="__ispan-10-1"><span class="nn">---</span>
 </span><span id="__ispan-10-2"><span class="nt">isabelle</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
@@ -692,7 +692,7 @@ use the standard <code>--8&lt;--</code> markers within the code and extract the 
 </span><span id="__ispan-21-8"><span class="w">        </span><span class="nt">mermaid</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">png</span>
 </span><span id="__ispan-21-9"><span class="w">      </span><span class="nt">FailFast</span><span class="p">:</span><span class="w"> </span><span class="kt">!ENV</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">CI</span>
 </span></code></pre></div>
-<p>Check out the <a href="https://anoma.github.io/juvix-mkdocs/diagrams.html">Diagrams using Kroki</a> page for more some examples.</p>
+<p>Check out the <a href="/diagrams.html">Diagrams using Kroki</a> page for more some examples.</p>
 <h2 id="support-for-wiki-links">Support for Wiki Links<a class="headerlink" href="#support-for-wiki-links" title="Permanent link">¶</a></h2>
 <div class="language-yaml highlight"><span class="filename">mkdocs.yml</span><pre><span></span><code><span id="__ispan-22-1"><span class="nt">plugins</span><span class="p">:</span>
 </span><span id="__ispan-22-2"><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">wikilinks</span>
@@ -761,7 +761,7 @@ and you'll find a warning in the build process.</p>
 </span></code></pre></div>
 </div>
 <div class="tabbed-block">
-<p><a href="https://anoma.github.io/juvix-mkdocs/index.html"><span class="twemoji"><svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7a5 5 0 0 0-5 5 5 5 0 0 0 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1M8 13h8v-2H8zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4a5 5 0 0 0 5-5 5 5 0 0 0-5-5"></path></svg></span> this is a caption with an icon</a></p>
+<p><a href="/index.html"><span class="twemoji"><svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7a5 5 0 0 0-5 5 5 5 0 0 0 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1M8 13h8v-2H8zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4a5 5 0 0 0 5-5 5 5 0 0 0-5-5"></path></svg></span> this is a caption with an icon</a></p>
 </div>
 </div>
 </input></input></div>
@@ -787,8 +787,7 @@ file added to this folder will automatically be processed.</p>
 files. The syntax is as follows:</p>
 <div class="language-text highlight"><pre><span></span><code><span id="__ispan-33-1">This statement requires a citation [@citation_key].
 </span></code></pre></div>
-<details class="quote"><summary>Wiki links on this page</summary><ul><li><a alt="test.juvix.md" href="https://anoma.github.io/juvix-mkdocs/test.html">test</a></li><li><a alt="isabelle.juvix.md" href="https://anoma.github.io/juvix-mkdocs/isabelle.html">isabelle</a></li><li><a alt="diagrams.juvix.md" href="https://anoma.github.io/juvix-mkdocs/diagrams.html">diagrams</a></li><li><a alt="index.md" href="https://anoma.github.io/juvix-mkdocs/index.html">index</a></li></ul></details>
-<!-- mermaid_wikilinks -->
+<!-- list_wikilinks -->
 </article>
 </div>
 <script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
@@ -803,8 +802,8 @@ files. The syntax is as follows:</p>
 <div class="md-footer-meta__inner md-grid">
 <div class="md-copyright">
 <div class="md-copyright__highlight">
-    © 2024 <a href="https://github.com/anoma/juvix-mkdocs">juvix-mkdocs</a> - Last updated: October 20, 2024
-    at 06:44 AM UTC - Powered by Mkdocs, Material for Mkdocs, Juvix, and
+    © 2024 <a href="https://github.com/anoma/juvix-mkdocs">juvix-mkdocs</a> - Last updated: October 22, 2024
+    at 05:08 AM UTC - Powered by Mkdocs, Material for Mkdocs, Juvix, and
     Juvix-Mkdocs.
   </div>
 </div>
