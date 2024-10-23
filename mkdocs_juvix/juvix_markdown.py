@@ -2,7 +2,7 @@ import json
 import shutil
 import subprocess
 import time
-from concurrent.futures import ThreadPoolExecutor, wait
+from concurrent.futures import ThreadPoolExecutor
 from functools import wraps
 from os import getenv
 from pathlib import Path
@@ -10,6 +10,7 @@ from typing import Any, Callable, Dict, List, Optional
 from urllib.parse import urljoin
 
 import pathspec
+import trio
 import yaml  # type:ignore
 from bs4 import BeautifulSoup  # type:ignore
 from colorama import Fore, Style  # type: ignore
@@ -71,17 +72,17 @@ class JuvixPlugin(BasePlugin):
         )
 
         if version_diff:
-            log.info("Writing Juvix version to cache: %s", self.env.JUVIX_VERSION)
+            log.info(
+                f"Writing Juvix version to cache: {Fore.GREEN}{self.env.JUVIX_VERSION}{Style.RESET_ALL}"
+            )
             self.env.CACHE_JUVIX_VERSION_FILEPATH.write_text(self.env.JUVIX_VERSION)
 
         if not self.env.JUVIX_FOOTER_CSS_FILEPATH.exists() or version_diff:
-            log.info("Generating codeblock footer CSS file")
             self._generate_code_block_footer_css_file(
                 self.env.JUVIX_FOOTER_CSS_FILEPATH, self.env.JUVIX_VERSION
             )
             log.info(
-                "Codeblock footer CSS file generated and saved to %s",
-                self.env.JUVIX_FOOTER_CSS_FILEPATH.as_posix(),
+                f"Codeblock footer CSS file generated and saved to {Fore.GREEN}{self.env.JUVIX_FOOTER_CSS_FILEPATH.as_posix()}{Style.RESET_ALL}",
             )
 
         config = fix_site_url(config)
@@ -124,65 +125,89 @@ Environment variables relevant:
 
         return wrapper
 
+    async def process_file(self, _file: Path) -> bool:
+        if not _file.as_posix().endswith(".juvix.md"):
+            return False
+
+        filepath: Path = _file.absolute()
+        relative_to: Path = filepath.relative_to(self.env.DOCS_ABSPATH)
+        url = urljoin(
+            self.env.SITE_URL, relative_to.as_posix().replace(".juvix.md", ".html")
+        )
+
+        self.juvix_md_files.append(
+            {
+                "module_name": self.env.unqualified_module_name(filepath),
+                "qualified_module_name": self.env.qualified_module_name(filepath),
+                "url": url,
+                "file": filepath.absolute().as_posix(),
+            }
+        )
+        log.info(f"Processing file: {Fore.GREEN}{relative_to}{Style.RESET_ALL}")
+        output = await self._generate_output_files_for_juvix_markdown(filepath)
+
+        if not output:
+            log.error(f"Failed to generate output for {filepath}")
+            return False
+        return False
+
+    async def run_in_parallel(self, files_to_process: List[Path]) -> None:
+        time_start = time.time()
+        async with trio.open_nursery() as nursery:
+            for input_file in files_to_process:
+                nursery.start_soon(self.process_file, input_file)
+        time_end = time.time()
+        log.info(
+            f"Processed {Fore.GREEN}{len(files_to_process)}{Style.RESET_ALL} "
+            f"files in parallel in {Fore.GREEN}{time_end - time_start:.2f}{Style.RESET_ALL} seconds"
+        )
+
     @if_juvix_enabled
     def on_pre_build(self, config: MkDocsConfig) -> None:
         if self.env.FIRST_RUN:
             try:
+                log.info("Cleaning Juvix global dependencies for the first time...")
+                res = subprocess.run(
+                    [self.env.JUVIX_BIN, "clean", "--global"], capture_output=True
+                )
+                if res.returncode != 0:
+                    log.error(
+                        res.stderr.decode("utf-8")
+                        + "\n\n"
+                        + f"{res.stderr.decode('utf-8')}"
+                    )
+                    return
+
                 time_start = time.time()
-                subprocess.run(
+                res = subprocess.run(
                     [self.env.JUVIX_BIN, "dependencies", "update"], capture_output=True
                 )
                 time_end = time.time()
-                log.info(
-                    f"Updated Juvix dependencies in {Fore.GREEN}{time_end - time_start:.2f}{Style.RESET_ALL} seconds"
-                )
-                self.env.FIRST_RUN = False
+                if res.returncode != 0:
+                    log.error(
+                        res.stderr.decode("utf-8")
+                        + "\n\n"
+                        + f"{res.stderr.decode('utf-8')}"
+                    )
+                    return
+                else:
+                    log.info(
+                        f"Updated Juvix dependencies in {Fore.GREEN}{time_end - time_start:.2f}{Style.RESET_ALL} seconds"
+                    )
             except Exception as e:
                 log.error(f"A problem occurred while updating Juvix dependencies: {e}")
                 return
 
+        self.env.FIRST_RUN = False
         time_start = time.time()
 
-        def process_file(_file: Path) -> None:
-            filepath: Path = _file.absolute()
-            relative_to: Path = filepath.relative_to(self.env.DOCS_ABSPATH)
-            url = urljoin(
-                self.env.SITE_URL, relative_to.as_posix().replace(".juvix.md", ".html")
-            )
-            self.juvix_md_files.append(
-                {
-                    "module_name": self.env.unqualified_module_name(filepath),
-                    "qualified_module_name": self.env.qualified_module_name(filepath),
-                    "url": url,
-                    "file": filepath.absolute().as_posix(),
-                }
-            )
-            self._generate_output_files_for_juvix_markdown(filepath)
-
-        juvix_md_files = list(self.env.DOCS_ABSPATH.rglob("*.juvix.md"))
-        log.info(
-            f"==== Processing {Fore.GREEN}{len(juvix_md_files)}{Style.RESET_ALL} Juvix Markdown files ===="
-        )
-
-        with ThreadPoolExecutor() as executor:
-            futures = [executor.submit(process_file, file) for file in juvix_md_files]
-
-        # Wait for all futures to complete
-        wait(futures)
-        for juvix_md_file in juvix_md_files:
-            if not juvix_md_file.exists():
-                log.error(
-                    f"Juvix Markdown file not found: {Fore.RED}{juvix_md_file}{Style.RESET_ALL}"
-                )
-                exit(1)
-        log.info("Finished processing all Juvix Markdown files")
-
-        # exit(1)
-        time_end = time.time()
+        juvix_md_files: List[Path] = list(self.env.DOCS_ABSPATH.rglob("*.juvix.md"))
 
         log.info(
-            f"Generated Markdown for {Fore.GREEN}{len(self.juvix_md_files)}{Style.RESET_ALL} Juvix Markdown files in {Fore.GREEN}{time_end - time_start:.2f}{Style.RESET_ALL} seconds"
+            f"{Fore.YELLOW}==== Preprocessing {Fore.GREEN}{len(juvix_md_files)}{Fore.YELLOW} Juvix Markdown files in parallel ===={Style.RESET_ALL}"
         )
+        trio.run(self.run_in_parallel, juvix_md_files)
+
         self.juvix_md_files.sort(key=lambda x: x["qualified_module_name"])
         juvix_modules = self.env.CACHE_ABSPATH.joinpath("juvix_modules.json")
         juvix_modules.write_text(json.dumps(self.juvix_md_files, indent=4))
@@ -203,7 +228,7 @@ Environment variables relevant:
 
         if not equal_hashes:
             log.info(
-                f"The hashes are different! (previous: {Fore.MAGENTA}{sha_filecontent}{Style.RESET_ALL})"
+                f"Something has changed in the Juvix Markdown files (previous hash: {Fore.MAGENTA}{sha_filecontent}{Style.RESET_ALL})"
             )
         else:
             log.info("The Juvix Markdown content has not changed.")
@@ -263,7 +288,7 @@ Environment variables relevant:
         if not filepath.as_posix().endswith(".juvix.md"):
             return None
 
-        return self._generate_output_files_for_juvix_markdown(filepath)
+        return trio.run(self._generate_output_files_for_juvix_markdown, filepath)
 
     @if_juvix_enabled
     def on_page_markdown(
@@ -458,7 +483,7 @@ Environment variables relevant:
             executor.shutdown(wait=True)
         time_end = time.time()
         log.info(
-            f"\033[92mGenerated HTML for {len(files_to_process)} files in {time_end - time_start} seconds\033[0m"
+            f"Generated Auxiliary HTML in {Fore.GREEN}{time_end - time_start:.5f}{Style.RESET_ALL} seconds"
         )
 
         return
@@ -519,7 +544,7 @@ Environment variables relevant:
         except Exception as e:
             log.error(f"Error copying folder: {e}")
 
-    def _generate_isabelle_html(self, filepath: Path) -> Optional[str]:
+    async def _generate_isabelle_html(self, filepath: Path) -> Optional[str]:
         if not filepath.as_posix().endswith(".juvix.md"):
             return None
 
@@ -533,32 +558,50 @@ Environment variables relevant:
 
         if not cache_available or self.env.new_or_changed_or_not_exists(filepath):
             log.info(f"No Isabelle file in cache for {filepath}")
-            return self._run_juvix_isabelle(filepath)
+            return await self._run_juvix_isabelle(filepath)
 
         if isabelle_filepath is None:
             log.error(f"Isabelle filepath not found for {filepath}")
             return None
         return isabelle_filepath.read_text()
 
-    @if_juvix_enabled
-    def _generate_output_files_for_juvix_markdown(
+    async def _generate_output_files_for_juvix_markdown(
         self, filepath: Path
     ) -> Optional[str]:
         if not filepath.as_posix().endswith(".juvix.md"):
             return None
+        rel_to_docs = filepath.relative_to(self.env.DOCS_ABSPATH)
 
+        cache_filepath = self.env.get_filepath_for_juvix_markdown_in_cache(filepath)
         new_or_changed = self.env.new_or_changed_or_not_exists(filepath)
-
         if not new_or_changed:
-            log.debug(f"Reading cached file for: {filepath}")
-            if cache_filepath := self.env.get_filepath_for_juvix_markdown_in_cache(
-                filepath
-            ):
+            log.info(
+                f"Reading cached file for {Fore.GREEN}{rel_to_docs}{Style.RESET_ALL}"
+            )
+            if cache_filepath and cache_filepath.exists():
                 return cache_filepath.read_text()
-        markdown_output = self._run_juvix_markdown(filepath)
+        time_start = time.time()
+        markdown_output: Optional[str] = await self._run_juvix_markdown(filepath)
+        time_end = time.time()
+        if not markdown_output:
+            log.error(
+                f"Error generating Markdown for {Fore.GREEN}{rel_to_docs}{Style.RESET_ALL}, returning None"
+            )
+            return None
+        try:
+            if cache_filepath:
+                cache_filepath.parent.mkdir(parents=True, exist_ok=True)
+                cache_filepath.write_text(markdown_output)
+                self.env.update_hash_file(filepath)
+                self._update_markdown_file_as_in_docs(filepath)
+        except Exception as e:
+            log.error(f"Error writing to cache file: {e}")
+        log.info(
+            f"Juvix Markdown ran in {Fore.GREEN}{time_end - time_start:.2f}s{Style.RESET_ALL} on file {Fore.GREEN}{rel_to_docs}{Style.RESET_ALL}"
+        )
+
         try:
             content = filepath.read_text()
-            # Extract metadata block checking it has exist it may not be
             metadata_block = content.split("---")
             if len(metadata_block) < 3:
                 return markdown_output
@@ -567,7 +610,15 @@ Environment variables relevant:
             try:
                 metadata = yaml.safe_load(metadata)
                 if isinstance(metadata, dict):
-                    isabelle_meta = metadata.get("isabelle", {})
+                    isabelle_meta = metadata.get("isabelle")
+
+                    if not isabelle_meta:
+                        return markdown_output
+                    log.info(f"Checking Isabelle metadata for: {filepath}")
+
+                    # this file requires more processing
+                    # so we mark it as such
+
                     if not isinstance(isabelle_meta, dict):
                         isabelle_meta = {}
 
@@ -581,12 +632,13 @@ Environment variables relevant:
                     if generate_isabelle or include_isabelle_at_bottom:
                         try:
                             log.info(f"Generating Isabelle HTML for {filepath}")
-                            self._generate_isabelle_html(filepath)
+                            isabelle_html = await self._generate_isabelle_html(filepath)
+                            if isabelle_html:
+                                markdown_output += isabelle_html
                         except Exception as e:
                             log.error(
                                 f"Error generating Isabelle HTML for {filepath}: {e}"
                             )
-
             except Exception as e:
                 log.error(f"Error parsing metadata block: {e}")
                 return markdown_output
@@ -596,7 +648,7 @@ Environment variables relevant:
 
         return markdown_output
 
-    def _run_juvix_isabelle(self, _filepath: Path) -> Optional[str]:
+    async def _run_juvix_isabelle(self, _filepath: Path) -> Optional[str]:
         filepath: Path = _filepath.absolute()
         fposix: str = filepath.as_posix()
 
@@ -621,8 +673,12 @@ Environment variables relevant:
 
         try:
             log.info(f"Running Juvix Isabelle on file: {fposix}")
-            result_isabelle = subprocess.run(
-                juvix_isabelle_cmd, cwd=self.env.DOCS_ABSPATH, capture_output=True
+            result_isabelle = await trio.run_process(
+                juvix_isabelle_cmd,
+                cwd=self.env.DOCS_ABSPATH,
+                check=False,
+                capture_stdout=True,
+                capture_stderr=True,
             )
 
             if result_isabelle.returncode != 0:
@@ -647,7 +703,6 @@ Environment variables relevant:
             return None
 
         cache_isabelle_filepath.parent.mkdir(parents=True, exist_ok=True)
-
         isabelle_output: str = result_isabelle.stdout.decode("utf-8")
 
         try:
@@ -687,15 +742,13 @@ Environment variables relevant:
                     return isabelle_output
         return "\n".join(lines)
 
-    def _run_juvix_markdown(self, _filepath: Path) -> Optional[str]:
+    async def _run_juvix_markdown(self, _filepath: Path) -> Optional[str]:
         filepath = _filepath.absolute()
         fposix: str = filepath.as_posix()
 
         if not fposix.endswith(".juvix.md"):
             log.debug(f"The file: {fposix} is not a Juvix Markdown file.")
             return None
-
-        rel_to_docs: Path = filepath.relative_to(self.env.DOCS_ABSPATH)
 
         juvix_markdown_cmd: List[str] = [
             self.env.JUVIX_BIN,
@@ -708,53 +761,26 @@ Environment variables relevant:
             "--no-colors",
         ]
         try:
-            log.info(
-                f"Generating Markdown for {Fore.GREEN}'{filepath.relative_to(self.env.DOCS_ABSPATH)}'{Style.RESET_ALL}"
-            )
-            result_markdown = subprocess.run(
-                juvix_markdown_cmd, cwd=self.env.DOCS_ABSPATH, capture_output=True
+            result_markdown = await trio.run_process(
+                juvix_markdown_cmd,
+                check=False,
+                capture_stdout=True,
+                capture_stderr=True,
             )
             if result_markdown.returncode != 0:
                 # The compiler found an error in the file
                 juvix_error_message = (
                     result_markdown.stderr.decode("utf-8").replace("\n", " ").strip()
                 )
-                log.debug(
-                    f"Error running Juvix on file: {fposix} -\n {juvix_error_message}"
-                )
                 return (
                     f"!!! failure 'When typechecking the Juvix Markdown file, the Juvix compiler found the following error:'\n\n    {juvix_error_message}\n\n"
-                    + filepath.read_text().replace("```juvix", "```")
+                    + filepath.read_text()
                 )
         except Exception as e:
             log.error(f"Error running Juvix on file: {fposix} -\n {e}")
             return None
 
         md_output: str = result_markdown.stdout.decode("utf-8")
-
-        cache_markdown_filename: Optional[str] = (
-            self.env.get_filename_module_by_extension(filepath, extension=".md")
-        )
-
-        if cache_markdown_filename is None:
-            log.debug(f"Could not determine the markdown file name for: {fposix}")
-            return None
-
-        cache_markdown_filepath: Path = (
-            self.env.CACHE_MARKDOWN_JUVIX_OUTPUT_PATH
-            / rel_to_docs.parent
-            / cache_markdown_filename
-        )
-        cache_markdown_filepath.parent.mkdir(parents=True, exist_ok=True)
-
-        try:
-            cache_markdown_filepath.write_text(md_output)
-        except Exception as e:
-            log.error(f"Error writing to cache markdown file: {e}")
-            return md_output
-
-        self._update_markdown_file_as_in_docs(filepath)
-        self.env.update_hash_file(filepath)
         return md_output
 
     def _update_markdown_file_as_in_docs(self, filepath: Path) -> None:

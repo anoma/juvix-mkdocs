@@ -34,7 +34,6 @@ import os
 import re
 import sys
 import textwrap
-import time
 import urllib
 from pathlib import Path
 from typing import Any, Optional
@@ -112,7 +111,6 @@ class SnippetPreprocessor(Preprocessor):
             base = [base]
 
         self.base_path = [os.path.abspath(b) for b in base]  # type: ignore
-        self.snippet_cache: dict[str, Optional[str]] = {}
         self.restrict_base_path = config["restrict_base_path"]
         self.encoding = config.get("encoding")
         self.check_paths = config.get("check_paths")
@@ -187,7 +185,7 @@ class SnippetPreprocessor(Preprocessor):
         if not found and self.check_paths:
             if not is_juvix:
                 log.error(
-                    "[!] Snippet section '{}' could not be located".format(section)
+                    f"[!] Snippet section {Fore.YELLOW}{section}{Style.RESET_ALL} could not be located"
                 )
             # juvix
             elif backup_lines is not None:
@@ -201,14 +199,9 @@ class SnippetPreprocessor(Preprocessor):
                 )
 
             log.error(
-                f"""
-The snippet section '{section}' could not be located.
-This is likely because the section is inside a Juvix code block,
-which is currently not supported in Juvix v0.6.6 or previous versions.
-Consider wrapping the Juvix code block with a section snippet instead.
-
-Error found in the file '{backup_path}' for the section '{section}'.
-"""
+                f"The snippet section {Fore.YELLOW}{section}{Style.RESET_ALL} could not be located."
+                f"This is likely because the section is inside a Juvix code block, which is currently not supported in Juvix v0.6.6 or previous versions. Consider wrapping the Juvix code block with a section snippet instead."
+                f"Error found in the file {Fore.GREEN}{backup_path}{Style.RESET_ALL} for the section {Fore.YELLOW}{section}{Style.RESET_ALL}."
             )
         return self.dedent(new_lines) if self.dedent_subsections else new_lines
 
@@ -219,9 +212,6 @@ Error found in the file '{backup_path}' for the section '{section}'.
 
     def get_snippet_path(self, path) -> Optional[str]:
         """Get snippet path."""
-        if path in self.snippet_cache:
-            return self.snippet_cache[path]
-
         snippet = None
         for base in self.base_path:
             base_path = Path(base)
@@ -243,7 +233,6 @@ Error found in the file '{backup_path}' for the section '{section}'.
                         snippet = str(filename)
                         break
 
-        self.snippet_cache[path] = snippet
         return snippet
 
     @functools.lru_cache()  # noqa: B019
@@ -395,14 +384,16 @@ Error found in the file '{backup_path}' for the section '{section}'.
                     path = path[:-1]
 
                 is_isabelle = False
-                requires_generated_thy = path and path.endswith("!thy")
-                if requires_generated_thy:
+                requires_thy = path and path.endswith("!thy")
+                if requires_thy:
                     path = path[:-4]
                     is_isabelle = True
 
                 snippet = (
                     find_file_in_subdirs(
-                        self.env.ROOT_ABSPATH, self.base_path, Path(path) # type: ignore
+                        self.env.ROOT_ABSPATH,
+                        self.base_path,
+                        Path(path),  # type: ignore
                     )
                     if not url
                     else path
@@ -415,23 +406,30 @@ Error found in the file '{backup_path}' for the section '{section}'.
                         snippet = self.env.CACHE_MARKDOWN_JUVIX_OUTPUT_PATH / Path(
                             snippet.replace(".juvix.md", ".md")
                         ).relative_to(self.env.DOCS_PATH)
-                        snippet = snippet.as_posix()
-                        is_juvix = True
+                        if not snippet.exists():
+                            log.warning(
+                                f"Juvix Markdown file does not exist: {Fore.RED}{snippet}{Style.RESET_ALL}, report this issue on GitHub!"
+                            )
+                            snippet = original
 
-                    if requires_generated_thy:
+                    if requires_thy:
                         relative_path = Path(original).relative_to(self.env.DOCS_PATH)
                         snippet = self.env.CACHE_ISABELLE_OUTPUT_PATH / Path(
                             relative_path.as_posix().replace(".juvix.md", ".thy")
                         )
+                        log.info(
+                            f"Snippet is an Isabelle file: {Fore.GREEN}{snippet}{Style.RESET_ALL}"
+                        )
                         if not snippet.exists():
                             log.warning(
-                                f"Isabelle file does not exist: {snippet}, "
+                                f"Isabelle file does not exist: {Fore.RED}{snippet}{Style.RESET_ALL}, "
                                 f"did you forget e.g. to add `isabelle: true` to the meta in the corresponding Juvix file?"
                             )
                             snippet = original
-                        else:
-                            snippet = snippet.as_posix()
-                            is_juvix = True
+
+                    is_juvix = True
+                    if isinstance(snippet, Path):
+                        snippet = snippet.as_posix()
 
                     # This is in the stack and we don't want an infinite loop!
                     if snippet in self.seen:
@@ -515,9 +513,6 @@ Error found in the file '{backup_path}' for the section '{section}'.
                     )
 
                 elif self.check_paths:
-                    # print base path
-                    log.error(f"Base path: {self.base_path}")
-
                     log.error("2. Snippet at path '{}' could not be found".format(path))
                     exit(1)
 
@@ -535,11 +530,7 @@ Error found in the file '{backup_path}' for the section '{section}'.
             lines.extend(
                 "\n\n-8<-\n{}\n-8<-\n".format("\n\n".join(self.auto_append)).split("\n")
             )
-        time_start = time.time()
-        lines = self.parse_snippets(lines)
-        time_end = time.time()
-        log.info(f"Parsing snippets took {(time_end - time_start):.5f} seconds")
-        return lines
+        return self.parse_snippets(lines)
 
 
 class SnippetExtension(Extension):

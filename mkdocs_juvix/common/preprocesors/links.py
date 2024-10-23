@@ -15,6 +15,7 @@ from ncls import NCLS  # type: ignore
 
 from mkdocs_juvix.common.models import FileLoc, WikiLink
 from mkdocs_juvix.env import ENV
+from mkdocs_juvix.snippets import SnippetPreprocessor
 
 WIKILINK_PATTERN = re.compile(
     r"""
@@ -44,7 +45,7 @@ class WLPreprocessor(Preprocessor):
         else:
             self.env = env
 
-        self.snippet_preprocessor = snippet_preprocessor
+        self.snippet_preprocessor: SnippetPreprocessor = snippet_preprocessor
         # remove the mkdocs_juvix.snippets plugin from the config
         if "mkdocs_juvix.snippets" in self.mkconfig.mdx_configs:
             self.mkconfig.mdx_configs.pop("mkdocs_juvix.snippets")
@@ -80,13 +81,14 @@ class WLPreprocessor(Preprocessor):
             return lines
 
         filepath = Path(current_page_url)
+        rel_to_docs = filepath.relative_to(self.env.DOCS_ABSPATH)
 
         try:
             cache_filepath: Optional[Path] = (
                 self.env.get_filepath_for_wikilinks_in_cache(filepath)
             )
         except Exception as e:
-            log.error(f"Error getting cache filepath for file {filepath}: {e}")
+            log.error(f"Error getting cache filepath for file {rel_to_docs}: {e}")
             return lines
 
         if original_filepath:
@@ -100,17 +102,11 @@ class WLPreprocessor(Preprocessor):
         ):
             return cache_filepath.read_text().split("\n")
 
-        if self.run_snippet_preprocessor:
-            time_start = time.time()
-            lines = self.snippet_preprocessor.run(lines)
-            time_end = time.time()
-            log.info(
-                f"Snippet finished in {Fore.GREEN}{(time_end - time_start):.5f}{Style.RESET_ALL} seconds"
-            )
+        time_start = time.time()
 
-        log.info(
-            f"Processing wikilinks on file {Fore.GREEN}{filepath}{Style.RESET_ALL}"
-        )
+        # if self.run_snippet_preprocessor:
+        #     lines = self.snippet_preprocessor.run(lines)
+
         # Combine all lines into a single string
         full_text = "\n".join(lines)
         # Find all code blocks, HTML comments, and script tags in a single pass
@@ -119,7 +115,6 @@ class WLPreprocessor(Preprocessor):
         )
 
         intervals = []
-        time_start = time.time()
         try:
             for match in ignore_blocks.finditer(full_text):
                 intervals.append((match.start(), match.end(), 1))
@@ -129,12 +124,10 @@ class WLPreprocessor(Preprocessor):
         except Exception as e:
             log.error(f"Error occurred while processing ignore patterns: {str(e)}")
             return lines
-
+        intervals_where_not_to_look = None
         if intervals:
             starts, ends, ids = map(np.array, zip(*intervals))
-            ignore_tree = NCLS(starts, ends, ids)
-        else:
-            ignore_tree = NCLS([], [], [])
+            intervals_where_not_to_look = NCLS(starts, ends, ids)
 
         # Find all wikilinks
         str_wikilinks = list(WIKILINK_PATTERN.finditer(full_text))
@@ -142,7 +135,9 @@ class WLPreprocessor(Preprocessor):
         replacements = []
         for m in str_wikilinks:
             start, end = m.start(), m.end()
-            if not list(ignore_tree.find_overlap(start, end)):
+            if intervals_where_not_to_look and not list(
+                intervals_where_not_to_look.find_overlap(start, end)
+            ):
                 link = self.process_wikilink(
                     self.mkconfig, full_text, m, current_page_url
                 )
@@ -156,13 +151,11 @@ class WLPreprocessor(Preprocessor):
         for start, end, new_text in reversed(replacements):
             full_text = full_text[:start] + new_text + full_text[end:]
         time_end = time.time()
-
-        log.info(
-            f"Processing wikilinks took {Fore.GREEN}{(time_end - time_start):.5f}{Style.RESET_ALL} seconds"
+        log.debug(
+            f"Snippet and wikilinks processing took {Fore.GREEN}{(time_end - time_start):.5f}{Style.RESET_ALL} seconds on file {Fore.GREEN}{rel_to_docs}{Style.RESET_ALL}"
         )
 
         if cache_filepath:
-            log.debug(f"Writing wikilinks to cache for file {original_filepath}")
             try:
                 cache_filepath.parent.mkdir(parents=True, exist_ok=True)
                 cache_filepath.write_text(full_text)

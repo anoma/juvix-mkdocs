@@ -1,12 +1,11 @@
 import re
 import shutil
-import subprocess
 import time
-from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
-from typing import Optional
+from typing import List, Optional
 
 import numpy as np
+import trio  # type: ignore
 from colorama import Fore, Style  # type: ignore
 from markdown.extensions import Extension  # type: ignore
 from markdown.preprocessors import Preprocessor  # type: ignore
@@ -14,7 +13,7 @@ from mkdocs.config.defaults import MkDocsConfig  # type: ignore
 from mkdocs.plugins import BasePlugin, get_plugin_logger
 from mkdocs.structure.files import Files  # type: ignore
 from mkdocs.structure.pages import Page
-from ncls import NCLS  # type: ignore
+from ncls import NCLS
 
 from mkdocs_juvix.common.utils import fix_site_url  # type:ignore
 from mkdocs_juvix.env import ENV  # type: ignore
@@ -172,12 +171,12 @@ class ImagesPlugin(BasePlugin):
 
         dot_files = list(self.env.IMAGES_PATH.glob("*.dot"))
 
-        def process_dot_file(dot_file: Path):
+        async def process_dot_file(dot_file: Path):
             try:
                 cond = self.env.new_or_changed_or_not_exists(dot_file)
                 svg_file = dot_file.with_suffix(".dot.svg")
                 if cond:
-                    self._generate_dot_svg(dot_file)
+                    await self._generate_dot_svg(dot_file)
                     if svg_file.exists():
                         log.info(f"Generated SVG: {svg_file}")
                         self.env.update_hash_file(dot_file)
@@ -186,21 +185,18 @@ class ImagesPlugin(BasePlugin):
                 log.error(f"Error generating SVG for {dot_file}: {e}")
                 return None
 
+        async def run_in_parallel(dot_files: List[Path]):
+            async with trio.open_nursery() as nursery:
+                for dot_file in dot_files:
+                    nursery.start_soon(process_dot_file, dot_file)
+
         if dot_files:
+            time_start = time.time()
+            trio.run(run_in_parallel, dot_files)
+            time_end = time.time()
             log.info(
-                f"Generating {Fore.GREEN}{len(dot_files)}{Style.RESET_ALL} SVG images"
+                f"SVG generation took {Fore.GREEN}{time_end - time_start:.5f}{Style.RESET_ALL} seconds"
             )
-            for dot_file in dot_files:
-                process_dot_file(dot_file)
-
-            with ThreadPoolExecutor() as executor:
-                results = list(executor.map(process_dot_file, dot_files))
-                executor.shutdown(wait=True)
-
-            for result in results:
-                if result is None:
-                    log.error("Failed to generate SVG for one of the DOT files")
-                    exit(1)
 
         imgext_instance = ImgExtension(config=config, env=self.env)
         config.markdown_extensions.append(imgext_instance)  # type: ignore
@@ -209,7 +205,7 @@ class ImagesPlugin(BasePlugin):
         config.setdefault("current_page", None)  # current page being processed
         return config
 
-    def _generate_dot_svg(self, dot_file: Path) -> Optional[Path]:
+    async def _generate_dot_svg(self, dot_file: Path) -> Optional[Path]:
         svg_file = dot_file.with_suffix(".dot.svg")
 
         if not svg_file.exists():
@@ -224,13 +220,7 @@ class ImagesPlugin(BasePlugin):
         ]
 
         try:
-            time_start = time.time()
-            log.info(f"Generating SVG for {Fore.GREEN}{dot_file}{Style.RESET_ALL}")
-            output = subprocess.run(dot_cmd)
-            time_end = time.time()
-            log.info(
-                f"Generation took {Fore.GREEN}{time_end - time_start:.5f}{Style.RESET_ALL} seconds"
-            )
+            output = await trio.run_process(dot_cmd)
             if output.returncode != 0:
                 log.error(f"Error running graphviz: {output}")
                 return None
