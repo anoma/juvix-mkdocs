@@ -80,8 +80,13 @@ class WLPreprocessor(Preprocessor):
             log.warning("Current page URL not found. Wikilinks will not be processed.")
             return lines
 
-        filepath = Path(current_page_url)
-        rel_to_docs = filepath.relative_to(self.env.DOCS_ABSPATH)
+        filepath = Path(current_page_url).absolute()
+        try:
+            rel_to_docs = filepath.relative_to(self.env.DOCS_ABSPATH)
+        except ValueError:
+            rel_to_docs = filepath.relative_to(self.env.DOCS_PATH)
+        finally:
+            rel_to_docs = filepath
 
         try:
             cache_filepath: Optional[Path] = (
