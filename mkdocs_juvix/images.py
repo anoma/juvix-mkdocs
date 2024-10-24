@@ -13,7 +13,7 @@ from mkdocs.config.defaults import MkDocsConfig  # type: ignore
 from mkdocs.plugins import BasePlugin, get_plugin_logger
 from mkdocs.structure.files import Files  # type: ignore
 from mkdocs.structure.pages import Page
-from ncls import NCLS
+from ncls import NCLS  # type: ignore
 
 from mkdocs_juvix.common.utils import fix_site_url  # type:ignore
 from mkdocs_juvix.env import ENV  # type: ignore
@@ -70,88 +70,57 @@ class ImgPreprocessor(Preprocessor):
             self.env = env
 
     def run(self, lines):
-        full_text = "".join(lines)
-
+        full_text = "\n".join(lines)
         config = self.config
-        current_page_url = None
 
-        if "current_page" in config and isinstance(config["current_page"], Page):
-            url_relative = self.env.DOCS_PATH / Path(
-                config["current_page"].url.replace(".html", ".md")
-            )
-            current_page_url = url_relative.as_posix()
-
-        if not current_page_url:
+        if not isinstance(config.get("current_page"), Page):
             log.error("Current page URL not found. Images will not be processed.")
             return lines
 
-        ignore_blocks = re.compile(
-            r"(```(?:[\s\S]*?)```|<!--[\s\S]*?-->|<div>[\s\S]*?</div>)", re.DOTALL
-        )
-        intervals = []
-        try:
-            for match in ignore_blocks.finditer(full_text):
-                intervals.append((match.start(), match.end(), 1))
-        except Exception as e:
-            log.error(f"Error occurred while processing ignore patterns: {e}")
-            return lines
+        url_relative = self.env.DOCS_PATH / Path(config["current_page"].url.replace(".html", ".md"))
+        current_page_url = url_relative.as_posix()
+        log.info(f"Processing images for {url_relative}")
+
+        ignore_blocks = re.compile(r"(```(?:[\s\S]*?)```|<!--[\s\S]*?-->|<div>[\s\S]*?</div>)", re.DOTALL)
+        intervals = [(match.start(), match.end(), 1) for match in ignore_blocks.finditer(full_text)]
 
         ignore_tree = None
         if intervals:
             starts, ends, ids = map(np.array, zip(*intervals))
             ignore_tree = NCLS(starts, ends, ids)
 
-        def img_markdown_link(match: re.Match, img_expected_location: Path) -> str:
-            if match.group("caption"):
-                return (
-                    f"![{match.group('caption')}]({img_expected_location.as_posix()})"
-                )
-            else:
-                return img_expected_location.as_posix()
-
-        full_text = "".join(lines)
+        def process_matches(pattern, process_func):
+            replacements = []
+            for match in pattern.finditer(full_text):
+                start, end = match.span()
+                if ignore_tree and not list(ignore_tree.find_overlap(start, end)):
+                    url = Path(match.group("url"))
+                    if not url.as_posix().startswith("http"):
+                        img_expected_location = self.env.IMAGES_PATH / url.name
+                        new_url = process_func(match, img_expected_location)
+                        replacements.append((start, end, new_url))
+            return replacements
 
         time_start = time.time()
 
-        def process_matches(pattern, process_func):
-            matches = list(pattern.finditer(full_text))
-            if matches:
-                replacements = []
-                for match in matches:
-                    start, end = match.start(), match.end()
-                    if ignore_tree and not list(ignore_tree.find_overlap(start, end)):
-                        url = Path(match.group("url"))
-                        if url.as_posix().startswith("http"):
-                            continue
-                        image_fname = url.name
-                        img_expected_location = self.env.IMAGES_PATH / image_fname
-                        new_url = process_func(match, img_expected_location)
-                        replacements.append((start, end, new_url))
-                return replacements
-            return []
-
         replacements = process_matches(
             IMAGES_PATTERN,
-            lambda match, img_expected_location: img_markdown_link(
-                match, img_expected_location
-            ),
+            lambda match, img_expected_location: (
+                f"![{match.group('caption')}]({img_expected_location.as_posix()})"
+                if match.group("caption")
+                else img_expected_location.as_posix()
+            )
         )
 
-        for start, end, new_url in reversed(replacements):
-            full_text = full_text[:start] + new_url + full_text[end:]
-
-        replacements = process_matches(
+        replacements += process_matches(
             HTML_IMG_PATTERN,
-            lambda _,
-            img_expected_location: f'<img src="{img_expected_location.absolute().as_posix()}" />',
+            lambda _, img_expected_location: f'<img src="{img_expected_location.absolute().as_posix()}" />'
         )
+
         for start, end, new_url in reversed(replacements):
             full_text = full_text[:start] + new_url + full_text[end:]
 
-        time_end = time.time()
-        log.debug(
-            f"Path image resolution took {time_end - time_start:.5f} seconds for {current_page_url}"
-        )
+        log.debug(f"Path image resolution took {time.time() - time_start:.5f} seconds for {current_page_url}")
 
         return full_text.split("\n")
 
@@ -173,16 +142,18 @@ class ImagesPlugin(BasePlugin):
 
         async def process_dot_file(dot_file: Path):
             try:
-                cond = self.env.new_or_changed_or_not_exists(dot_file)
+                cond = self.env.is_file_new_or_changed_for_cache(dot_file)
                 svg_file = dot_file.with_suffix(".dot.svg")
                 if cond:
                     await self._generate_dot_svg(dot_file)
                     if svg_file.exists():
-                        log.info(f"Generated SVG: {svg_file}")
+                        log.info(f"Generated SVG: {Fore.GREEN}{svg_file}{Style.RESET_ALL}")
                         self.env.update_hash_file(dot_file)
                 return svg_file
             except Exception as e:
-                log.error(f"Error generating SVG for {dot_file}: {e}")
+                log.error(
+                    f"Error generating SVG for {Fore.GREEN}{dot_file}{Style.RESET_ALL}: {e}"
+                )
                 return None
 
         async def run_in_parallel(dot_files: List[Path]):

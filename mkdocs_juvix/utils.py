@@ -3,9 +3,11 @@ import logging
 import os
 from functools import lru_cache
 from pathlib import Path
-from typing import Iterable, Optional
+import pickle
+from typing import Any, Iterable, Optional
 
 from mkdocs.config.defaults import MkDocsConfig
+import trio
 
 log = logging.getLogger("mkdocs")
 EXCLUDED_DIRS = {
@@ -25,6 +27,17 @@ EXCLUDED_DIRS = {
     ".idea",
 }
 
+def is_juvix_markdown_file(filepath: Path) -> bool:
+    return filepath.as_posix().endswith(".juvix.md")
+
+def is_pure_juvix_file(filepath: Path) -> bool:
+    return filepath.as_posix().endswith(".juvix")
+
+def is_isabelle_file(filepath: Path) -> bool:
+    return filepath.as_posix().endswith(".thy")
+
+def is_juvix_file(filepath: Path) -> bool:
+    return is_juvix_markdown_file(filepath) or is_pure_juvix_file(filepath)
 
 def is_excluded(entry):
     return (
@@ -106,29 +119,71 @@ def compute_sha_over_folder(_folder_path: Path) -> str:
 
     return sha_hash.hexdigest()
 
-
 def hash_file_hash_obj(hash_obj, filepath: Path):
     """Update the hash object with the contents of a file."""
     with open(filepath, "rb") as f:
         for chunk in iter(lambda: f.read(8192), b""):
             hash_obj.update(chunk)
 
+def hash_object(obj: Any) -> str:
+    return hashlib.sha256(pickle.dumps(obj)).hexdigest()
 
-def hash_file(_filepath: Path) -> str:
+def hash_content_of(filepath: Path) -> str:
     """Compute the SHA-256 hash of a file."""
-    filepath = _filepath.absolute()
     hash_obj = hashlib.sha256()
-    hash_file_hash_obj(hash_obj, filepath)
+    hash_file_hash_obj(hash_obj, filepath.absolute())
     return hash_obj.hexdigest()
 
 
 @lru_cache(maxsize=128)
-def compute_hash_filepath(filepath: Path, hash_dir: Optional[Path] = None) -> Path:
+def get_filepath_for_cached_hash_for(filepath: Path, hash_dir: Optional[Path] = None) -> Path:
+    """
+    Get the filepath for the cached hash of a file.
+    """
+    file_abspath = filepath.absolute()
     hash_filename = hashlib.sha256(
-        filepath.absolute().as_posix().encode("utf-8")
+        file_abspath.as_posix().encode("utf-8")
     ).hexdigest()
 
     if hash_dir is None:
         return Path(hash_filename)
 
     return hash_dir / hash_filename
+
+class Tracer(trio.abc.Instrument):
+    def before_run(self):
+        print("!!! run started")
+
+    def _print_with_task(self, msg, task):
+        # repr(task) is perhaps more useful than task.name in general,
+        # but in context of a tutorial the extra noise is unhelpful.
+        print(f"{msg}: {task.name}")
+
+    def task_spawned(self, task):
+        self._print_with_task("### new task spawned", task)
+
+    def task_scheduled(self, task):
+        self._print_with_task("### task scheduled", task)
+
+    def before_task_step(self, task):
+        self._print_with_task(">>> about to run one step of task", task)
+
+    def after_task_step(self, task):
+        self._print_with_task("<<< task step finished", task)
+
+    def task_exited(self, task):
+        self._print_with_task("### task exited", task)
+
+    def before_io_wait(self, timeout):
+        if timeout:
+            print(f"### waiting for I/O for up to {timeout} seconds")
+        else:
+            print("### doing a quick check for I/O")
+        self._sleep_time = trio.current_time()
+
+    def after_io_wait(self, timeout):
+        duration = trio.current_time() - self._sleep_time
+        print(f"### finished I/O check (took {duration} seconds)")
+
+    def after_run(self):
+        print("!!! run finished")

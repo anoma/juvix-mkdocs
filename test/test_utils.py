@@ -1,7 +1,7 @@
 import tempfile
 from pathlib import Path
 
-from mkdocs_juvix.utils import compute_hash_filepath, compute_sha_over_folder, hash_file
+from mkdocs_juvix.utils import get_filepath_for_cached_hash_for, compute_sha_over_folder, hash_content_of
 
 
 def test_compute_sha_over_folder():
@@ -24,7 +24,7 @@ def test_hash_file():
         tmpfile_path = Path(tmpfile.name)
 
     try:
-        file_hash = hash_file(tmpfile_path)
+        file_hash = hash_content_of(tmpfile_path)
         assert isinstance(file_hash, str)
         assert len(file_hash) == 64  # SHA-256 hash length
     finally:
@@ -33,7 +33,7 @@ def test_hash_file():
 
 def test_compute_hash_filepath():
     filepath = Path("/some/path/to/file.txt")
-    hash_path = compute_hash_filepath(filepath)
+    hash_path = get_filepath_for_cached_hash_for(filepath)
 
     assert isinstance(hash_path, Path)
     assert len(hash_path.name) == 64  # SHA-256 hash length

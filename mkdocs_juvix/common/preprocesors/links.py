@@ -103,7 +103,7 @@ class WLPreprocessor(Preprocessor):
             cache_filepath
             and cache_filepath.exists()
             and original_filepath
-            and not self.env.new_or_changed_or_not_exists(original_filepath)
+            and not self.env.is_file_new_or_changed_for_cache(original_filepath)
         ):
             return cache_filepath.read_text().split("\n")
 

@@ -18,7 +18,7 @@ from mkdocs.plugins import get_plugin_logger
 from semver import Version
 
 from mkdocs_juvix.juvix_version import MIN_JUVIX_VERSION
-from mkdocs_juvix.utils import compute_hash_filepath, hash_file
+import mkdocs_juvix.utils as utils
 
 log = get_plugin_logger(f"{Fore.BLUE}[juvix_mkdocs-env]{Style.RESET_ALL}")
 
@@ -295,7 +295,7 @@ class ENV:
 
     @lru_cache(maxsize=128)
     def read_markdown_file_from_cache(self, filepath: Path) -> Optional[str]:
-        if cache_ABSpath := self.get_filepath_for_juvix_markdown_in_cache(filepath):
+        if cache_ABSpath := self.get_filepath_for_cache_markdown_output_of_juvix_markdown_file(filepath):
             return cache_ABSpath.read_text()
         return None
 
@@ -313,24 +313,36 @@ class ENV:
         filepath = filepath.absolute()
         rel_to_docs = filepath.relative_to(self.DOCS_ABSPATH)
         return self.CACHE_WIKILINKS_PATH / rel_to_docs.parent / filepath.name
+    
+    def get_expected_filepath_for_cached_hash_for(self, filepath: Path) -> Path:
+        file_abspath = filepath.absolute()
+        return utils.get_filepath_for_cached_hash_for(file_abspath, hash_dir=self.CACHE_HASHES_PATH)
 
-    def new_or_changed_or_not_exists(self, filepath: Path) -> bool:
-        content_hash = hash_file(filepath)
-        path_hash = compute_hash_filepath(filepath, hash_dir=self.CACHE_HASHES_PATH)
-        if not path_hash.exists():
-            log.debug(f"File: {filepath} does not have a hash file.")
-            return True
-        fresh_content_hash = path_hash.read_text()
-        return content_hash != fresh_content_hash
+    def is_file_new_or_changed_for_cache(self, filepath: Path) -> bool:
+        file_abspath = filepath.absolute()
+        hash_file = self.get_expected_filepath_for_cached_hash_for(file_abspath)
+        if not hash_file.exists():
+            return True  # File is new
+        # compute the hash of the file content to check if it has changed
+        current_hash = utils.hash_content_of(file_abspath)
+        cached_hash = hash_file.read_text().strip()
+        return current_hash != cached_hash  # File has changed if hashes are different
+    
+    def update_cache_for_file(self, filepath: Path, file_content: str) -> None:
+        file_abspath = filepath.absolute()
+        cache_filepath = self.get_expected_filepath_for_cached_hash_for(file_abspath)
+        cache_filepath.parent.mkdir(parents=True, exist_ok=True)
+        cache_filepath.write_text(file_content)
+        self.update_hash_file(file_abspath)
 
     @lru_cache(maxsize=128)
-    def get_filepath_for_juvix_markdown_in_cache(
-        self, _filepath: Path
-    ) -> Optional[Path]:
-        filepath = _filepath.absolute()
+    def get_filepath_for_cache_markdown_output_of_juvix_markdown_file(
+        self, filepath: Path
+    ) -> Path:
+        file_abspath = filepath.absolute()
         md_filename = filepath.name.replace(".juvix.md", ".md")
-        rel_to_docs = filepath.relative_to(self.DOCS_ABSPATH)
-        return self.CACHE_MARKDOWN_JUVIX_OUTPUT_PATH / rel_to_docs.parent / md_filename
+        file_rel_to_docs = file_abspath.relative_to(self.DOCS_ABSPATH)
+        return self.CACHE_MARKDOWN_JUVIX_OUTPUT_PATH / file_rel_to_docs.parent / md_filename
 
     def unqualified_module_name(self, filepath: Path) -> Optional[str]:
         fposix: str = filepath.as_posix()
@@ -372,11 +384,11 @@ class ENV:
         module_name = self.unqualified_module_name(filepath)
         return module_name + extension if module_name else None
 
-    def update_hash_file(self, filepath: Path) -> Optional[Tuple[Path, str]]:  # noqa: F821
-        filepath_hash = compute_hash_filepath(filepath, hash_dir=self.CACHE_HASHES_PATH)
+    def update_hash_file(self, filepath: Path) -> Optional[Tuple[Path, str]]: 
+        filepath_hash = self.get_expected_filepath_for_cached_hash_for(filepath)
         try:
             with open(filepath_hash, "w") as f:
-                content_hash = hash_file(filepath)
+                content_hash = utils.hash_content_of(filepath)
                 f.write(content_hash)
                 return (filepath_hash, content_hash)
         except Exception as e:

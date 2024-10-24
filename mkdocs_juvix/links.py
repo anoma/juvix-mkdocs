@@ -205,6 +205,7 @@ class WikilinksPlugin(BasePlugin):
                 f,
                 indent=2,
             )
+        log.info("Processing snippets and links...")
 
     @mkdocs.plugins.event_priority(-200)
     def on_page_markdown(

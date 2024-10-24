@@ -392,7 +392,7 @@ class SnippetPreprocessor(Preprocessor):
                 snippet = (
                     find_file_in_subdirs(
                         self.env.ROOT_ABSPATH,
-                        self.base_path,
+                        self.base_path, # type: ignore
                         Path(path),  # type: ignore
                     )
                     if not url

@@ -19,6 +19,7 @@ packages = [
 
 [tool.poetry.scripts]
 juvix-mkdocs = "src.cli:cli"
+build = "src.pyinstaller:install"
 
 [tool.poetry.plugins."mkdocs.plugins"]
 juvix = "mkdocs_juvix.juvix_markdown:JuvixPlugin"
@@ -29,7 +30,7 @@ images = "mkdocs_juvix.images:ImagesPlugin"
 # differ = "mkdocs_juvix.differ:DifferPlugin"
 
 [tool.poetry.dependencies]
-python = ">=3.10,<4"
+python = ">=3.10,<3.14"
 mkdocs = "^1.6.1"
 click = "^8.1.7"
 semver = "^3.0.2"
@@ -46,6 +47,7 @@ intervaltree = "^3.1.0"
 ncls = "^0.0.68"
 trio = "^0.27.0"
 tqdm = "^4.66.5"
+pyinstaller = "^6.11.0"
 
 [tool.poetry.group.dev.dependencies]
 ruff = "^0.6.9"
@@ -56,6 +58,7 @@ pytest = "^8.3.3"
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
+
 
 
 
