@@ -1,4 +1,5 @@
 import json
+import re
 import shutil
 import subprocess
 import textwrap
@@ -13,7 +14,7 @@ from urllib.parse import urljoin
 import pathspec
 import yaml  # type:ignore
 from bs4 import BeautifulSoup  # type:ignore
-from colorama import Fore, Style  # type: ignore
+from colorama import Back, Fore, Style  # type: ignore
 from dotenv import load_dotenv
 from mkdocs.config.defaults import MkDocsConfig
 from mkdocs.plugins import BasePlugin, get_plugin_logger
@@ -35,11 +36,14 @@ from mkdocs_juvix.utils import (
 
 load_dotenv()
 
-log : PrefixedLogger = get_plugin_logger(f"{Fore.BLUE}[juvix_mkdocs]{Style.RESET_ALL}")
+log: PrefixedLogger = get_plugin_logger(f"{Fore.BLUE}[juvix_mkdocs]{Style.RESET_ALL}")
+
 
 def time_spent(message: Optional[Any] = None, print_result: bool = False):
-    return time_spent_decorator(log = log, message = message, print_result = print_result)
+    return time_spent_decorator(log=log, message=message, print_result=print_result)
 
+
+ERROR_MESSAGE_EXTENSION = ".error-"
 _pipeline: str = """ For reference, the Mkdocs Pipeline is the following:
 ├── on_startup(command, dirty)
 └── on_config(config)
@@ -70,7 +74,7 @@ T = TypeVar("T")
 class JuvixRelatedClass:
     def __init__(self, env: ENV):
         self.env: ENV = env
-    
+
     @property
     def juvix_enabled(self) -> bool:
         return self.env.JUVIX_ENABLED and self.env.JUVIX_AVAILABLE
@@ -82,7 +86,9 @@ class JuvixRelatedClass:
             if self.juvix_enabled:
                 return func(self, *args, **kwargs)
             return None
+
         return wrapper
+
 
 class JuvixMarkdownFile(JuvixRelatedClass):
     """
@@ -96,7 +102,10 @@ class JuvixMarkdownFile(JuvixRelatedClass):
             self.relative_filepath: Path = self.absolute_filepath.relative_to(
                 env.DOCS_ABSPATH
             )
-            self.url: str = urljoin(env.SITE_URL, self.relative_filepath.as_posix().replace(".juvix.md", ".html"))
+            self.url: str = urljoin(
+                env.SITE_URL,
+                self.relative_filepath.as_posix().replace(".juvix.md", ".html"),
+            )
             self.module_name: Optional[str] = env.unqualified_module_name(filepath)
             self.qualified_module_name: Optional[str] = env.qualified_module_name(
                 filepath
@@ -111,6 +120,16 @@ class JuvixMarkdownFile(JuvixRelatedClass):
             self.hash_cache_filepath: Path = (
                 env.get_expected_filepath_for_cached_hash_for(self.absolute_filepath)
             )
+            self._metadata: Optional[dict] = None
+
+            # Fault-tolerant: we store the error messages for the commands in case
+            # they fail
+            self._cached_error_messages: Dict[str, Optional[str]] = {
+                "markdown": None,
+                "isabelle": None,
+                "html": None,
+            }
+
         except Exception as e:
             log.error(f"Error initializing JuvixMarkdownFile: {e}")
             raise
@@ -126,6 +145,7 @@ class JuvixMarkdownFile(JuvixRelatedClass):
             "url": self.url,
             "needs_isabelle": self.needs_isabelle,
             "content_hash": self.hash,
+            "error_messages": self._cached_error_messages,
         }
 
     @property
@@ -167,6 +187,35 @@ class JuvixMarkdownFile(JuvixRelatedClass):
             log.error(f"Error checking if file changed: {e}")
             return True
 
+    def save_error_message(self, error_message: str, kind: str = "markdown") -> None:
+        """Save the error message to a cache file."""
+        ext = ERROR_MESSAGE_EXTENSION + kind
+        error_filepath = self.cache_filepath.with_suffix(ext)
+        error_filepath.write_text(error_message)
+        self._cached_error_messages[kind] = error_message
+
+    def get_error_message(self, kind: str = "markdown") -> Optional[str]:
+        """Retrieve the error message from cache or file."""
+        if kind in self._cached_error_messages:
+            return self._cached_error_messages[kind]
+
+        ext = ERROR_MESSAGE_EXTENSION + kind
+        error_filepath = self.cache_filepath.with_suffix(ext)
+        if error_filepath.exists():
+            error_message = error_filepath.read_text()
+            self._cached_error_messages[kind] = error_message
+            return error_message
+        return None
+
+    def clear_error_message(self, kind: str = "markdown") -> None:
+        """Clear the error message from cache and file."""
+        if kind in self._cached_error_messages:
+            del self._cached_error_messages[kind]
+
+        error_filepath = self.cache_filepath.with_suffix(kind)
+        if error_filepath.exists():
+            error_filepath.unlink()
+
     def _build_juvix_markdown_command(self) -> List[str]:
         return [
             self.env.JUVIX_BIN,
@@ -182,6 +231,30 @@ class JuvixMarkdownFile(JuvixRelatedClass):
             "--no-colors",
         ]
 
+    def _material_template_error_message(
+        self,
+        error_message: str,
+        filepath: Path,
+    ) -> str:
+        formatted_error_message = (
+            f"<details class='failure'><summary>Juvix Markdown Error:</summary>\n\n"
+            f"<pre><code>\n"
+            f"    {textwrap.fill(error_message, width=80)}\n"
+            f"</code></pre></details>\n\n"
+        )
+        pattern = re.compile(
+            r"(?:^(?P<has_metadata>---\n(?P<metadata>.*)\n---\n\s*)(?P<content>.*)(?:\n\s*$|\Z))",
+            re.DOTALL,
+        )
+
+        # if the content matches the pattern, extract the metadata and prepend
+        # it to the content
+        match = pattern.search(filepath.read_text())
+        if match and match.group("has_metadata"):
+            return f"---\n{match.group('metadata')}\n---\n\n{formatted_error_message}\n\n{match.group('content')}"
+        else:
+            return f"{formatted_error_message}\n\n{filepath.read_text()}"
+
     @time_spent(message="> running juvix markdown")
     def _run_juvix_markdown(self) -> Optional[str]:
         """
@@ -195,33 +268,66 @@ class JuvixMarkdownFile(JuvixRelatedClass):
                 capture_output=True,
                 text=True,
             )
+            if result.returncode != 0:
+                raise Exception(result.stderr)
             return result.stdout
-        except subprocess.CalledProcessError as e:
-            log.error(f"Error running Juvix Markdown on {self}: {e}")
+        except FileNotFoundError:
+            log.error(f"Juvix Markdown binary not found: {self.env.JUVIX_BIN}")
             return None
+        except subprocess.CalledProcessError as e:
+            self._cached_error_run_juvix_markdown = e.stderr
+            return self._material_template_error_message(
+                e.stderr, self.absolute_filepath
+            )
         except Exception as e:
             log.error(f"Unexpected error running Juvix Markdown on {self}: {e}")
             return None
 
+    def _template_error_message(self, error_message: str) -> str:
+        return (
+            f"Error running Juvix on {Fore.YELLOW}{self}{Style.RESET_ALL}:\n"
+            f"Command: {Back.WHITE}{Fore.BLACK}{' '.join(self._build_juvix_markdown_command())}{Style.RESET_ALL}\n"
+            f"Error message:\n{Fore.RED}{error_message}{Style.RESET_ALL}"
+        )
+
     @time_spent(message="> reading cached markdown")
     def read_cached_markdown(self) -> Optional[str]:
-        if self.is_cached() and not self.changed_since_last_run():
+        is_cached = self.is_cached()
+        if is_cached and not self.changed_since_last_run():
+            log.info(
+                f"{Fore.YELLOW}> no changes detected in {Fore.GREEN}{self}{Style.RESET_ALL}"
+            )
             return self.cache_filepath.read_text()
-        return None
+        else:
+            log.info(
+                f"{Fore.YELLOW}> cache expired for {Fore.GREEN}{self}{Style.RESET_ALL} (file has changed)"
+            )
+            return None
 
     @time_spent(message="> generating markdown output")
     def generate_markdown_output(self, save: bool = True) -> Optional[str]:
         try:
             if cached_markdown := self.read_cached_markdown():
                 return cached_markdown
-
-            markdown_output = self._run_juvix_markdown()
-            if markdown_output and save:
-                self.save_markdown_output(markdown_output)
-            return markdown_output
         except Exception as e:
-            log.error(f"Error generating markdown output: {e}")
+            log.error(f"Failed to read cached markdown: {e}")
             return None
+
+        try:
+            markdown_output = self._run_juvix_markdown()
+            if markdown_output is None:
+                return None
+        except Exception as e:
+            log.error(f"Failed to generate markdown output: {e}")
+            return None
+
+        if save:
+            try:
+                self.save_markdown_output(markdown_output)
+            except Exception as e:
+                log.error(f"Failed to save markdown output: {e}")
+                # Continue even if saving fails
+        return markdown_output
 
     @property
     def excerpt(self, length: int = 300, width: int = 80) -> Optional[str]:
@@ -245,7 +351,7 @@ class JuvixMarkdownFile(JuvixRelatedClass):
         except Exception as e:
             log.error(f"Error saving markdown output: {e}")
             return None
-    
+
     def _build_juvix_html_command(self) -> List[str]:
         return [
             self.env.JUVIX_BIN,
@@ -275,7 +381,9 @@ class JuvixMarkdownFile(JuvixRelatedClass):
             )
 
             if output.returncode != 0:
-                raise Exception(output.stderr)
+                self._cached_error_run_juvix_html = output.stderr
+                log.error(self._template_error_message(output.stderr))
+                return None
 
             if update_assets:
                 self._update_assets()
@@ -306,7 +414,7 @@ class JuvixMarkdownFile(JuvixRelatedClass):
         if markdown_output is None:
             markdown_output = self.absolute_filepath.read_text()
 
-        metadata = self.extract_metadata(markdown_output)
+        metadata = self.metadata
         if not metadata:
             return False
 
@@ -321,8 +429,12 @@ class JuvixMarkdownFile(JuvixRelatedClass):
 
         return requires_isabelle or include_isabelle_at_bottom
 
-    def extract_metadata(self, content: str) -> Optional[dict]:
-        metadata_block = content.split("---")
+    @property
+    @time_spent(message="> extracting metadata")
+    def metadata(self) -> Optional[dict]:
+        if self.markdown_output is None:
+            return None
+        metadata_block = self.markdown_output.split("---")
         if len(metadata_block) < 3:
             return None
 
@@ -338,13 +450,13 @@ class JuvixMarkdownFile(JuvixRelatedClass):
             log.debug(f"The file: {self} does not exist")
             return
 
-        result_isabelle = subprocess.run(
-            self._build_juvix_isabelle_command(),
-            cwd=self.env.DOCS_ABSPATH,
-            check=False,
-            capture_output=True,
-            text=True,
-        )
+        try:
+            result_isabelle = self._run_juvix_isabelle()
+            if result_isabelle is None:
+                return
+        except Exception as e:
+            log.error(f"Error running Juvix Isabelle on {self}: {e}")
+            return
 
         isabelle_html = self._process_isabelle_result(result_isabelle)
 
@@ -365,6 +477,20 @@ class JuvixMarkdownFile(JuvixRelatedClass):
         if "Branch: fix-implicit-record-args" in self.env.JUVIX_FULL_VERSION:
             cmd.insert(3, "--non-recursive")
         return cmd
+
+    def _run_juvix_isabelle(self) -> Optional[subprocess.CompletedProcess]:
+        try:
+            result = subprocess.run(
+                self._build_juvix_isabelle_command(),
+                cwd=self.env.DOCS_ABSPATH,
+                check=True,
+                capture_output=True,
+                text=True,
+            )
+            return result
+        except Exception as e:
+            log.error(f"Error running Juvix Isabelle on {self}: {e}")
+            return None
 
     def _process_isabelle_result(
         self, result: subprocess.CompletedProcess
@@ -515,7 +641,9 @@ class JuvixMarkdownCollection(JuvixRelatedClass):
         try:
             self.env.CACHE_JUVIX_PROJECT_HASH_FILEPATH.write_text(self.hash)
             self._stored_hash = self.hash
-            return self.env.CACHE_JUVIX_PROJECT_HASH_FILEPATH.relative_to(self.env.ROOT_ABSPATH)
+            return self.env.CACHE_JUVIX_PROJECT_HASH_FILEPATH.relative_to(
+                self.env.ROOT_ABSPATH
+            )
         except Exception as e:
             log.error(f"Error updating stored hash: {e}")
             return None
@@ -544,14 +672,17 @@ class JuvixMarkdownCollection(JuvixRelatedClass):
                 if markdown:
                     log.info(f"Processing markdown for {file}")
                     file.generate_markdown_output(save=True)
+
                 if isabelle:
                     log.info(f"Processing Isabelle for {file}")
                     file.generate_isabelle_output(modify_markdown_output=markdown)
-            log.info(f"Total Juvix Markdown files processed: {Fore.GREEN}{len(self.files)}{Style.RESET_ALL}")
+            log.info(
+                f"Total Juvix Markdown files processed: {Fore.GREEN}{len(self.files)}{Style.RESET_ALL}"
+            )
             if html:
                 log.info("Adding auxiliary files to the HTML...")
                 self.generate_html()
-                
+
             log.info("Extra steps...")
             self.update_stored_hash()
             self.save_juvix_modules_json()
@@ -572,7 +703,9 @@ class JuvixMarkdownCollection(JuvixRelatedClass):
                 if self.exists_everything_file():
                     self.everything_html_file.generate_html(update_assets=True)
                 else:
-                    log.info(f"{Fore.YELLOW}Generating HTML per file... (Recommend to create an `everything.juvix.md` file at the level of the docs folder){Style.RESET_ALL}")
+                    log.info(
+                        f"{Fore.YELLOW}Generating HTML per file... (Recommend to create an `everything.juvix.md` file at the level of the docs folder){Style.RESET_ALL}"
+                    )
                     for file in self.files:
                         file.generate_html(update_assets=True)
             else:
@@ -585,7 +718,9 @@ class JuvixMarkdownCollection(JuvixRelatedClass):
     @time_spent()
     def clean_juvix_dependencies(self) -> None:
         if not self.env.CLEAN_DEPS:
-            log.info("Skipping Juvix dependencies cleaning because CLEAN_DEPS is not set.")
+            log.info(
+                "Skipping Juvix dependencies cleaning because CLEAN_DEPS is not set."
+            )
             return
 
         try:
@@ -652,25 +787,6 @@ class JuvixPlugin(BasePlugin):
             self.juvix_md_collection.update_juvix_dependencies()
         return config
 
-
-    def _format_error_message_for_material(
-        self, error_message: str, filepath: Path
-    ) -> str:
-        formatted_error_message = (
-            f"<details class='failure'><summary>Juvix Markdown Error:</summary>\n\n"
-            f"<pre><code>\n"
-            f"    {textwrap.fill(error_message, width=70)}\n"
-            f"</code></pre></details>\n\n"
-        )
-
-        metadata_block = filepath.read_text().split("---")
-        if len(metadata_block) > 2:
-            return (
-                f"{metadata_block[0]}\n{formatted_error_message}\n{metadata_block[2]}"
-            )
-        else:
-            return f"{formatted_error_message}\n\n{filepath.read_text()}"
-
     def on_pre_build(self, config: MkDocsConfig) -> None:
         # aim to be fault-tolerant, so we don't care if some files fail
         # typechecking as part of the markdown processing, we include the error
@@ -681,7 +797,6 @@ class JuvixPlugin(BasePlugin):
         )
 
         exit(1)
-
 
     # @when_juvix_enabled
     # def on_files(self, files: Files, *, config: MkDocsConfig) -> Optional[Files]:

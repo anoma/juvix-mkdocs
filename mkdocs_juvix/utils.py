@@ -162,14 +162,23 @@ def time_spent(
         @wraps(func)
         def wrapper(*args, **kwargs):
             start_time = time.time()
-            result = func(*args, **kwargs)
+            result = None
+            exception = None
+            try:
+                result = func(*args, **kwargs)
+            except Exception as e:
+                exception = e
+
             end_time = time.time()
             elapsed_time = end_time - start_time
             log_message = f"{Fore.BLUE}({elapsed_time:.3f}s){Style.RESET_ALL}"
-            if print_result:
+            if print_result and result:
                 log_message = f"{Fore.MAGENTA}{result}{Style.RESET_ALL} - {log_message}"
             log_message = f"{Fore.YELLOW}{message or func.__name__}{Style.RESET_ALL}: {log_message}"
             log.info(log_message)
+
+            if exception:
+                raise exception
             return result
 
         return wrapper
