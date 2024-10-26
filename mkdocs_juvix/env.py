@@ -44,6 +44,7 @@ class ENV:
     DOT_BIN: str
     DOT_FLAGS: str
     IMAGES_ENABLED: bool
+    CLEAN_DEPS: bool = bool(getenv("CLEAN_DEPS", False))
 
     REMOVE_CACHE: bool = bool(
         getenv("REMOVE_CACHE", False)
@@ -394,6 +395,20 @@ class ENV:
         except Exception as e:
             log.error(f"Error updating hash file: {e}")
             return None
+        
+    
+    def remove_directory(self, directory: Path) -> None:
+        try:
+            shutil.rmtree(directory, ignore_errors=True)
+        except Exception as e:
+            log.error(f"Error removing folder: {e}")
+
+    def copy_directory(self, src: Path, dst: Path) -> None:
+        try:
+            shutil.copytree(src, dst, dirs_exist_ok=True)
+        except Exception as e:
+            log.error(f"Error copying folder: {e}")
+
 
     def get_expected_filepath_for_juvix_markdown_output_in_cache(
         self, filepath: Path

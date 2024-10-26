@@ -1,13 +1,14 @@
 import hashlib
 import logging
 import os
-from functools import lru_cache
+from functools import lru_cache, wraps
 from pathlib import Path
 import pickle
+import time
 from typing import Any, Iterable, Optional
-
+from colorama import Fore, Style  # type: ignore
 from mkdocs.config.defaults import MkDocsConfig
-import trio
+from mkdocs.plugins import PrefixedLogger
 
 log = logging.getLogger("mkdocs")
 EXCLUDED_DIRS = {
@@ -150,40 +151,27 @@ def get_filepath_for_cached_hash_for(filepath: Path, hash_dir: Optional[Path] = 
 
     return hash_dir / hash_filename
 
-class Tracer(trio.abc.Instrument):
-    def before_run(self):
-        print("!!! run started")
 
-    def _print_with_task(self, msg, task):
-        # repr(task) is perhaps more useful than task.name in general,
-        # but in context of a tutorial the extra noise is unhelpful.
-        print(f"{msg}: {task.name}")
 
-    def task_spawned(self, task):
-        self._print_with_task("### new task spawned", task)
+def time_spent(
+    log: PrefixedLogger,
+    message: Optional[Any] = None,
+    print_result: bool = False,
+):
+    def decorator(func):
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            start_time = time.time()
+            result = func(*args, **kwargs)
+            end_time = time.time()
+            elapsed_time = end_time - start_time
+            log_message = f"{Fore.BLUE}({elapsed_time:.3f}s){Style.RESET_ALL}"
+            if print_result:
+                log_message = f"{Fore.MAGENTA}{result}{Style.RESET_ALL} - {log_message}"
+            log_message = f"{Fore.YELLOW}{message or func.__name__}{Style.RESET_ALL}: {log_message}"
+            log.info(log_message)
+            return result
 
-    def task_scheduled(self, task):
-        self._print_with_task("### task scheduled", task)
+        return wrapper
 
-    def before_task_step(self, task):
-        self._print_with_task(">>> about to run one step of task", task)
-
-    def after_task_step(self, task):
-        self._print_with_task("<<< task step finished", task)
-
-    def task_exited(self, task):
-        self._print_with_task("### task exited", task)
-
-    def before_io_wait(self, timeout):
-        if timeout:
-            print(f"### waiting for I/O for up to {timeout} seconds")
-        else:
-            print("### doing a quick check for I/O")
-        self._sleep_time = trio.current_time()
-
-    def after_io_wait(self, timeout):
-        duration = trio.current_time() - self._sleep_time
-        print(f"### finished I/O check (took {duration} seconds)")
-
-    def after_run(self):
-        print("!!! run finished")
+    return decorator
