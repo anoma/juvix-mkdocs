@@ -71,6 +71,16 @@ _pipeline: str = """ For reference, the Mkdocs Pipeline is the following:
 T = TypeVar("T")
 
 
+def template_error_message(
+    filepath: Path, command: List[str], error_message: str
+) -> str:
+    return (
+        f"Error running Juvix on {Fore.YELLOW}{filepath}{Style.RESET_ALL}:\n"
+        f"Command: {Back.WHITE}{Fore.BLACK}{' '.join(command)}{Style.RESET_ALL}\n"
+        f"Error message:\n{Fore.RED}{error_message}{Style.RESET_ALL}"
+    )
+
+
 class JuvixRelatedClass:
     def __init__(self, env: ENV):
         self.env: ENV = env
@@ -196,7 +206,7 @@ class JuvixMarkdownFile(JuvixRelatedClass):
 
     def get_error_message(self, kind: str = "markdown") -> Optional[str]:
         """Retrieve the error message from cache or file."""
-        if kind in self._cached_error_messages:
+        if self._cached_error_messages.get(kind, None):
             return self._cached_error_messages[kind]
 
         ext = ERROR_MESSAGE_EXTENSION + kind
@@ -212,7 +222,8 @@ class JuvixMarkdownFile(JuvixRelatedClass):
         if kind in self._cached_error_messages:
             del self._cached_error_messages[kind]
 
-        error_filepath = self.cache_filepath.with_suffix(kind)
+        ext = ERROR_MESSAGE_EXTENSION + kind
+        error_filepath = self.cache_filepath.with_suffix(ext)
         if error_filepath.exists():
             error_filepath.unlink()
 
@@ -275,20 +286,13 @@ class JuvixMarkdownFile(JuvixRelatedClass):
             log.error(f"Juvix Markdown binary not found: {self.env.JUVIX_BIN}")
             return None
         except subprocess.CalledProcessError as e:
-            self._cached_error_run_juvix_markdown = e.stderr
+            self.save_error_message(e.stderr, "markdown")
             return self._material_template_error_message(
                 e.stderr, self.absolute_filepath
             )
         except Exception as e:
             log.error(f"Unexpected error running Juvix Markdown on {self}: {e}")
             return None
-
-    def _template_error_message(self, error_message: str) -> str:
-        return (
-            f"Error running Juvix on {Fore.YELLOW}{self}{Style.RESET_ALL}:\n"
-            f"Command: {Back.WHITE}{Fore.BLACK}{' '.join(self._build_juvix_markdown_command())}{Style.RESET_ALL}\n"
-            f"Error message:\n{Fore.RED}{error_message}{Style.RESET_ALL}"
-        )
 
     @time_spent(message="> reading cached markdown")
     def read_cached_markdown(self) -> Optional[str]:
@@ -300,7 +304,7 @@ class JuvixMarkdownFile(JuvixRelatedClass):
             return self.cache_filepath.read_text()
         else:
             log.info(
-                f"{Fore.YELLOW}> cache expired for {Fore.GREEN}{self}{Style.RESET_ALL} (file has changed)"
+                f"{Fore.YELLOW}> cache expired for {Fore.GREEN}{self}{Style.RESET_ALL}"
             )
             return None
 
@@ -381,8 +385,14 @@ class JuvixMarkdownFile(JuvixRelatedClass):
             )
 
             if output.returncode != 0:
-                self._cached_error_run_juvix_html = output.stderr
-                log.error(self._template_error_message(output.stderr))
+                self.save_error_message(output.stderr, "html")
+                log.error(
+                    template_error_message(
+                        self.absolute_filepath,
+                        self._build_juvix_html_command(),
+                        output.stderr,
+                    )
+                )
                 return None
 
             if update_assets:
@@ -390,7 +400,14 @@ class JuvixMarkdownFile(JuvixRelatedClass):
             else:
                 log.info("HTML generation completed but not saved to disk.")
         except subprocess.CalledProcessError as e:
-            log.error(f"Error running Juvix HTML command on {self}: {e}")
+            self.save_error_message(e.stderr, "html")
+            log.error(
+                template_error_message(
+                    self.absolute_filepath,
+                    self._build_juvix_html_command(),
+                    e.stderr,
+                )
+            )
         except Exception as e:
             log.error(f"Unexpected error during HTML generation: {e}")
 
@@ -478,6 +495,7 @@ class JuvixMarkdownFile(JuvixRelatedClass):
             cmd.insert(3, "--non-recursive")
         return cmd
 
+    @time_spent(message="> running juvix isabelle")
     def _run_juvix_isabelle(self) -> Optional[subprocess.CompletedProcess]:
         try:
             result = subprocess.run(
@@ -487,6 +505,8 @@ class JuvixMarkdownFile(JuvixRelatedClass):
                 capture_output=True,
                 text=True,
             )
+            if result.returncode != 0:
+                self.save_error_message(result.stderr, "isabelle")
             return result
         except Exception as e:
             log.error(f"Error running Juvix Isabelle on {self}: {e}")
@@ -672,10 +692,27 @@ class JuvixMarkdownCollection(JuvixRelatedClass):
                 if markdown:
                     log.info(f"Processing markdown for {file}")
                     file.generate_markdown_output(save=True)
-
+                    error_message = file.get_error_message("markdown")
+                    if error_message:
+                        log.error(
+                            template_error_message(
+                                file.absolute_filepath,
+                                file._build_juvix_markdown_command(),
+                                error_message,
+                            )
+                        )
                 if isabelle:
                     log.info(f"Processing Isabelle for {file}")
                     file.generate_isabelle_output(modify_markdown_output=markdown)
+                    error_message = file.get_error_message("isabelle")
+                    if error_message:
+                        log.error(
+                            template_error_message(
+                                file.absolute_filepath,
+                                file._build_juvix_isabelle_command(),
+                                error_message,
+                            )
+                        )
             log.info(
                 f"Total Juvix Markdown files processed: {Fore.GREEN}{len(self.files)}{Style.RESET_ALL}"
             )
@@ -683,7 +720,6 @@ class JuvixMarkdownCollection(JuvixRelatedClass):
                 log.info("Adding auxiliary files to the HTML...")
                 self.generate_html()
 
-            log.info("Extra steps...")
             self.update_stored_hash()
             self.save_juvix_modules_json()
         except Exception as e:
