@@ -1,11 +1,12 @@
 import hashlib
 import logging
 import os
-from functools import lru_cache, wraps
-from pathlib import Path
 import pickle
 import time
+from functools import lru_cache, wraps
+from pathlib import Path
 from typing import Any, Iterable, Optional
+
 from colorama import Fore, Style  # type: ignore
 from mkdocs.config.defaults import MkDocsConfig
 from mkdocs.plugins import PrefixedLogger
@@ -28,17 +29,22 @@ EXCLUDED_DIRS = {
     ".idea",
 }
 
+
 def is_juvix_markdown_file(filepath: Path) -> bool:
     return filepath.as_posix().endswith(".juvix.md")
+
 
 def is_pure_juvix_file(filepath: Path) -> bool:
     return filepath.as_posix().endswith(".juvix")
 
+
 def is_isabelle_file(filepath: Path) -> bool:
     return filepath.as_posix().endswith(".thy")
 
+
 def is_juvix_file(filepath: Path) -> bool:
     return is_juvix_markdown_file(filepath) or is_pure_juvix_file(filepath)
+
 
 def is_excluded(entry):
     return (
@@ -120,14 +126,17 @@ def compute_sha_over_folder(_folder_path: Path) -> str:
 
     return sha_hash.hexdigest()
 
+
 def hash_file_hash_obj(hash_obj, filepath: Path):
     """Update the hash object with the contents of a file."""
     with open(filepath, "rb") as f:
         for chunk in iter(lambda: f.read(8192), b""):
             hash_obj.update(chunk)
 
+
 def hash_object(obj: Any) -> str:
     return hashlib.sha256(pickle.dumps(obj)).hexdigest()
+
 
 def hash_content_of(filepath: Path) -> str:
     """Compute the SHA-256 hash of a file."""
@@ -137,20 +146,19 @@ def hash_content_of(filepath: Path) -> str:
 
 
 @lru_cache(maxsize=128)
-def get_filepath_for_cached_hash_for(filepath: Path, hash_dir: Optional[Path] = None) -> Path:
+def get_filepath_for_cached_hash_for(
+    filepath: Path, hash_dir: Optional[Path] = None
+) -> Path:
     """
     Get the filepath for the cached hash of a file.
     """
     file_abspath = filepath.absolute()
-    hash_filename = hashlib.sha256(
-        file_abspath.as_posix().encode("utf-8")
-    ).hexdigest()
+    hash_filename = hashlib.sha256(file_abspath.as_posix().encode("utf-8")).hexdigest()
 
     if hash_dir is None:
         return Path(hash_filename)
 
     return hash_dir / hash_filename
-
 
 
 def time_spent(
@@ -173,7 +181,7 @@ def time_spent(
             elapsed_time = end_time - start_time
             log_message = f"{Fore.BLUE}({elapsed_time:.3f}s){Style.RESET_ALL}"
             if print_result and result:
-                log_message = f"{Fore.MAGENTA}{result}{Style.RESET_ALL} - {log_message}"
+                log_message = f"{Fore.MAGENTA}{result}{Style.RESET_ALL} {log_message}"
             log_message = f"{Fore.YELLOW}{message or func.__name__}{Style.RESET_ALL}: {log_message}"
             log.info(log_message)
 

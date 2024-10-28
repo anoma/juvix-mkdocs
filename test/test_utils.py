@@ -1,7 +1,11 @@
 import tempfile
 from pathlib import Path
 
-from mkdocs_juvix.utils import get_filepath_for_cached_hash_for, compute_sha_over_folder, hash_content_of
+from mkdocs_juvix.utils import (
+    compute_sha_over_folder,
+    get_filepath_for_cached_hash_for,
+    hash_content_of,
+)
 
 
 def test_compute_sha_over_folder():

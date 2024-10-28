@@ -28,7 +28,7 @@ from mkdocs_juvix.snippets import (
     DEFAULT_URL_TIMEOUT,
     SnippetPreprocessor,
 )
-from mkdocs_juvix.utils import get_filtered_subdirs  # type: ignore
+from mkdocs_juvix.utils import get_filtered_subdirs, is_juvix_markdown_file
 
 log = get_plugin_logger(f"{Fore.BLUE}[juvix_mkdocs-links]{Style.RESET_ALL}")
 
@@ -157,7 +157,20 @@ class WikilinksPlugin(BasePlugin):
         """When MkDocs loads its files, extract aliases from any Markdown files
         that were found.
         """
-        log.info(f"Processing {len(files)} files to extract aliases")
+        files = Files(
+            [
+                file
+                for file in files
+                if ".juvix-build" not in file.src_uri
+                and is_juvix_markdown_file(Path(file.src_uri))
+                and file.is_documentation_page()
+                and not file.is_media_file()
+            ]
+        )
+
+        log.info(
+            f"Processing {Fore.YELLOW}{len(files)}{Style.RESET_ALL} files to extract aliases"
+        )
 
         def process_file(file: File) -> None:
             pathFile: str | None = file.abs_src_path
@@ -189,7 +202,9 @@ class WikilinksPlugin(BasePlugin):
         if self.LINKS_JSON.exists():
             self.LINKS_JSON.unlink()
 
-        log.info(f"Writing aliases to {self.LINKS_JSON}")
+        log.info(
+            f"> writing page aliases to {Fore.YELLOW}{self.LINKS_JSON}{Style.RESET_ALL}"
+        )
         with open(self.LINKS_JSON, "w") as f:
             json.dump(
                 {
@@ -260,7 +275,7 @@ class WikilinksPlugin(BasePlugin):
             self.GRAPH_JSON.unlink()
 
         serialized_files_relation = [entry.to_dict() for entry in files_relation]
-        log.info(f"Writing graph to {self.GRAPH_JSON}")
+        # log.info(f"Writing graph to {self.GRAPH_JSON}")
         with open(self.GRAPH_JSON, "w") as graph_json_file:
             json.dump(
                 {"graph": serialized_files_relation},

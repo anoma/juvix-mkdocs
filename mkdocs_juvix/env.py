@@ -7,7 +7,7 @@ Juvix settings.
 import os
 import shutil
 import subprocess
-from functools import lru_cache
+from functools import lru_cache, wraps
 from os import getenv
 from pathlib import Path
 from typing import List, Optional, Tuple
@@ -17,8 +17,8 @@ from mkdocs.config.defaults import MkDocsConfig
 from mkdocs.plugins import get_plugin_logger
 from semver import Version
 
-from mkdocs_juvix.juvix_version import MIN_JUVIX_VERSION
 import mkdocs_juvix.utils as utils
+from mkdocs_juvix.juvix_version import MIN_JUVIX_VERSION
 
 log = get_plugin_logger(f"{Fore.BLUE}[juvix_mkdocs-env]{Style.RESET_ALL}")
 
@@ -45,6 +45,7 @@ class ENV:
     DOT_FLAGS: str
     IMAGES_ENABLED: bool
     CLEAN_DEPS: bool = bool(getenv("CLEAN_DEPS", False))
+    UPDATE_DEPS: bool = bool(getenv("UPDATE_DEPS", False))
 
     REMOVE_CACHE: bool = bool(
         getenv("REMOVE_CACHE", False)
@@ -134,7 +135,7 @@ class ENV:
                 exit(1)
 
             self.ROOT_PATH = Path(config_file).parent
-            self.SITE_URL = config.get("site_url", "")
+            self.SITE_URL = config.get("site_url", "")  # TODO: "" or "/" ?
         else:
             self.ROOT_PATH = Path(".").resolve()
             self.SITE_URL = ""
@@ -220,7 +221,6 @@ class ENV:
             self.CACHE_ORIGINAL_JUVIX_MARKDOWN_FILES_ABSPATH,
             self.CACHE_ABSPATH,
             self.CACHE_HASHES_PATH,
-            self.JUVIX_FOOTER_CSS_FILEPATH.parent,
             self.CACHE_WIKILINKS_PATH,
         ]
 
@@ -294,9 +294,28 @@ class ENV:
         if config:
             config["env_init"] = True
 
+    @property
+    def juvix_enabled(self) -> bool:
+        return self.JUVIX_ENABLED and self.JUVIX_AVAILABLE
+
+    @staticmethod
+    def when_juvix_enabled(func):
+        @wraps(func)
+        def wrapper(self, *args, **kwargs):
+            if self.juvix_enabled:
+                return func(self, *args, **kwargs)
+            return None
+
+        return wrapper
+
     @lru_cache(maxsize=128)
     def read_markdown_file_from_cache(self, filepath: Path) -> Optional[str]:
-        if cache_ABSpath := self.get_filepath_for_cache_markdown_output_of_juvix_markdown_file(filepath):
+        if (
+            cache_ABSpath
+            := self.get_filepath_for_cache_markdown_output_of_juvix_markdown_file(
+                filepath
+            )
+        ):
             return cache_ABSpath.read_text()
         return None
 
@@ -314,10 +333,12 @@ class ENV:
         filepath = filepath.absolute()
         rel_to_docs = filepath.relative_to(self.DOCS_ABSPATH)
         return self.CACHE_WIKILINKS_PATH / rel_to_docs.parent / filepath.name
-    
+
     def get_expected_filepath_for_cached_hash_for(self, filepath: Path) -> Path:
         file_abspath = filepath.absolute()
-        return utils.get_filepath_for_cached_hash_for(file_abspath, hash_dir=self.CACHE_HASHES_PATH)
+        return utils.get_filepath_for_cached_hash_for(
+            file_abspath, hash_dir=self.CACHE_HASHES_PATH
+        )
 
     def is_file_new_or_changed_for_cache(self, filepath: Path) -> bool:
         file_abspath = filepath.absolute()
@@ -328,7 +349,7 @@ class ENV:
         current_hash = utils.hash_content_of(file_abspath)
         cached_hash = hash_file.read_text().strip()
         return current_hash != cached_hash  # File has changed if hashes are different
-    
+
     def update_cache_for_file(self, filepath: Path, file_content: str) -> None:
         file_abspath = filepath.absolute()
         cache_filepath = self.get_expected_filepath_for_cached_hash_for(file_abspath)
@@ -343,7 +364,11 @@ class ENV:
         file_abspath = filepath.absolute()
         md_filename = filepath.name.replace(".juvix.md", ".md")
         file_rel_to_docs = file_abspath.relative_to(self.DOCS_ABSPATH)
-        return self.CACHE_MARKDOWN_JUVIX_OUTPUT_PATH / file_rel_to_docs.parent / md_filename
+        return (
+            self.CACHE_MARKDOWN_JUVIX_OUTPUT_PATH
+            / file_rel_to_docs.parent
+            / md_filename
+        )
 
     def unqualified_module_name(self, filepath: Path) -> Optional[str]:
         fposix: str = filepath.as_posix()
@@ -385,7 +410,7 @@ class ENV:
         module_name = self.unqualified_module_name(filepath)
         return module_name + extension if module_name else None
 
-    def update_hash_file(self, filepath: Path) -> Optional[Tuple[Path, str]]: 
+    def update_hash_file(self, filepath: Path) -> Optional[Tuple[Path, str]]:
         filepath_hash = self.get_expected_filepath_for_cached_hash_for(filepath)
         try:
             with open(filepath_hash, "w") as f:
@@ -395,8 +420,7 @@ class ENV:
         except Exception as e:
             log.error(f"Error updating hash file: {e}")
             return None
-        
-    
+
     def remove_directory(self, directory: Path) -> None:
         try:
             shutil.rmtree(directory, ignore_errors=True)
@@ -408,7 +432,6 @@ class ENV:
             shutil.copytree(src, dst, dirs_exist_ok=True)
         except Exception as e:
             log.error(f"Error copying folder: {e}")
-
 
     def get_expected_filepath_for_juvix_markdown_output_in_cache(
         self, filepath: Path
