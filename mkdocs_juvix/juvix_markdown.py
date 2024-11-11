@@ -5,7 +5,7 @@ import subprocess
 import textwrap
 from os import getenv
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional, TypeVar
+from typing import Callable, List, Optional, Dict, Any, TypeVar
 from urllib.parse import urljoin
 
 import pathspec
@@ -14,22 +14,23 @@ from bs4 import BeautifulSoup  # type:ignore
 from colorama import Back, Fore, Style  # type: ignore
 from dotenv import load_dotenv
 from mkdocs.config.defaults import MkDocsConfig
-from mkdocs.plugins import BasePlugin, PrefixedLogger, get_plugin_logger
+from mkdocs.plugins import BasePlugin, get_plugin_logger
 from mkdocs.structure.files import Files
 from mkdocs.structure.pages import Page
 from semver import Version
 from watchdog.events import FileSystemEvent
 
+from mkdocs.plugins import PrefixedLogger
 from mkdocs_juvix.env import ENV, FIXTURES_PATH
 from mkdocs_juvix.images import process_images
 from mkdocs_juvix.snippets import RE_SNIPPET_SECTION
 from mkdocs_juvix.utils import (
     compute_sha_over_folder,
     fix_site_url,
-    hash_content_of,
     is_juvix_markdown_file,
+    hash_content_of,
+    time_spent as time_spent_decorator,
 )
-from mkdocs_juvix.utils import time_spent as time_spent_decorator
 
 load_dotenv()
 
@@ -319,7 +320,7 @@ class EnhancedMarkdownFile:
             return self.cache_filepath.read_text()
         else:
             log.info(
-                f"{Fore.YELLOW}> cache expired for {Fore.GREEN}{self}{Style.RESET_ALL}"
+                f"{Fore.YELLOW}> cache expired or not found for {Fore.GREEN}{self}{Style.RESET_ALL}"
             )
             return None
 
@@ -650,7 +651,6 @@ class EnhancedMarkdownCollection:
             log.error(f"Error checking if everything file exists: {e}")
             return False
 
-    @time_spent(message="> getting markdown files")
     def _get_markdown_files(self) -> List[EnhancedMarkdownFile]:
         SKIP_DIRS = [
             ".juvix-build",
@@ -659,6 +659,7 @@ class EnhancedMarkdownCollection:
             "assets",
         ]
         try:
+            log.info(f"Getting Markdown files in {Fore.GREEN}{self.folder}{Style.RESET_ALL}")
             return [
                 EnhancedMarkdownFile(file, self.env)
                 for file in self.folder.rglob("*.md")
@@ -668,7 +669,6 @@ class EnhancedMarkdownCollection:
             log.error(f"Error getting Markdown files in {self.folder}: {e}")
             return []
 
-    @time_spent(message="> getting file", print_result=True)
     def get_file(self, filepath: Path) -> Optional[EnhancedMarkdownFile]:
         return next(
             (
@@ -725,13 +725,11 @@ class EnhancedMarkdownCollection:
             return True  # Assume changes if there's an error
 
     @time_spent(message="> updating stored hash", print_result=True)
-    def update_stored_hash(self) -> Optional[Path]:
+    def update_stored_hash(self) -> Optional[str]:
         try:
             self.env.CACHE_JUVIX_PROJECT_HASH_FILEPATH.write_text(self.hash)
             self._stored_hash = self.hash
-            return self.env.CACHE_JUVIX_PROJECT_HASH_FILEPATH.relative_to(
-                self.env.ROOT_ABSPATH
-            )
+            return self._stored_hash
         except Exception as e:
             log.error(f"Error updating stored hash: {e}")
             return None
@@ -1029,20 +1027,19 @@ class JuvixPlugin(BasePlugin):
                 ):
                     return
 
-                if is_juvix_markdown_file(fpath):
-                    file: Optional[EnhancedMarkdownFile] = (
-                        self.enhanced_collection.get_file(fpath)
+                file: Optional[EnhancedMarkdownFile] = (
+                    self.enhanced_collection.get_file(fpath)
+                )
+                if file:
+                    if not file.changed_since_last_run():
+                        log.info(
+                            f"No changes detected in {Fore.GREEN}{fpathstr}{Style.RESET_ALL}"
+                        )
+                        return
+                    else:
+                        log.info(
+                            f"Changes detected in {Fore.GREEN}{fpathstr}{Style.RESET_ALL}"
                     )
-                    if file:
-                        if not file.changed_since_last_run():
-                            log.info(
-                                f"No changes detected in {Fore.GREEN}{fpathstr}{Style.RESET_ALL}"
-                            )
-                            return
-                        else:
-                            log.info(
-                                f"Changes detected in {Fore.GREEN}{fpathstr}{Style.RESET_ALL}"
-                            )
                 return callback(event)
 
             return wrapper

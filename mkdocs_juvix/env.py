@@ -17,8 +17,8 @@ from mkdocs.config.defaults import MkDocsConfig
 from mkdocs.plugins import get_plugin_logger
 from semver import Version
 
-import mkdocs_juvix.utils as utils
 from mkdocs_juvix.juvix_version import MIN_JUVIX_VERSION
+import mkdocs_juvix.utils as utils
 
 log = get_plugin_logger(f"{Fore.BLUE}[juvix_mkdocs-env]{Style.RESET_ALL}")
 
@@ -135,7 +135,7 @@ class ENV:
                 exit(1)
 
             self.ROOT_PATH = Path(config_file).parent
-            self.SITE_URL = config.get("site_url", "")  # TODO: "" or "/" ?
+            self.SITE_URL = config.get("site_url", "") # TODO: "" or "/" ?
         else:
             self.ROOT_PATH = Path(".").resolve()
             self.SITE_URL = ""
@@ -310,12 +310,7 @@ class ENV:
 
     @lru_cache(maxsize=128)
     def read_markdown_file_from_cache(self, filepath: Path) -> Optional[str]:
-        if (
-            cache_ABSpath
-            := self.get_filepath_for_cache_markdown_output_of_juvix_markdown_file(
-                filepath
-            )
-        ):
+        if cache_ABSpath := self.get_filepath_for_cache_markdown_output_of_juvix_markdown_file(filepath):
             return cache_ABSpath.read_text()
         return None
 
@@ -336,9 +331,7 @@ class ENV:
 
     def get_expected_filepath_for_cached_hash_for(self, filepath: Path) -> Path:
         file_abspath = filepath.absolute()
-        return utils.get_filepath_for_cached_hash_for(
-            file_abspath, hash_dir=self.CACHE_HASHES_PATH
-        )
+        return utils.get_filepath_for_cached_hash_for(file_abspath, hash_dir=self.CACHE_HASHES_PATH)
 
     def is_file_new_or_changed_for_cache(self, filepath: Path) -> bool:
         file_abspath = filepath.absolute()
@@ -364,11 +357,7 @@ class ENV:
         file_abspath = filepath.absolute()
         md_filename = filepath.name.replace(".juvix.md", ".md")
         file_rel_to_docs = file_abspath.relative_to(self.DOCS_ABSPATH)
-        return (
-            self.CACHE_MARKDOWN_JUVIX_OUTPUT_PATH
-            / file_rel_to_docs.parent
-            / md_filename
-        )
+        return self.CACHE_MARKDOWN_JUVIX_OUTPUT_PATH / file_rel_to_docs.parent / md_filename
 
     def unqualified_module_name(self, filepath: Path) -> Optional[str]:
         fposix: str = filepath.as_posix()
@@ -421,6 +410,7 @@ class ENV:
             log.error(f"Error updating hash file: {e}")
             return None
 
+
     def remove_directory(self, directory: Path) -> None:
         try:
             shutil.rmtree(directory, ignore_errors=True)
@@ -432,6 +422,7 @@ class ENV:
             shutil.copytree(src, dst, dirs_exist_ok=True)
         except Exception as e:
             log.error(f"Error copying folder: {e}")
+
 
     def get_expected_filepath_for_juvix_markdown_output_in_cache(
         self, filepath: Path

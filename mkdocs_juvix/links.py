@@ -28,9 +28,9 @@ from mkdocs_juvix.snippets import (
     DEFAULT_URL_TIMEOUT,
     SnippetPreprocessor,
 )
-from mkdocs_juvix.utils import get_filtered_subdirs, is_juvix_markdown_file
+from mkdocs_juvix.utils import get_filtered_subdirs
 
-log = get_plugin_logger(f"{Fore.BLUE}[juvix_mkdocs-links]{Style.RESET_ALL}")
+log = get_plugin_logger(f"{Fore.BLUE}[juvix_mkdocs] (wikilinks) {Style.RESET_ALL}")
 
 files_relation: List[ResultEntry] = []
 EXCLUDED_DIRS = [
@@ -141,7 +141,6 @@ class WikilinksPlugin(BasePlugin):
         if self.NODES_JSON.exists():
             self.NODES_JSON.unlink()
 
-        log.info(f"Writing nodes to {self.NODES_JSON}")
         with open(self.NODES_JSON, "w") as f:
             json.dump(
                 {
@@ -157,12 +156,12 @@ class WikilinksPlugin(BasePlugin):
         """When MkDocs loads its files, extract aliases from any Markdown files
         that were found.
         """
+        SKIP_DIRS = [".juvix-build", ".hooks" , ".git"]
         files = Files(
             [
                 file
                 for file in files
-                if ".juvix-build" not in file.src_uri
-                and is_juvix_markdown_file(Path(file.src_uri))
+                if not set(Path(file.src_uri).parts) & set(SKIP_DIRS)
                 and file.is_documentation_page()
                 and not file.is_media_file()
             ]

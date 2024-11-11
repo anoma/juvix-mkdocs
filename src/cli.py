@@ -483,7 +483,7 @@ def new(
                     f"--name={project_name}",
                     f"--description='{description}'",
                     f"--author={site_author}",
-                    "--python=^3.10",
+                    "--python=>=\"3.10,<3.14\"",
                 ],
                 cwd=project_path,
                 check=True,
@@ -518,12 +518,13 @@ def new(
             output = subprocess.run(
                 poetry_cmd,
                 cwd=project_path,
-                check=True,
+                # check=True,
                 capture_output=True,
             )
             if output.returncode != 0:
                 click.secho(f"Failed to install {package_name} using Poetry.", fg="red")
-                click.secho(f"Error: {output.stderr.decode().strip()}", fg="red")
+                click.secho(output.stdout.decode("utf-8").strip())
+                click.secho(f"Error: {output.stderr.decode('utf-8').strip()}", fg="red")
             else:
                 click.secho("Done.", fg="green")
         except Exception as e:

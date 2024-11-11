@@ -45,14 +45,17 @@ from mkdocs.plugins import get_plugin_logger
 
 from mkdocs_juvix.env import ENV
 from mkdocs_juvix.utils import find_file_in_subdirs  # type: ignore
+from mkdocs_juvix.utils import time_spent as time_spent_decorator
 
-log = get_plugin_logger(f"{Fore.BLUE}[juvix_mkdocs-snippets]{Style.RESET_ALL}")
+log = get_plugin_logger(f"{Fore.BLUE}[juvix_mkdocs] (snippets) {Style.RESET_ALL}")
+
+def time_spent(message: Optional[Any] = None, print_result: bool = False):
+    return time_spent_decorator(log=log, message=message, print_result=print_result)
 
 MI = 1024 * 1024  # mebibyte (MiB)
 DEFAULT_URL_SIZE = MI * 32
 DEFAULT_URL_TIMEOUT = 10.0  # in seconds
 DEFAULT_URL_REQUEST_HEADERS = {}  # type: ignore
-
 
 PY39 = (3, 9) <= sys.version_info
 
@@ -90,7 +93,6 @@ RE_SNIPPET_FILE = re.compile(r"(?i)(.*?)(?:(:[0-9]*)?(:[0-9]*)?|(:[a-z][-_0-9a-z
 
 class SnippetMissingError(Exception):
     """Snippet missing exception."""
-
 
 class SnippetPreprocessor(Preprocessor):
     """Handle snippets in Markdown content."""
@@ -134,7 +136,6 @@ class SnippetPreprocessor(Preprocessor):
         backup_path=None,
     ):
         """Extract the specified section from the lines."""
-
         new_lines = []
         start = False
         found = False
@@ -200,8 +201,11 @@ class SnippetPreprocessor(Preprocessor):
 
             log.error(
                 f"The snippet section {Fore.YELLOW}{section}{Style.RESET_ALL} could not be located."
-                f"This is likely because the section is inside a Juvix code block, which is currently not supported in Juvix v0.6.6 or previous versions. Consider wrapping the Juvix code block with a section snippet instead."
-                f"Error found in the file {Fore.GREEN}{backup_path}{Style.RESET_ALL} for the section {Fore.YELLOW}{section}{Style.RESET_ALL}."
+                f"This is likely because the section is inside a Juvix code block, which is"
+                f" currently not supported in Juvix v0.6.6 or previous versions. Consider wrapping "
+                f"the Juvix code block with a section snippet instead."
+                f"Error found in the file {Fore.GREEN}{backup_path}{Style.RESET_ALL} for the section"
+                f"{Fore.YELLOW}{section}{Style.RESET_ALL}."
             )
         return self.dedent(new_lines) if self.dedent_subsections else new_lines
 
@@ -278,7 +282,7 @@ class SnippetPreprocessor(Preprocessor):
         self, lines, file_name=None, is_url=False, is_juvix=False, is_isabelle=False
     ) -> list[str]:
         """Parse snippets snippet."""
-        log.debug(f"Parsing snippets {file_name if file_name else ''}")
+        log.info(f"Parsing snippets{Fore.GREEN}{file_name if file_name else ''}{Style.RESET_ALL}")
 
         if file_name:
             # Track this file.

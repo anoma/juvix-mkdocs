@@ -31,10 +31,7 @@ def fix_site_url(config: MkDocsConfig) -> MkDocsConfig:
     if not config["site_url"].endswith("/"):
         config["site_url"] += "/"
 
-    log.info(f"site_url: {config['site_url']}")
     config["docs_version"] = version
-
-    log.info(f"Set site_url to {config['site_url']}")
     os.environ["SITE_URL"] = config["site_url"]
     return config
 

@@ -128,10 +128,12 @@ def process_images(
     for start, end, new_url in reversed(replacements):
         markdown_text = markdown_text[:start] + new_url + markdown_text[end:]
 
-    ignore_tree = create_ignore_tree(markdown_text)
-    replacements = find_replacements(markdown_text, ignore_tree, html=True)
-    for start, end, new_url in reversed(replacements):
-        markdown_text = markdown_text[:start] + new_url + markdown_text[end:]
+    if "<img" in markdown_text:
+        ignore_tree = create_ignore_tree(markdown_text)
+        replacements = find_replacements(markdown_text, ignore_tree, html=True)
+        for start, end, new_url in reversed(replacements):
+            markdown_text = markdown_text[:start] + new_url + markdown_text[end:]
+
     return markdown_text
 
 
@@ -209,7 +211,8 @@ class ImagesPlugin(BasePlugin):
                     await self._generate_dot_svg(dot_file)
                     if svg_file.exists():
                         log.info(
-                            f"Requested SVG for {Fore.GREEN}{dot_file}{Style.RESET_ALL} generated: {Fore.GREEN}{svg_file}{Style.RESET_ALL}"
+                            f"Requested SVG for {Fore.GREEN}{dot_file.relative_to(self.env.DOCS_PATH)}{Style.RESET_ALL} "
+                            f"agenerated: {Fore.GREEN}{svg_file.relative_to(self.env.DOCS_PATH)}{Style.RESET_ALL}"
                         )
                         self.env.update_hash_file(dot_file)
                 return svg_file
@@ -224,13 +227,14 @@ class ImagesPlugin(BasePlugin):
                 for dot_file in dot_files:
                     nursery.start_soon(process_dot_file, dot_file)
 
-        if dot_files:
+        if dot_files and self.env.FIRST_RUN:
             time_start = time.time()
             trio.run(run_in_parallel, dot_files)
             time_end = time.time()
             log.info(
                 f"SVG generation took {Fore.GREEN}{time_end - time_start:.5f}{Style.RESET_ALL} seconds"
             )
+            self.env.FIRST_RUN = False
 
         config["images"] = {}  # page: [image]
         config.setdefault("current_page", None)  # current page being processed

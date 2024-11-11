@@ -183,8 +183,8 @@ def time_spent(
             if print_result and result:
                 log_message = f"{Fore.MAGENTA}{result}{Style.RESET_ALL} {log_message}"
             log_message = f"{Fore.YELLOW}{message or func.__name__}{Style.RESET_ALL}: {log_message}"
-            log.info(log_message)
-
+            if os.getenv("DEBUG", False):
+                log.info(log_message)
             if exception:
                 raise exception
             return result
