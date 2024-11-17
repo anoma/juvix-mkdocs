@@ -407,9 +407,8 @@ class SnippetPreprocessor(Preprocessor):
                 if snippet:
                     original = snippet
                     if not just_raw and snippet.endswith(".juvix.md"):
-                        snippet = self.env.CACHE_MARKDOWN_JUVIX_OUTPUT_PATH / Path(
-                            snippet.replace(".juvix.md", ".md")
-                        ).relative_to(self.env.DOCS_PATH)
+                        snippet = self.env.compute_filepath_for_cached_output_of_juvix_markdown_file(Path(snippet))
+
                         if not snippet.exists():
                             log.warning(
                                 f"Juvix Markdown file does not exist: {Fore.RED}{snippet}{Style.RESET_ALL}, report this issue on GitHub!"
@@ -417,14 +416,14 @@ class SnippetPreprocessor(Preprocessor):
                             snippet = original
 
                     if requires_thy:
-                        relative_path = Path(original).relative_to(self.env.DOCS_PATH)
-                        snippet = self.env.CACHE_ISABELLE_OUTPUT_PATH / Path(
-                            relative_path.as_posix().replace(".juvix.md", ".thy")
-                        )
+                        snippet = self.env.compute_filepath_for_juvix_isabelle_output_in_cache(Path(original))
+                        if snippet is None:
+                            snippet = original
+
                         log.info(
                             f"Snippet is an Isabelle file: {Fore.GREEN}{snippet}{Style.RESET_ALL}"
                         )
-                        if not snippet.exists():
+                        if snippet is not None and not Path(snippet).exists():
                             log.warning(
                                 f"Isabelle file does not exist: {Fore.RED}{snippet}{Style.RESET_ALL}, "
                                 f"did you forget e.g. to add `isabelle: true` to the meta in the corresponding Juvix file?"

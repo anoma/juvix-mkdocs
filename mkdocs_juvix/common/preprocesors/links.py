@@ -2,7 +2,7 @@ import os
 import re
 import time
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, List, Optional, Tuple
 from urllib.parse import urljoin
 
 import numpy as np  # type: ignore
@@ -72,7 +72,6 @@ def process_wikilinks(
         for m in WIKILINK_PATTERN.finditer(text):
             start, end = m.start(), m.end()
             if should_process_match(ignore_tree, start, end):
-                
                 link = process_wikilink(mkconfig, text, m, md_filepath)
                 if link is not None:
                     replacements.append((start, end, link.markdown()))
@@ -251,8 +250,8 @@ class WLPreprocessor(Preprocessor):
 
         time_start = time.time()
 
-        # if self.run_snippet_preprocessor:
-        #     lines = self.snippet_preprocessor.run(lines)
+        if self.run_snippet_preprocessor:
+            lines = self.snippet_preprocessor.run(lines)
 
         # Combine all lines into a single string
         full_text = "\n".join(lines)
