@@ -422,7 +422,7 @@ class ENV:
             log.error(f"Error copying folder: {e}")
 
 
-    def get_expected_filepath_for_juvix_markdown_output_in_cache(
+    def compute_filepath_for_juvix_markdown_output_in_cache(
         self, filepath: Path
     ) -> Optional[Path]:
         cache_markdown_filename: Optional[str] = self.get_filename_module_by_extension(
@@ -438,7 +438,7 @@ class ENV:
         )
         return cache_markdown_filepath
 
-    def compute_filepath_for_juvix_isabelle_output(
+    def compute_filepath_for_juvix_isabelle_output_in_cache(
         self, filepath: Path
     ) -> Optional[Path]:
         cache_isabelle_filename: Optional[str] = self.get_filename_module_by_extension(
