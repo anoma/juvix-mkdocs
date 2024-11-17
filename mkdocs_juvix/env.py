@@ -20,7 +20,7 @@ from semver import Version
 from mkdocs_juvix.juvix_version import MIN_JUVIX_VERSION
 import mkdocs_juvix.utils as utils
 
-log = get_plugin_logger(f"{Fore.BLUE}[juvix_mkdocs-env]{Style.RESET_ALL}")
+log = get_plugin_logger(f"{Fore.BLUE}[juvix_mkdocs] (env) {Style.RESET_ALL}")
 
 BASE_PATH = Path(__file__).parent
 FIXTURES_PATH = BASE_PATH / "fixtures"
@@ -308,13 +308,11 @@ class ENV:
 
         return wrapper
 
-    @lru_cache(maxsize=128)
     def read_markdown_file_from_cache(self, filepath: Path) -> Optional[str]:
-        if cache_ABSpath := self.get_filepath_for_cache_markdown_output_of_juvix_markdown_file(filepath):
+        if cache_ABSpath := self.compute_filepath_for_cached_output_of_juvix_markdown_file(filepath):
             return cache_ABSpath.read_text()
         return None
 
-    @lru_cache(maxsize=128)
     def read_wikilinks_file_from_cache(self, filepath: Path) -> Optional[str]:
         if cache_ABSpath := self.get_filepath_for_wikilinks_in_cache(filepath):
             return cache_ABSpath.read_text()
@@ -329,13 +327,13 @@ class ENV:
         rel_to_docs = filepath.relative_to(self.DOCS_ABSPATH)
         return self.CACHE_WIKILINKS_PATH / rel_to_docs.parent / filepath.name
 
-    def get_expected_filepath_for_cached_hash_for(self, filepath: Path) -> Path:
+    def compute_filepath_for_cached_hash_for(self, filepath: Path) -> Path:
         file_abspath = filepath.absolute()
         return utils.get_filepath_for_cached_hash_for(file_abspath, hash_dir=self.CACHE_HASHES_PATH)
 
     def is_file_new_or_changed_for_cache(self, filepath: Path) -> bool:
         file_abspath = filepath.absolute()
-        hash_file = self.get_expected_filepath_for_cached_hash_for(file_abspath)
+        hash_file = self.compute_filepath_for_cached_hash_for(file_abspath)
         if not hash_file.exists():
             return True  # File is new
         # compute the hash of the file content to check if it has changed
@@ -345,13 +343,13 @@ class ENV:
 
     def update_cache_for_file(self, filepath: Path, file_content: str) -> None:
         file_abspath = filepath.absolute()
-        cache_filepath = self.get_expected_filepath_for_cached_hash_for(file_abspath)
+        cache_filepath = self.compute_filepath_for_cached_hash_for(file_abspath)
         cache_filepath.parent.mkdir(parents=True, exist_ok=True)
         cache_filepath.write_text(file_content)
         self.update_hash_file(file_abspath)
 
     @lru_cache(maxsize=128)
-    def get_filepath_for_cache_markdown_output_of_juvix_markdown_file(
+    def compute_filepath_for_cached_output_of_juvix_markdown_file(
         self, filepath: Path
     ) -> Path:
         file_abspath = filepath.absolute()
@@ -400,7 +398,7 @@ class ENV:
         return module_name + extension if module_name else None
 
     def update_hash_file(self, filepath: Path) -> Optional[Tuple[Path, str]]:
-        filepath_hash = self.get_expected_filepath_for_cached_hash_for(filepath)
+        filepath_hash = self.compute_filepath_for_cached_hash_for(filepath)
         try:
             with open(filepath_hash, "w") as f:
                 content_hash = utils.hash_content_of(filepath)
@@ -440,7 +438,7 @@ class ENV:
         )
         return cache_markdown_filepath
 
-    def get_expected_filepath_for_juvix_isabelle_output_in_cache(
+    def compute_filepath_for_juvix_isabelle_output(
         self, filepath: Path
     ) -> Optional[Path]:
         cache_isabelle_filename: Optional[str] = self.get_filename_module_by_extension(

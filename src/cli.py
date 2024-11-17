@@ -473,6 +473,7 @@ def new(
     try:
         poetry_file = project_path / "pyproject.toml"
         click.secho("Creating pyproject.toml... ", nl=False)
+        python_version = ">=3.10,<3.14"
         if not poetry_file.exists() or force:
             click.secho("Initializing poetry project... ", nl=False)
             subprocess.run(
@@ -483,7 +484,8 @@ def new(
                     f"--name={project_name}",
                     f"--description='{description}'",
                     f"--author={site_author}",
-                    "--python=>=\"3.10,<3.14\"",
+                    "--license=MIT",
+                    f"--python={python_version}",
                 ],
                 cwd=project_path,
                 check=True,
@@ -511,25 +513,27 @@ def new(
         )
 
         click.secho(f"Installing {alias_package_name}... ", nl=False)
-        poetry_cmd = [POETRY_BIN, "add", package_name, "-q", "-n"]
+        poetry_cmd = [POETRY_BIN, "add", package_name, "-n"]
         if development_flag:
             poetry_cmd.append("--editable")
         try:
             output = subprocess.run(
                 poetry_cmd,
                 cwd=project_path,
-                # check=True,
                 capture_output=True,
             )
             if output.returncode != 0:
-                click.secho(f"Failed to install {package_name} using Poetry.", fg="red")
+                # print complete output
                 click.secho(output.stdout.decode("utf-8").strip())
                 click.secho(f"Error: {output.stderr.decode('utf-8').strip()}", fg="red")
+                if not no_interactive:
+                    if questionary.confirm("Continue?", default=True).ask():
+                        return
+                    
             else:
                 click.secho("Done.", fg="green")
         except Exception as e:
             click.secho(f"{e}", fg="red")
-            raise
 
     try:
         if in_development:
