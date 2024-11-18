@@ -282,8 +282,6 @@ class SnippetPreprocessor(Preprocessor):
         self, lines, file_name=None, is_url=False, is_juvix=False, is_isabelle=False
     ) -> list[str]:
         """Parse snippets snippet."""
-        log.info(f"Parsing snippets{Fore.GREEN}{file_name if file_name else ''}{Style.RESET_ALL}")
-
         if file_name:
             # Track this file.
             self.seen.add(file_name)

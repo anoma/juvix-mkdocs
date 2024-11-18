@@ -1,6 +1,6 @@
 ---
-isabelle:
-  generate: true
+preprocess:
+  isabelle: true
   include_at_bottom: true
 ---
 
