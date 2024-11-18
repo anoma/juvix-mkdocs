@@ -35,6 +35,8 @@ from mkdocs_juvix.utils import (
 )
 
 warnings.filterwarnings("ignore", category=DeprecationWarning)
+warnings.filterwarnings("ignore", message="DeprecationWarning.*")
+
 load_dotenv()
 
 log: PrefixedLogger = get_plugin_logger(f"{Fore.BLUE}[juvix_mkdocs]{Style.RESET_ALL}")
@@ -1003,11 +1005,10 @@ class EnhancedMarkdownCollection:
             log.error("No files to process")
             return
 
-        log.info(f"Processing {Fore.GREEN}{len(self.files)}{Style.RESET_ALL} files...")
+        log.info(f"Processing {Fore.GREEN}{len(self.files)}{Style.RESET_ALL} files... for Markdown={generate_markdown} and HTML={generate_html}")
 
         for file in self.files:
             if generate_markdown:
-                log.info(f"Processing markdown for {Fore.GREEN}{file}{Style.RESET_ALL}")
                 file.generate_markdown_output(save=True)
 
         if generate_html:
@@ -1246,12 +1247,13 @@ class JuvixPlugin(BasePlugin):
         return str(soup)
 
     def on_post_build(self, config: MkDocsConfig) -> None:
-        log.info("Generating HTML for files...")    
+        log.info("> post build task: generating HTML for files")    
         self.enhanced_collection.run_pipeline(
             generate_markdown=False,
             generate_html=True,
         )
         self.move_html_cache_to_site_dir()
+        
 
 
     def move_html_cache_to_site_dir(self) -> None:
@@ -1385,8 +1387,8 @@ class JuvixPlugin(BasePlugin):
         )
         if needs_to_update_cached_juvix_version:
             log.info(
-                f"> writing Juvix version to cache: "
-                f"{Fore.GREEN}{self.env.JUVIX_VERSION}{Style.RESET_ALL}"
+                f"> Juvix version: "
+                f"{Back.WHITE}{Fore.BLACK}{self.env.JUVIX_VERSION}{Back.RESET}{Style.RESET_ALL}"
             )
             self.env.CACHE_JUVIX_VERSION_FILEPATH.write_text(self.env.JUVIX_VERSION)
 

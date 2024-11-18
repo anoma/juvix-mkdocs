@@ -3,6 +3,7 @@ site_author: !ENV [SITE_AUTHOR, "{site_author}"]
 site_description: !ENV [SITE_DESCRIPTION, "Documentation project with support
 for Juvix code blocks syntax highlighting."]
 site_dir: !ENV [SITE_DIR, '{site_dir}']
+site_version: !ENV [SITE_VERSION, 'v0.1.0']
 copyright: !ENV [COPYRIGHT, "&copy; {year} <a
 href=\"https://github.com/anoma/juvix-mkdocs\">juvix-mkdocs</a>"]
 repo_url: !ENV [REPO_URL, '{repo_url}']
@@ -12,7 +13,22 @@ exclude_docs: |
   */**/.juvix-build/
   */**/.hooks/
 nav:
-{nav}
+  - Home: index.md
+  - Installation: tutorial/installation.md
+  - Juvix Code Blocks: 
+    - Tutorial Juvix Markdown: tutorial/juvix_markdown.md
+    - Test Juvix Markdown: test.juvix.md
+    - Everything: everything.juvix.md
+  - Generate Isabelle theories: 
+    - Tutorial Isabelle: tutorial/isabelle.md
+    - Test Isabelle: isabelle.juvix.md
+  - Snippets: tutorial/snippets.md
+  - Wiki Links: tutorial/wikilinks.md
+  - Bibliography: tutorial/bibliography.md
+  - Diagrams:
+    - Tutorial Diagrams: tutorial/diagrams_using_kroki.md
+    - Test Diagrams: diagrams.juvix.md
+  - Todos: tutorial/todos.md
 
 plugins:
   - search

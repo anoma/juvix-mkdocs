@@ -168,7 +168,7 @@ class WikilinksPlugin(BasePlugin):
         )
 
         log.info(
-            f"Processing {Fore.YELLOW}{len(files)}{Style.RESET_ALL} files to extract aliases"
+            f"Processing {Fore.GREEN}{len(files)}{Style.RESET_ALL} files to extract aliases"
         )
 
         def process_file(file: File) -> None:

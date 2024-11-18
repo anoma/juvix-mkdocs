@@ -1,3 +1,6 @@
+  - mdx_truly_sane_lists:
+      nested_indent: 2
+      truly_sane: true
   - pymdownx.superfences:
       custom_fences:
         - name: mermaid
