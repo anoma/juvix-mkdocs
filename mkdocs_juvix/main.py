@@ -3,12 +3,11 @@ import re
 import shutil
 import subprocess
 import textwrap
+import warnings
 from os import getenv
 from pathlib import Path
-from typing import Callable, List, Optional, Dict, Any, TypeVar
+from typing import Any, Callable, Dict, List, Optional, TypeVar
 from urllib.parse import urljoin
-from tqdm import tqdm  # type:ignore
-import warnings
 
 import pathspec
 import yaml  # type:ignore
@@ -16,23 +15,23 @@ from bs4 import BeautifulSoup  # type:ignore
 from colorama import Back, Fore, Style  # type: ignore
 from dotenv import load_dotenv
 from mkdocs.config.defaults import MkDocsConfig
-from mkdocs.plugins import BasePlugin, get_plugin_logger
+from mkdocs.plugins import BasePlugin, PrefixedLogger, get_plugin_logger
 from mkdocs.structure.files import Files
 from mkdocs.structure.pages import Page
 from semver import Version
+from tqdm import tqdm  # type:ignore
 from watchdog.events import FileSystemEvent
 
-from mkdocs.plugins import PrefixedLogger
 from mkdocs_juvix.env import ENV, FIXTURES_PATH
 from mkdocs_juvix.images import process_images
 from mkdocs_juvix.snippets import RE_SNIPPET_SECTION
 from mkdocs_juvix.utils import (
     compute_sha_over_folder,
     fix_site_url,
-    is_juvix_markdown_file,
     hash_content_of,
-    time_spent as time_spent_decorator,
+    is_juvix_markdown_file,
 )
+from mkdocs_juvix.utils import time_spent as time_spent_decorator
 
 warnings.filterwarnings("ignore", category=DeprecationWarning)
 warnings.filterwarnings("ignore", message="DeprecationWarning.*")
@@ -543,35 +542,32 @@ class EnhancedMarkdownFile:
                 self.save_error_message(output.stderr, "html")
                 return None
             self.clear_error_message("html")
-            
+
             # ------------------------------------------------------------
             # Rename the HTML files of Juvix Markdown files, .html -> .judoc.html
             # ------------------------------------------------------------
 
-            for _file in self.env.CACHE_ORIGINALS_ABSPATH.rglob(
-                "*.juvix.md"
-            ):
-                    
+            for _file in self.env.CACHE_ORIGINALS_ABSPATH.rglob("*.juvix.md"):
                 file = _file.absolute()
                 html_file_path = (
                     self.env.CACHE_HTML_PATH
-                    / file.relative_to(
-                        self.env.CACHE_ORIGINALS_ABSPATH
-                    ).parent
+                    / file.relative_to(self.env.CACHE_ORIGINALS_ABSPATH).parent
                     / file.name.replace(".juvix.md", ".html")
                 )
 
                 if html_file_path.exists():
                     html_file_path.rename(
-                        self.env.CACHE_HTML_PATH / html_file_path.name.replace(".html", "-judoc.html")
+                        self.env.CACHE_HTML_PATH
+                        / html_file_path.name.replace(".html", "-judoc.html")
                     )
 
             index_file = self.env.CACHE_HTML_PATH / "index.html"
             if index_file.exists():
                 index_file.rename(
-                    self.env.CACHE_HTML_PATH / index_file.name.replace(".html", ".judoc.html")
+                    self.env.CACHE_HTML_PATH
+                    / index_file.name.replace(".html", ".judoc.html")
                 )
-            
+
             # ------------------------------------------------------------
             # Update assets
             # ------------------------------------------------------------
@@ -841,19 +837,20 @@ class EnhancedMarkdownFile:
                 # Continue even if saving fails
         return markdown_output
 
+
 SKIP_DIRS = [
-            ".juvix-build",
-            ".git",
-            "images",
-            "assets",
-            "references",
-        ]
+    ".juvix-build",
+    ".git",
+    "images",
+    "assets",
+    "references",
+]
+
 
 class EnhancedMarkdownCollection:
     """
     A collection of EnhancedMarkdownFile objects.
     """
-    
 
     @time_spent(message="> initializing enhanced markdown collection")
     def __init__(self, env: ENV, docs: Optional[Path] = None):
@@ -886,10 +883,11 @@ class EnhancedMarkdownCollection:
         Cache the original Juvix Markdown files in the cache folder for faster
         lookup.
         """
-        
 
         try:
-            log.info(f"Collecting Markdown files for pre-processing from {Fore.GREEN}{self.docs_path}{Style.RESET_ALL}")
+            log.info(
+                f"Collecting Markdown files for pre-processing from {Fore.GREEN}{self.docs_path}{Style.RESET_ALL}"
+            )
 
             self.files = []
             md_files = self.docs_path.rglob("*.md")
@@ -1005,7 +1003,9 @@ class EnhancedMarkdownCollection:
             log.error("No files to process")
             return
 
-        log.info(f"Processing {Fore.GREEN}{len(self.files)}{Style.RESET_ALL} files... for Markdown={generate_markdown} and HTML={generate_html}")
+        log.info(
+            f"Processing {Fore.GREEN}{len(self.files)}{Style.RESET_ALL} files... for Markdown={generate_markdown} and HTML={generate_html}"
+        )
 
         for file in self.files:
             if generate_markdown:
@@ -1039,15 +1039,12 @@ class EnhancedMarkdownCollection:
             return
 
         needs_to_generate_html = self.is_html_cache_empty() or self.has_changes()
-        
+
         if not needs_to_generate_html and not force:
             log.info("No changes detected, skipping HTML generation")
             return
-        
-        if (
-            self.everything_html_file
-            and needs_to_generate_html
-        ):
+
+        if self.everything_html_file and needs_to_generate_html:
             self.everything_html_file.generate_html(update_assets=True)
             return
 
@@ -1057,7 +1054,7 @@ class EnhancedMarkdownCollection:
             f"of the docs folder){Style.RESET_ALL}"
         )
 
-        self.remove_html_cache() 
+        self.remove_html_cache()
         self.env.CACHE_HTML_PATH.mkdir(parents=True, exist_ok=True)
 
         for file in self.files:
@@ -1167,8 +1164,8 @@ class JuvixPlugin(BasePlugin):
         # if self.env.FIRST_RUN and self.env.juvix_enabled:
         self.enhanced_collection.run_pipeline(
             generate_markdown=True,
-                generate_html=False,
-            )
+            generate_html=False,
+        )
 
         # self.env.FIRST_RUN = False
 
@@ -1178,8 +1175,8 @@ class JuvixPlugin(BasePlugin):
                 file
                 for file in files
                 if file.abs_src_path
-                and not set(Path(file.abs_src_path).parts) & 
-                set([".juvix-build", ".git"])
+                and not set(Path(file.abs_src_path).parts)
+                & set([".juvix-build", ".git"])
             ]
         )
 
@@ -1223,7 +1220,7 @@ class JuvixPlugin(BasePlugin):
         abs_src_str: Optional[str] = page.file.abs_src_path
         if not abs_src_str:
             return markdown
-        
+
         abs_src_path: Path = Path(abs_src_str)
         if not is_juvix_markdown_file(abs_src_path):
             return markdown
@@ -1243,18 +1240,16 @@ class JuvixPlugin(BasePlugin):
         soup = BeautifulSoup(output, "html.parser")
         for a in soup.find_all("a"):
             a["href"] = a["href"].replace(".juvix.html", ".html")
-            
+
         return str(soup)
 
     def on_post_build(self, config: MkDocsConfig) -> None:
-        log.info("> post build task: generating HTML for files")    
+        log.info("> post build task: generating HTML for files")
         self.enhanced_collection.run_pipeline(
             generate_markdown=False,
             generate_html=True,
         )
         self.move_html_cache_to_site_dir()
-        
-
 
     def move_html_cache_to_site_dir(self) -> None:
         """

@@ -24,4 +24,4 @@ This renders as:
     Content of the todo
 
 !!! info
-    Todos are removed from online versions by default. Set `todos: True` in front-matter to keep them. 
+    Todos are removed from online versions by default. Set `todos: True` in front-matter to keep them.

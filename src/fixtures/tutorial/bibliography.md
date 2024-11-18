@@ -18,4 +18,4 @@ plugins:
 Cite references using:
 ```text
 This statement requires a citation [@citation_key].
-``` 
+```

@@ -14,4 +14,4 @@ plugins:
       FailFast: !ENV CI
 ```
 
-See the [[diagrams|Diagrams using Kroki]] page for examples. 
+See the [[diagrams|Diagrams using Kroki]] page for examples.

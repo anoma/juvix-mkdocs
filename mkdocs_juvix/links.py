@@ -156,7 +156,7 @@ class WikilinksPlugin(BasePlugin):
         """When MkDocs loads its files, extract aliases from any Markdown files
         that were found.
         """
-        SKIP_DIRS = [".juvix-build", ".hooks" , ".git"]
+        SKIP_DIRS = [".juvix-build", ".hooks", ".git"]
         files = Files(
             [
                 file

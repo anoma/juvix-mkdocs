@@ -44,4 +44,4 @@ plugins:
 ```
 
 !!! info
-    With `wikilinks` enabled, `snippets` is automatically included. 
+    With `wikilinks` enabled, `snippets` is automatically included.

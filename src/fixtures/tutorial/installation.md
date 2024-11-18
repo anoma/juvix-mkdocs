@@ -67,4 +67,4 @@ juvix-mkdocs serve
     ```bash
     juvix-mkdocs new -n -f -D
     juvix-mkdocs serve -p my-juvix-project
-    ``` 
+    ```

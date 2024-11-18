@@ -521,7 +521,7 @@ def new(
                 if not no_interactive:
                     if questionary.confirm("Continue?", default=True).ask():
                         return
-                    
+
             else:
                 click.secho("Done.", fg="green")
         except Exception as e:
@@ -541,7 +541,7 @@ def new(
             "mkdocs-macros-plugin",
             "mkdocs-glightbox",
             "mkdocs-kroki-plugin",
-            "mdx-truly-sane-lists"
+            "mdx-truly-sane-lists",
         ]
         for plugin in rest_of_plugins:
             install_poetry_package(plugin)

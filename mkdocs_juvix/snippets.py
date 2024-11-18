@@ -49,8 +49,10 @@ from mkdocs_juvix.utils import time_spent as time_spent_decorator
 
 log = get_plugin_logger(f"{Fore.BLUE}[juvix_mkdocs] (snippets) {Style.RESET_ALL}")
 
+
 def time_spent(message: Optional[Any] = None, print_result: bool = False):
     return time_spent_decorator(log=log, message=message, print_result=print_result)
+
 
 MI = 1024 * 1024  # mebibyte (MiB)
 DEFAULT_URL_SIZE = MI * 32
@@ -93,6 +95,7 @@ RE_SNIPPET_FILE = re.compile(r"(?i)(.*?)(?:(:[0-9]*)?(:[0-9]*)?|(:[a-z][-_0-9a-z
 
 class SnippetMissingError(Exception):
     """Snippet missing exception."""
+
 
 class SnippetPreprocessor(Preprocessor):
     """Handle snippets in Markdown content."""
@@ -405,7 +408,9 @@ class SnippetPreprocessor(Preprocessor):
                 if snippet:
                     original = snippet
                     if not just_raw and snippet.endswith(".juvix.md"):
-                        snippet = self.env.compute_filepath_for_cached_output_of_juvix_markdown_file(Path(snippet))
+                        snippet = self.env.compute_filepath_for_cached_output_of_juvix_markdown_file(
+                            Path(snippet)
+                        )
 
                         if not snippet.exists():
                             log.warning(
@@ -414,7 +419,9 @@ class SnippetPreprocessor(Preprocessor):
                             snippet = original
 
                     if requires_thy:
-                        snippet = self.env.compute_filepath_for_juvix_isabelle_output_in_cache(Path(original))
+                        snippet = self.env.compute_filepath_for_juvix_isabelle_output_in_cache(
+                            Path(original)
+                        )
                         if snippet is None:
                             snippet = original
 

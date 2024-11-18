@@ -15,11 +15,11 @@ exclude_docs: |
 nav:
   - Home: index.md
   - Installation: tutorial/installation.md
-  - Juvix Code Blocks: 
+  - Juvix Code Blocks:
     - Tutorial Juvix Markdown: tutorial/juvix_markdown.md
     - Test Juvix Markdown: test.juvix.md
     - Everything: everything.juvix.md
-  - Generate Isabelle theories: 
+  - Generate Isabelle theories:
     - Tutorial Isabelle: tutorial/isabelle.md
     - Test Isabelle: isabelle.juvix.md
   - Snippets: tutorial/snippets.md

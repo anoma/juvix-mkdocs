@@ -17,8 +17,8 @@ from mkdocs.config.defaults import MkDocsConfig
 from mkdocs.plugins import get_plugin_logger
 from semver import Version
 
-from mkdocs_juvix.juvix_version import MIN_JUVIX_VERSION
 import mkdocs_juvix.utils as utils
+from mkdocs_juvix.juvix_version import MIN_JUVIX_VERSION
 
 log = get_plugin_logger(f"{Fore.BLUE}[juvix_mkdocs] (env) {Style.RESET_ALL}")
 
