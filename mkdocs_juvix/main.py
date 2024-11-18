@@ -166,6 +166,8 @@ class EnhancedMarkdownFile:
                 "snippets": None,
             }
 
+            self.load_error_messages()
+
         except Exception as e:
             log.error(f"Error initializing JuvixMarkdownFile: {e}")
             raise
@@ -352,6 +354,20 @@ class EnhancedMarkdownFile:
             return error_message
         return None
 
+    def load_error_messages(self) -> None:
+        """Load the error messages from cache and file of previous run."""
+        for kind in self._cached_error_messages:
+            error_message = self.get_error_message(kind)
+            self._cached_error_messages[kind] = error_message
+            if error_message:
+                log.error(
+                    template_error_message(
+                        self.absolute_filepath,
+                        [kind],
+                        error_message,
+                    )
+                )
+
     def clear_error_messages(self, kind: str = "markdown") -> None:
         """Clear the error message from cache and file of previous run."""
 
@@ -372,6 +388,8 @@ class EnhancedMarkdownFile:
 
     def add_errors_to_markdown(
         self,
+        content: str,
+        clear_errors: bool = False,
     ) -> Optional[str]:
         """
         Format the error message to include it in the Markdown output of the
@@ -383,6 +401,9 @@ class EnhancedMarkdownFile:
         # check if there are any error messages
         if all(value is None for value in self._cached_error_messages.values()):
             return None
+
+        if clear_errors:
+            self.clear_error_messages()
 
         def format_error_message(kind: str) -> str:
             error_message = self.get_error_message(kind)
@@ -402,19 +423,17 @@ class EnhancedMarkdownFile:
             if self._cached_error_messages[kind]
         )
 
-        content = self.markdown_output
-        if content:
-            metadata = parse_front_matter(content)
-            if metadata:
-                end_index: int = content.find("---", 3)
-                front_matter: str = content[3:end_index].strip()
-                return (
-                    f"---\n"
-                    f"{front_matter}\n"
-                    f"---\n\n"
-                    f"{formatted_error_msgs}\n\n"
-                    f"{content[end_index+3:]}"
-                )
+        metadata = parse_front_matter(content)
+        if metadata:
+            end_index: int = content.find("---", 3)
+            front_matter: str = content[3:end_index].strip()
+            return (
+                f"---\n"
+                f"{front_matter}\n"
+                f"---\n\n"
+                f"{formatted_error_msgs}\n\n"
+                f"{content[end_index+3:]}"
+            )
         return f"{formatted_error_msgs}\n\n{content or ''}"
 
     # ------------------------------------------------------------
@@ -801,11 +820,13 @@ class EnhancedMarkdownFile:
         needs_juvix_markdown = is_juvix_markdown_file(self.absolute_filepath) and (
             preprocess.get("juvix", True)
         )
+        juvix_succeeded = False
         if needs_juvix_markdown:
             _output = self.process_juvix_markdown()
             self._processed_juvix_markdown = False
             if _output:
                 markdown_output = _output
+                juvix_succeeded = True
             self._processed_juvix_markdown = True
 
         # ------------------------------------------------------------
@@ -831,7 +852,7 @@ class EnhancedMarkdownFile:
             "isabelle_at_bottom",
             self._needs_isabelle,
         )
-        if self._needs_isabelle or self._needs_isabelle_at_bottom:
+        if (self._needs_isabelle or self._needs_isabelle_at_bottom) and juvix_succeeded:
             _output = self.process_isabelle_translation(
                 content=markdown_output,
                 modify_markdown_output=self._needs_isabelle_at_bottom,
@@ -854,7 +875,7 @@ class EnhancedMarkdownFile:
                 self._processed_snippets = True
 
         # ------------------------------------------------------------
-        # Process Wikilinks TODO
+        # Process Wikilinks
         # ------------------------------------------------------------
         _output = self.process_wikilinks(
             content=markdown_output,
@@ -868,8 +889,9 @@ class EnhancedMarkdownFile:
         # ------------------------------------------------------------
         # Add the error messages to the markdown output
         # ------------------------------------------------------------
-
-        _output = self.add_errors_to_markdown()
+        _output = self.add_errors_to_markdown(
+            content=markdown_output, clear_errors=True
+        )
         self._processed_errors = False
         if _output:
             markdown_output = _output
