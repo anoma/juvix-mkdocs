@@ -30,7 +30,6 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 import codecs
 import functools
-import os
 import re
 import sys
 import textwrap
@@ -113,11 +112,12 @@ class SnippetPreprocessor(Preprocessor):
     dedent_subsections: bool = True
     tab_length: int = 2
 
-
-    def __init__(self, 
-                 config: Optional[Any] = None, 
-                 md: Optional[Any] = None, 
-                 env: Optional[ENV] = None):
+    def __init__(
+        self,
+        config: Optional[Any] = None,
+        md: Optional[Any] = None,
+        env: Optional[ENV] = None,
+    ):
         """Initialize."""
 
         if env is None:
@@ -127,9 +127,7 @@ class SnippetPreprocessor(Preprocessor):
 
         base = self.base_path
 
-
         if config is not None:
-
             base = config.get("base_path")
             self.base_path = []
             for b in base:
@@ -210,12 +208,13 @@ class SnippetPreprocessor(Preprocessor):
             # We are currently in a section, so append the line
             if start:
                 new_lines.append(ln)
-
+        showed_error = False
         if not found and self.check_paths:
             if not is_juvix:
                 log.error(
                     f"[!] Snippet section {Fore.YELLOW}{section}{Style.RESET_ALL} could not be located"
                 )
+                showed_error = True
             # juvix
             elif backup_lines is not None:
                 return self.extract_section(
@@ -227,14 +226,14 @@ class SnippetPreprocessor(Preprocessor):
                     backup_path=backup_path,
                 )
 
-            log.error(
-                f"The snippet section {Fore.YELLOW}{section}{Style.RESET_ALL} could not be located."
-                f"This is likely because the section is inside a Juvix code block, which is"
-                f" currently not supported in Juvix v0.6.6 or previous versions. Consider wrapping "
-                f"the Juvix code block with a section snippet instead."
-                f"Error found in the file {Fore.GREEN}{backup_path}{Style.RESET_ALL} for the section"
-                f"{Fore.YELLOW}{section}{Style.RESET_ALL}."
-            )
+            if not showed_error:
+                log.error(
+                    f"Snippet section {Fore.YELLOW}{section}{Style.RESET_ALL} not found. "
+                    f"It might be inside a Juvix code block, unsupported in Juvix v0.6.6 or earlier. "
+                    f"Consider using a section snippet. "
+                    f"Error in file {Fore.GREEN}{backup_path}{Style.RESET_ALL} for section "
+                    f"{Fore.YELLOW}{section}{Style.RESET_ALL}."
+                )
         return self.dedent(new_lines) if self.dedent_subsections else new_lines
 
     def dedent(self, lines):
@@ -451,7 +450,7 @@ class SnippetPreprocessor(Preprocessor):
                             snippet = original
 
                         log.info(
-                            f"Snippet is an Isabelle file: {Fore.GREEN}{snippet}{Style.RESET_ALL}"
+                            f"The requested file is an Isabelle file: {Fore.GREEN}{snippet}{Style.RESET_ALL}"
                         )
                         if snippet is not None and not Path(snippet).exists():
                             log.warning(
@@ -555,10 +554,10 @@ class SnippetPreprocessor(Preprocessor):
 
         return new_lines
 
-    def run(self, lines : List[str]) -> List[str]:
+    def run(self, lines: List[str]) -> List[str]:
         """Process snippets."""
 
-        self.seen : set[str] = set()
+        self.seen: set[str] = set()
         if self.auto_append:
             lines.extend(
                 "\n\n-8<-\n{}\n-8<-\n".format("\n\n".join(self.auto_append)).split("\n")

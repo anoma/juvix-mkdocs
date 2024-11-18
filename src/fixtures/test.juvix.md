@@ -11,6 +11,8 @@ import Stdlib.Prelude open;
 
 And this is the second Juvix code block:
 
+<!-- --8<-- [start:main] -->
 ```juvix
 main : String := "Hello world!";
 ```
+<!-- --8<-- [end:main] -->

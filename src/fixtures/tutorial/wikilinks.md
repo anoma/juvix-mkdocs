@@ -1,11 +1,5 @@
 # Wiki Links Support
 
-Enable in `mkdocs.yml`:
-```yaml title="mkdocs.yml"
-plugins:
-  - wikilinks
-```
-
 Wiki links offer a simple method for citing and referencing other pages in the
 documentation without lengthy URLs. **Wiki links are the preferred method for
 linking to other pages** in the documentation, so please use them whenever
@@ -114,6 +108,8 @@ identifying broken links or pages that are not linked to from other pages.
 To disable this feature, set the `list_wikilinks` option to `false` in the front
 matter of the page.
 
-```yaml
+```yaml title="Front-matter of a page"
+---
 list_wikilinks: false
+---
 ```

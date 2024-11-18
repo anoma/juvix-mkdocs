@@ -20,7 +20,6 @@ If you already have a project, add the plugin and add the following to your
 ```yaml title="mkdocs.yml"
 plugins:
   - juvix
-  # - wikilinks
   # - todos
 ```
 
@@ -33,7 +32,7 @@ add the following to the front-matter of the file:
 preprocess:
   juvix: true
   isabelle: true
-  include_at_bottom: true
+  isabelle_at_bottom: true
 ---
 ```
 
@@ -44,5 +43,5 @@ For more information, here are some tutorials:
 - [[Snippets|Snippet support for inclusion of content from external files]]
 - [[Wiki Links|Support for Wiki Links]]
 - [[Bibliography|Bibliography support]]
-- [[Todos|Todos Plugin]]
+- [[Todos|To-do Plugin]]
 - [[Tutorial Diagrams|Diagrams using Kroki]]

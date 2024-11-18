@@ -13,7 +13,6 @@ Add the plugin to your `mkdocs.yml`:
 ```yaml title="mkdocs.yml"
 plugins:
   - juvix
-  # - wikilinks
   # - todos
 ```
 

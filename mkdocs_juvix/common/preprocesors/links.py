@@ -15,7 +15,6 @@ from ncls import NCLS  # type: ignore
 
 from mkdocs_juvix.common.models import FileLoc, WikiLink
 from mkdocs_juvix.env import ENV
-from mkdocs_juvix.snippets import SnippetPreprocessor
 from mkdocs_juvix.utils import time_spent as time_spent_decorator
 
 WIKILINK_PATTERN = re.compile(
@@ -172,83 +171,31 @@ def process_wikilink(config, full_text, match, md_filepath) -> Optional[WikiLink
 
 
 class WLPreprocessor(Preprocessor):
-    run_snippet_preprocessor: bool = True
+    absolute_path: Optional[Path] = None
+    relative_path: Optional[Path] = None
+    cache_filepath: Optional[Path] = None
+    url: Optional[str] = None
 
-    def __init__(self, mkconfig, snippet_preprocessor, env: Optional[ENV] = None):
-        self.mkconfig = mkconfig
+    def __init__(self, config, env: Optional[ENV] = None):
+        self.config = config
         if env is None:
-            self.env = ENV(mkconfig)
+            self.env = ENV(config)
         else:
             self.env = env
 
-        self.snippet_preprocessor: SnippetPreprocessor = snippet_preprocessor
-        # remove the mkdocs_juvix.snippets plugin from the config
-        if "mkdocs_juvix.snippets" in self.mkconfig.mdx_configs:
-            self.mkconfig.mdx_configs.pop("mkdocs_juvix.snippets")
-            self.run_snippet_preprocessor = False
-
         self.current_file = None
 
-    def run(self, lines) -> List[str]:
-        current_page_url = None
-        original_filepath = None
+    def run(self, lines: List[str]) -> List[str]:
+        return self._run("\n".join(lines)).split("\n")
 
-        if "current_page" in self.mkconfig and isinstance(
-            self.mkconfig["current_page"], Page
-        ):
-            page = self.mkconfig.get("current_page", None)
-
-            if page:
-                src_path = page.file.abs_src_path
-                if not src_path:
-                    log.warning(
-                        "Source path not found. Wikilinks will not be processed."
-                    )
-                    return lines
-                original_filepath = Path(src_path)
-                url_relative = self.env.DOCS_PATH / Path(
-                    page.url.replace(".html", ".md")
-                )
-                current_page_url = url_relative.as_posix()
-
-        if not current_page_url:
-            log.warning("Current page URL not found. Wikilinks will not be processed.")
-            return lines
-
-        filepath = Path(current_page_url).absolute()
-        try:
-            rel_to_docs = filepath.relative_to(self.env.DOCS_ABSPATH)
-        except ValueError:
-            rel_to_docs = filepath.relative_to(self.env.DOCS_PATH)
-        finally:
-            rel_to_docs = filepath
-
-        try:
-            cache_filepath: Optional[Path] = (
-                self.env.get_filepath_for_wikilinks_in_cache(filepath)
-            )
-        except Exception as e:
-            log.error(f"Error getting cache filepath for file {rel_to_docs}: {e}")
-            return lines
-
-        if original_filepath:
-            self.env.update_hash_file(original_filepath)
-
+    def _run(self, content: str) -> str:
+        log.info(f"{Fore.MAGENTA}Running wikilinks preprocessor{Style.RESET_ALL}")
         if (
-            cache_filepath
-            and cache_filepath.exists()
-            and original_filepath
-            and not self.env.is_file_new_or_changed_for_cache(original_filepath)
+            self.absolute_path is None
+            and self.relative_path is None
+            and self.url is None
         ):
-            return cache_filepath.read_text().split("\n")
-
-        time_start = time.time()
-
-        if self.run_snippet_preprocessor:
-            lines = self.snippet_preprocessor.run(lines)
-
-        # Combine all lines into a single string
-        full_text = "\n".join(lines)
+            raise ValueError("No absolute path, relative path, or URL provided")
         # Find all code blocks, HTML comments, and script tags in a single pass
         ignore_blocks = re.compile(
             r"(```(?:[\s\S]*?)```|<!--[\s\S]*?-->|<script>[\s\S]*?</script>)", re.DOTALL
@@ -256,21 +203,22 @@ class WLPreprocessor(Preprocessor):
 
         intervals = []
         try:
-            for match in ignore_blocks.finditer(full_text):
+            for match in ignore_blocks.finditer(content):
                 intervals.append((match.start(), match.end(), 1))
         except TimeoutError:
             log.error("Timeout occurred while processing ignore patterns")
-            return lines
+            return content
         except Exception as e:
             log.error(f"Error occurred while processing ignore patterns: {str(e)}")
-            return lines
+            return content
+
         intervals_where_not_to_look = None
         if intervals:
             starts, ends, ids = map(np.array, zip(*intervals))
             intervals_where_not_to_look = NCLS(starts, ends, ids)
 
         # Find all wikilinks
-        str_wikilinks = list(WIKILINK_PATTERN.finditer(full_text))
+        str_wikilinks = list(WIKILINK_PATTERN.finditer(content))
 
         replacements = []
         for m in str_wikilinks:
@@ -279,7 +227,7 @@ class WLPreprocessor(Preprocessor):
                 intervals_where_not_to_look.find_overlap(start, end)
             ):
                 link: Optional[WikiLink] = process_wikilink(
-                    self.mkconfig, full_text, m, current_page_url
+                    self.config, content, m, self.absolute_path
                 )
                 if link is not None:
                     replacements.append(
@@ -290,21 +238,8 @@ class WLPreprocessor(Preprocessor):
                         )
                     )
         for start, end, new_text in reversed(replacements):
-            full_text = full_text[:start] + new_text + full_text[end:]
-        time_end = time.time()
-        log.debug(
-            f"Snippet and wikilinks processing took {Fore.GREEN}{(time_end - time_start):.5f}{Style.RESET_ALL} seconds on file {Fore.GREEN}{rel_to_docs}{Style.RESET_ALL}"
-        )
-
-        if cache_filepath:
-            try:
-                cache_filepath.parent.mkdir(parents=True, exist_ok=True)
-                cache_filepath.write_text(full_text)
-            except Exception as e:
-                log.error(
-                    f"Error writing wikilinks to cache for file {original_filepath}: {e}"
-                )
-        return full_text.split("\n")
+            content = content[:start] + new_text + content[end:]
+        return content
 
 
 def fun_normalise(s):

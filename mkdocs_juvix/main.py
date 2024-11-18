@@ -20,11 +20,12 @@ from mkdocs.plugins import BasePlugin, PrefixedLogger, get_plugin_logger
 from mkdocs.structure.files import Files
 from mkdocs.structure.pages import Page
 from semver import Version
-from tqdm import tqdm  # type:ignore
 from watchdog.events import FileSystemEvent
 
+from mkdocs_juvix.common.preprocesors.links import WLPreprocessor
 from mkdocs_juvix.env import ENV, FIXTURES_PATH
 from mkdocs_juvix.images import process_images
+from mkdocs_juvix.links import TOKEN_LIST_WIKILINKS, WikilinksPlugin
 from mkdocs_juvix.snippets import RE_SNIPPET_SECTION, SnippetPreprocessor
 from mkdocs_juvix.utils import (
     compute_sha_over_folder,
@@ -35,9 +36,9 @@ from mkdocs_juvix.utils import (
 from mkdocs_juvix.utils import time_spent as time_spent_decorator
 
 warnings.filterwarnings("ignore", category=DeprecationWarning)
-warnings.filterwarnings("ignore", message="DeprecationWarning.*")
 
 load_dotenv()
+os.environ["DEBUG"] = "true"
 
 log: PrefixedLogger = get_plugin_logger(f"{Fore.BLUE}[juvix_mkdocs]{Style.RESET_ALL}")
 
@@ -47,7 +48,6 @@ def time_spent(message: Optional[Any] = None, print_result: bool = False):
 
 
 ERROR_MESSAGE_EXTENSION = ".error-"
-
 
 _pipeline: str = """ For reference, the Mkdocs Pipeline is the following:
 ├── on_startup(command, dirty)
@@ -100,8 +100,9 @@ class EnhancedMarkdownFile:
     - Incrusted Isabelle theories
     """
 
-    def __init__(self, filepath: Path, env: ENV):
+    def __init__(self, filepath: Path, env: ENV, config: MkDocsConfig):
         self.env: ENV = env
+        self.config: MkDocsConfig = config
         try:
             # File paths and locations
             self.absolute_filepath: Path = filepath.absolute()
@@ -137,12 +138,14 @@ class EnhancedMarkdownFile:
             )
             self._root_juvix_project_path: Optional[Path] = None
 
-            # Caching related
-            self._processed_juvix: bool = False
-            self._processed_isabelle: bool = False
+            # Processing flags for each task (updating during the process)
+            self._processed_juvix_markdown: bool = False
+            self._processed_juvix_isabelle: bool = False
+            self._processed_juvix_html: bool = False
             self._processed_images: bool = False
             self._processed_wikilinks: bool = False
             self._processed_snippets: bool = False
+            self._processed_errors: bool = False
 
             # Isabelle related
             self._needs_isabelle: bool = False  # Fill later in the process
@@ -155,12 +158,12 @@ class EnhancedMarkdownFile:
 
             # Error handling
             self._cached_error_messages: Dict[str, Optional[str]] = {
-                "markdown": None,
+                "juvix_markdown": None,
+                "juvix_isabelle": None,
+                "juvix_html": None,
                 "images": None,
                 "wikilinks": None,
                 "snippets": None,
-                "isabelle": None,
-                "html": None,
             }
 
         except Exception as e:
@@ -184,9 +187,10 @@ class EnhancedMarkdownFile:
             # Processing flags
             "needs_isabelle": self._needs_isabelle,
             "include_isabelle_at_bottom": self._include_isabelle_at_bottom,
-            "processed_juvix": self._processed_juvix,
+            "processed_juvix_markdown": self._processed_juvix_markdown,
+            "processed_juvix_isabelle": self._processed_juvix_isabelle,
+            "processed_juvix_html": self._processed_juvix_html,
             "processed_images": self._processed_images,
-            "processed_isabelle": self._processed_isabelle,
             "processed_wikilinks": self._processed_wikilinks,
             "processed_snippets": self._processed_snippets,
             # Error handling
@@ -246,7 +250,6 @@ class EnhancedMarkdownFile:
         else:
             return None
 
-    @time_spent(message="> checking if file changed", print_result=True)
     def changed_since_last_run(self) -> bool:
         """
         Check if the original file has changed since the last time `juvix markdown`
@@ -349,42 +352,59 @@ class EnhancedMarkdownFile:
             return error_message
         return None
 
-    def clear_error_message(self, kind: str = "markdown") -> None:
+    def clear_error_messages(self, kind: str = "markdown") -> None:
         """Clear the error message from cache and file of previous run."""
-        if kind in self._cached_error_messages:
-            del self._cached_error_messages[kind]
 
-        ext: str = ERROR_MESSAGE_EXTENSION + kind
-        error_filepath: Path = self.cache_filepath.with_suffix(ext)
-        if error_filepath.exists():
-            error_filepath.unlink()
+        def clear_error_message(kind: str) -> None:
+            if kind in self._cached_error_messages:
+                self._cached_error_messages[kind] = None
 
-    def _add_error_to_markdown(
+            ext: str = ERROR_MESSAGE_EXTENSION + kind
+            error_filepath: Path = self.cache_filepath.with_suffix(ext)
+            if error_filepath.exists():
+                error_filepath.unlink()
+
+        if kind:
+            clear_error_message(kind)
+        else:
+            for kind in self._cached_error_messages:
+                clear_error_message(kind)
+
+    def add_errors_to_markdown(
         self,
-        error_message: str,
-        filepath: Optional[Path] = None,
-    ) -> str:
+    ) -> Optional[str]:
         """
         Format the error message to include it in the Markdown output of the
         file, so that it is rendered nicely. The filepath is used to extract the
         metadata from the file if it is provided, otherwise the metadata is
         extracted from the markdown output of the current file.
         """
-        if filepath is None:
-            filepath = self.absolute_filepath
 
-        formatted_error_message: str = (
-            f"<details class='failure'><summary>Error when processing {filepath}</summary>\n\n"
-            f"<pre><code>\n"
-            f"    {textwrap.fill(error_message, width=110)}\n\n"
-            f"</code></pre></details>\n\n"
-        )
-        # Investigate if one can cache the content and metadata
-        content = self.markdown_output if filepath is None else filepath.read_text()
-        if content:
-            metadata = (
-                self.metadata if filepath is None else parse_front_matter(content)
+        # check if there are any error messages
+        if all(value is None for value in self._cached_error_messages.values()):
+            return None
+
+        def format_error_message(kind: str) -> str:
+            error_message = self.get_error_message(kind)
+            if error_message is None:
+                return ""
+            formatted_error_message: str = (
+                f"<details class='failure'><summary>{kind} error</summary>\n\n"
+                f"<pre><code>\n"
+                f"    {textwrap.fill(error_message, width=110)}\n\n"
+                f"</code></pre></details>\n\n"
             )
+            return formatted_error_message
+
+        formatted_error_msgs = "\n\n".join(
+            format_error_message(kind)
+            for kind in self._cached_error_messages.keys()
+            if self._cached_error_messages[kind]
+        )
+
+        content = self.markdown_output
+        if content:
+            metadata = parse_front_matter(content)
             if metadata:
                 end_index: int = content.find("---", 3)
                 front_matter: str = content[3:end_index].strip()
@@ -392,10 +412,10 @@ class EnhancedMarkdownFile:
                     f"---\n"
                     f"{front_matter}\n"
                     f"---\n\n"
-                    f"{formatted_error_message}\n\n"
+                    f"{formatted_error_msgs}\n\n"
                     f"{content[end_index+3:]}"
                 )
-        return f"{formatted_error_message}\n\n{content or ''}"
+        return f"{formatted_error_msgs}\n\n{content or ''}"
 
     # ------------------------------------------------------------
     # Root Juvix Project Path
@@ -418,7 +438,14 @@ class EnhancedMarkdownFile:
             )
             return Path(result.stdout.strip())
         except Exception as e:
-            log.error(f"Error running Juvix Root Project Path on {self}: {e}")
+            self.save_error_message(str(e), "juvix_root")
+            log.error(
+                template_error_message(
+                    self.absolute_filepath,
+                    self._build_juvix_root_project_path_command(),
+                    str(e),
+                )
+            )
             return None
 
     @property
@@ -447,13 +474,17 @@ class EnhancedMarkdownFile:
         ]
 
     @time_spent(message="> running juvix markdown")
-    def _run_juvix_markdown(self) -> Optional[str]:
+    def process_juvix_markdown(self) -> Optional[str]:
         """
         Run the Juvix Markdown command and return the output.
         If the command fails, save the error message and return None.
         The error message is saved to be displayed in the markdown output of
         the file.
         """
+        if not is_juvix_markdown_file(self.absolute_filepath):
+            return None
+
+        self.clear_error_messages("juvix_markdown")
         try:
             result = subprocess.run(
                 self._build_juvix_markdown_command(),
@@ -464,10 +495,9 @@ class EnhancedMarkdownFile:
             )
             if result.returncode != 0:
                 raise Exception(result.stderr)
-            self.clear_error_message("markdown")
             return result.stdout
         except subprocess.CalledProcessError as e:
-            self.save_error_message(e.stderr, "markdown")
+            self.save_error_message(e.stderr, "juvix_markdown")
             log.error(
                 template_error_message(
                     self.absolute_filepath,
@@ -475,29 +505,14 @@ class EnhancedMarkdownFile:
                     e.stderr,
                 )
             )
-            return self._add_error_to_markdown(e.stderr, self.absolute_filepath)
+            return None
         except Exception as e:
+            self.save_error_message(str(e), "juvix_markdown")
             log.error(
                 f"Unexpected error running Juvix Markdown on "
                 f"{Fore.GREEN}{self}{Style.RESET_ALL}:\n{e}"
             )
             return None
-
-    def process_juvix(self) -> Optional[str]:
-        """
-        Process the markdown output by running `juvix markdown` on the original
-        file if the file is a juvix markdown file. Otherwise, it reads the
-        markdown from the file.
-        """
-        if not is_juvix_markdown_file(self.absolute_filepath):
-            return None
-
-        markdown_output = self._run_juvix_markdown()
-        if markdown_output is None:
-            return None
-
-        self._processed_juvix = True
-        return markdown_output
 
     # ------------------------------------------------------------------
     # Juvix HTML tasks
@@ -523,13 +538,18 @@ class EnhancedMarkdownFile:
         ]
 
     @time_spent(message="> generating html")
-    def generate_html(self, update_assets: bool = False) -> None:
+    def process_juvix_html(self, update_assets: bool = False) -> None:
         """
         Generate the HTML output running the pipeline if the file has changed
         since the last time `juvix html` was run on it. Otherwise, it reads
         the cached HTML output from the cache file.
         """
+        if not is_juvix_markdown_file(self.absolute_filepath):
+            return None
+
         self.env.CACHE_HTML_PATH.mkdir(parents=True, exist_ok=True)
+
+        self.clear_error_messages("juvix_html")
         try:
             output = subprocess.run(
                 self._build_juvix_html_command(),
@@ -540,9 +560,8 @@ class EnhancedMarkdownFile:
             )
 
             if output.returncode != 0:
-                self.save_error_message(output.stderr, "html")
+                self.save_error_message(output.stderr, "juvix_html")
                 return None
-            self.clear_error_message("html")
 
             # ------------------------------------------------------------
             # Rename the HTML files of Juvix Markdown files, .html -> .judoc.html
@@ -566,7 +585,7 @@ class EnhancedMarkdownFile:
             if index_file.exists():
                 index_file.rename(
                     self.env.CACHE_HTML_PATH
-                    / index_file.name.replace(".html", ".judoc.html")
+                    / index_file.name.replace(".html", "-judoc.html")
                 )
 
             # ------------------------------------------------------------
@@ -623,6 +642,9 @@ class EnhancedMarkdownFile:
         saved to be displayed in the markdown output of the file. The output is
         not Markdown, it is Isabelle/HOL code.
         """
+        if not is_juvix_markdown_file(self.absolute_filepath):
+            return None
+        self.clear_error_messages("juvix_isabelle")
         try:
             result = subprocess.run(
                 self._build_juvix_isabelle_command(),
@@ -632,7 +654,7 @@ class EnhancedMarkdownFile:
                 text=True,
             )
             if result.returncode != 0:
-                self.save_error_message(result.stderr, "isabelle")
+                self.save_error_message(result.stderr, "juvix_isabelle")
                 log.error(
                     template_error_message(
                         self.absolute_filepath,
@@ -641,14 +663,14 @@ class EnhancedMarkdownFile:
                     )
                 )
             else:
-                self.clear_error_message("isabelle")
+                self.clear_error_messages("juvix_isabelle")
                 return result.stdout
         except Exception as e:
             log.error(f"Error running Juvix Isabelle on {self}: {e}")
         return None
 
     def process_isabelle_translation(
-        self, modify_markdown_output: bool = True, content: Optional[str] = None
+        self, content: str, modify_markdown_output: bool = True
     ) -> Optional[str]:
         """
         Process the Isabelle translation, saving the output to the cache folder.
@@ -656,15 +678,10 @@ class EnhancedMarkdownFile:
         `content` at the bottom.
         """
         result_isabelle: Optional[str] = self._run_juvix_isabelle()
-        if result_isabelle is None:
-            error_message = self.get_error_message("isabelle")
-            if error_message:
-                return self._add_error_to_markdown(
-                    error_message, self.absolute_filepath
-                )
-            return None
-        self._processed_isabelle = True
         # we save for snippets usage
+        if result_isabelle is None:
+            return None
+
         isabelle_output = self._save_isabelle_theory(result_isabelle)
         if modify_markdown_output and content:
             md_with_isabelle = content + (
@@ -727,12 +744,12 @@ class EnhancedMarkdownFile:
             for j in range(start_index + 1, len(lines)):
                 if lines[j].strip() == "":
                     lines[j] = f"(* --8<-- [end:{name}] *)"
-                    log.warning(
+                    log.debug(
                         f"Added missing end tag for snippet '{name}' at line {j+1}"
                     )
                     break
             else:
-                log.warning(
+                log.error(
                     f"Could not find a place to add missing end tag for snippet '{name}'"
                 )
 
@@ -743,7 +760,6 @@ class EnhancedMarkdownFile:
     # Juvix Markdown files
     # ------------------------------------------------------------------------
 
-    @time_spent(message="> generating markdown output")
     def generate_markdown_output(self, save: bool = True) -> Optional[str]:
         """
         Generate the markdown output running the pipeline if the file has changed
@@ -762,6 +778,7 @@ class EnhancedMarkdownFile:
         """
         try:
             if not self.changed_since_last_run():
+                log.debug(f"Reading cached markdown from {self.cache_filepath}")
                 return self.cache_filepath.read_text()
         except Exception as e:
             log.error(
@@ -770,75 +787,97 @@ class EnhancedMarkdownFile:
             )
             return None
 
-        markdown_output = self._read_original_markdown()
-        if markdown_output is None:
+        _markdown_output = self._read_original_markdown()
+        if _markdown_output is None:
             return None
 
+        markdown_output: str = _markdown_output
         metadata = parse_front_matter(markdown_output) or {}
         preprocess = metadata.get("preprocess", {})
 
         # ------------------------------------------------------------
         # Process Juvix
         # ------------------------------------------------------------
-        generate_juvix_markdown = is_juvix_markdown_file(self.absolute_filepath) and (
+        needs_juvix_markdown = is_juvix_markdown_file(self.absolute_filepath) and (
             preprocess.get("juvix", True)
         )
-        if generate_juvix_markdown:
-            juvix_markdown_output = self.process_juvix()
-            if juvix_markdown_output:
-                markdown_output = juvix_markdown_output
-                self._processed_juvix = True
+        if needs_juvix_markdown:
+            _output = self.process_juvix_markdown()
+            self._processed_juvix_markdown = False
+            if _output:
+                markdown_output = _output
+            self._processed_juvix_markdown = True
 
         # ------------------------------------------------------------
         # Process Images
         # ------------------------------------------------------------
         needs_images = preprocess.get("images", True)
         if needs_images:
-            images_markdown_output = process_images(
+            self._processed_images = False
+            _output = process_images(
                 self.env,
                 markdown_output,
                 self.absolute_filepath,
             )
-            if images_markdown_output:
-                markdown_output = images_markdown_output
+            if _output:
+                markdown_output = _output
                 self._processed_images = True
-            else:
-                log.error(
-                    self.get_error_message("images"),
-                )
 
         # ------------------------------------------------------------
         # Process Isabelle
         # ------------------------------------------------------------
-        needs_isabelle = preprocess.get("isabelle", False)
-        include_at_bottom = preprocess.get("isabelle_at_bottom", needs_isabelle)
-        if needs_isabelle or include_at_bottom:
-            isabelle_markdown_output = self.process_isabelle_translation(
-                modify_markdown_output=include_at_bottom,
+        self._needs_isabelle = preprocess.get("isabelle", False)
+        self._needs_isabelle_at_bottom = preprocess.get(
+            "isabelle_at_bottom",
+            self._needs_isabelle,
+        )
+        if self._needs_isabelle or self._needs_isabelle_at_bottom:
+            _output = self.process_isabelle_translation(
                 content=markdown_output,
+                modify_markdown_output=self._needs_isabelle_at_bottom,
             )
-            if isabelle_markdown_output:
-                markdown_output = isabelle_markdown_output
+            self._processed_isabelle = False
+            if _output:
+                markdown_output = _output
                 self._processed_isabelle = True
 
         # ------------------------------------------------------------
-        # Process Snippets TODO
+        # Process Snippets
         # ------------------------------------------------------------
         needs_snippets = preprocess.get("snippets", True)
         if needs_snippets:
-            snippets_markdown_output = self.process_snippets(
-                content=markdown_output
-            )
-            log.info(f"It seems to be working")
-            if snippets_markdown_output:
-                markdown_output = snippets_markdown_output
+            self._processed_snippets = False
+            _output = self.process_snippets(content=markdown_output)
+            self._processed_snippets = False
+            if _output:
+                markdown_output = _output
                 self._processed_snippets = True
 
         # ------------------------------------------------------------
         # Process Wikilinks TODO
         # ------------------------------------------------------------
-        # self.process_wikilinks(modify_markdown_output=True)
+        _output = self.process_wikilinks(
+            content=markdown_output,
+            modify_markdown_output=True,
+        )
+        self._processed_wikilinks = False
+        if _output:
+            markdown_output = _output
+            self._processed_wikilinks = True
 
+        # ------------------------------------------------------------
+        # Add the error messages to the markdown output
+        # ------------------------------------------------------------
+
+        _output = self.add_errors_to_markdown()
+        self._processed_errors = False
+        if _output:
+            markdown_output = _output
+            self._processed_errors = True
+
+        # ------------------------------------------------------------
+        # Save the markdown output
+        # ------------------------------------------------------------
         if save:
             try:
                 self.save_markdown_output(markdown_output)
@@ -862,8 +901,7 @@ class EnhancedMarkdownFile:
         url_request_headers: dict = {},
         dedent_subsections: bool = True,
         tab_length: int = 2,
-    ) -> Optional[str]:
-        
+    ) -> str:
         snippet_preprocessor = SnippetPreprocessor()
         snippet_preprocessor.base_path = base_path
         snippet_preprocessor.restrict_base_path = restrict_base_path
@@ -882,7 +920,25 @@ class EnhancedMarkdownFile:
                 content = "\n".join(snippet_preprocessor.run(content.split("\n")))
             except Exception as e:
                 log.error(f"Error processing snippets: {e}")
-        return content
+        return content or "Something went wrong processing snippets"
+
+    @time_spent(message="> processing wikilinks")
+    def process_wikilinks(
+        self,
+        content: str,
+        modify_markdown_output: bool = True,
+    ) -> str:
+        assert "url_for" in self.config, "url_for is not in the config"
+        assert "nodes" in self.config, "nodes is not in the config"
+
+        wl_preprocessor = WLPreprocessor(config=self.config, env=self.env)
+        wl_preprocessor.absolute_path = self.absolute_filepath
+        wl_preprocessor.relative_path = self.relative_filepath
+        wl_preprocessor.url = self.url
+
+        if modify_markdown_output:
+            content = wl_preprocessor._run(content)
+        return content + "\n" + TOKEN_LIST_WIKILINKS + "\n"
 
 
 SKIP_DIRS = [
@@ -899,9 +955,13 @@ class EnhancedMarkdownCollection:
     A collection of EnhancedMarkdownFile objects.
     """
 
+    env: ENV
+    config: MkDocsConfig
+
     @time_spent(message="> initializing enhanced markdown collection")
-    def __init__(self, env: ENV, docs: Optional[Path] = None):
+    def __init__(self, config, env: ENV, docs: Optional[Path] = None):
         self.env: ENV = env
+        self.config = config
         try:
             self.docs_path: Path = docs or env.DOCS_ABSPATH
 
@@ -911,7 +971,11 @@ class EnhancedMarkdownCollection:
             # The "everything" file is a special Juvix Markdown file that contains
             # links to all the Juvix Markdown files in the folder.
             self.everything_html_file: Optional[EnhancedMarkdownFile] = (
-                EnhancedMarkdownFile(self.docs_path / "everything.juvix.md", self.env)
+                EnhancedMarkdownFile(
+                    self.docs_path / "everything.juvix.md",
+                    env=self.env,
+                    config=self.config,
+                )
             )
             if not self.everything_html_file.absolute_filepath.exists():
                 self.everything_html_file = None
@@ -938,9 +1002,9 @@ class EnhancedMarkdownCollection:
 
             self.files = []
             md_files = self.docs_path.rglob("*.md")
-            for file in tqdm(md_files, desc="Processing files"):
+            for file in md_files:
                 if not set(file.parts) & set(SKIP_DIRS):
-                    enhanced_file = EnhancedMarkdownFile(file, self.env)
+                    enhanced_file = EnhancedMarkdownFile(file, self.env, self.config)
                     self.files.append(enhanced_file)
                     if enhanced_file.changed_since_last_run():
                         if not enhanced_file.original_in_cache_filepath.exists():
@@ -1092,7 +1156,7 @@ class EnhancedMarkdownCollection:
             return
 
         if self.everything_html_file and needs_to_generate_html:
-            self.everything_html_file.generate_html(update_assets=True)
+            self.everything_html_file.process_juvix_html(update_assets=True)
             return
 
         log.info(
@@ -1109,7 +1173,7 @@ class EnhancedMarkdownCollection:
                 is_juvix_markdown_file(file.absolute_filepath)
                 and needs_to_generate_html
             ):
-                file.generate_html(update_assets=True)
+                file.process_juvix_html(update_assets=True)
 
     # --------------------------------------------------------------------------
     # Juvix dependencies
@@ -1167,8 +1231,8 @@ class EnhancedMarkdownCollection:
 
 
 class JuvixPlugin(BasePlugin):
-    mkconfig: MkDocsConfig
     enhanced_collection: EnhancedMarkdownCollection
+    wikilinks_plugin: WikilinksPlugin
 
     def on_startup(self, *, command: str, dirty: bool) -> None:
         pass
@@ -1176,9 +1240,13 @@ class JuvixPlugin(BasePlugin):
     def on_config(self, config: MkDocsConfig) -> MkDocsConfig:
         self.env = ENV(config)
         config = fix_site_url(config)
-        self.mkconfig = config
-        self.env.SITE_DIR = self.mkconfig.get("site_dir", getenv("SITE_DIR", None))
-        self.env.SITE_URL = self.mkconfig.get("site_url", getenv("SITE_URL", ""))
+
+        # Initialize the wikilinks plugin which requires some preprocessing
+        self.wikilinks_plugin = WikilinksPlugin(config, self.env)
+        config = self.wikilinks_plugin.on_config(config)
+
+        self.env.SITE_DIR = config.get("site_dir", getenv("SITE_DIR", None))
+        self.env.SITE_URL = config.get("site_url", getenv("SITE_URL", ""))
 
         if self.env.JUVIX_ENABLED and not self.env.JUVIX_AVAILABLE:
             log.error(
@@ -1190,7 +1258,9 @@ class JuvixPlugin(BasePlugin):
             )
 
         if self.env.juvix_enabled:
-            self.enhanced_collection = EnhancedMarkdownCollection(self.env)
+            self.enhanced_collection = EnhancedMarkdownCollection(
+                env=self.env, config=config
+            )
             self.enhanced_collection.cache_orginals()
 
             self.add_footer_css_file_to_extra_css()
@@ -1209,14 +1279,19 @@ class JuvixPlugin(BasePlugin):
         message as part of the content of the page
         """
         # if self.env.FIRST_RUN and self.env.juvix_enabled:
+        self.wikilinks_plugin.on_pre_build(config)  # This needs to be run first
         self.enhanced_collection.run_pipeline(
             generate_markdown=True,
             generate_html=False,
         )
-
         # self.env.FIRST_RUN = False
 
     def on_files(self, files: Files, *, config: MkDocsConfig) -> Optional[Files]:
+        """
+        List of the files to be included in the final build. These are copied to
+        the site directory.
+        """
+        self.wikilinks_plugin.on_files(files, config)
         return Files(
             [
                 file
@@ -1265,6 +1340,7 @@ class JuvixPlugin(BasePlugin):
         """
 
         abs_src_str: Optional[str] = page.file.abs_src_path
+
         if not abs_src_str:
             return markdown
 
@@ -1276,12 +1352,15 @@ class JuvixPlugin(BasePlugin):
         page.file.url = page.file.url.replace(".juvix", "")
         page.file.dest_uri = page.file.dest_uri.replace(".juvix", "")
         page.file.abs_dest_path = page.file.abs_dest_path.replace(".juvix", "")
+
+        config["current_page"] = page
+        config["links_number"] = []
         return markdown
 
     def on_page_content(
         self, html: str, page: Page, config: MkDocsConfig, files: Files
     ) -> Optional[str]:
-        return html
+        return self.wikilinks_plugin.on_page_content(html, page, config, files)
 
     def on_post_page(self, output: str, page: Page, config: MkDocsConfig) -> str:
         soup = BeautifulSoup(output, "html.parser")
@@ -1297,6 +1376,7 @@ class JuvixPlugin(BasePlugin):
             generate_html=True,
         )
         self.move_html_cache_to_site_dir()
+        self.wikilinks_plugin.on_post_build(config)
 
     def move_html_cache_to_site_dir(self) -> None:
         """
@@ -1419,7 +1499,7 @@ class JuvixPlugin(BasePlugin):
         return None
 
     @time_spent(message="> generating codeblock footer CSS file")
-    def add_footer_css_file_to_extra_css(self) -> None:
+    def add_footer_css_file_to_extra_css(self) -> MkDocsConfig:
         css_file = self.env.JUVIX_FOOTER_CSS_FILEPATH
         # Check if we need to create or update the codeblock footer CSS
         needs_to_update_cached_juvix_version = (
@@ -1445,9 +1525,11 @@ class JuvixPlugin(BasePlugin):
 
         # Add CSS file to extra_css
         css_path = css_file.relative_to(self.env.DOCS_ABSPATH)
-
-        if css_path not in self.mkconfig["extra_css"]:
-            self.mkconfig["extra_css"].append(css_path.as_posix())
+        if css_path not in self.config.get("extra_css", []):
+            self.config["extra_css"] = self.config.get("extra_css", []) + [
+                css_path.as_posix()
+            ]
+        return self.config
 
 
 # --------------------------------------------------------------------------
