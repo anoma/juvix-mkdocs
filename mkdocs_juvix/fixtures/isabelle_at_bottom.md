@@ -1,7 +1,7 @@
 
 
 <details class="quote" markdown="1">
-<summary>Isabelle/HOL theories for this page</summary>
+<summary>Isabelle/HOL theories generated for this page</summary>
 
 ## Isabelle/HOL theories
 

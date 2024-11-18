@@ -36,7 +36,7 @@ import sys
 import textwrap
 import urllib
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any, List, Optional
 
 from colorama import Fore, Style  # type: ignore
 from markdown import Extension  # type: ignore
@@ -101,8 +101,23 @@ class SnippetPreprocessor(Preprocessor):
     """Handle snippets in Markdown content."""
 
     env: ENV
+    base_path: List[Path] = [Path("."), Path("includes")]
+    restrict_base_path: bool = True
+    encoding: str = "utf-8"
+    check_paths: bool = True
+    auto_append: List[str] = []
+    url_download: bool = True
+    url_max_size: int = DEFAULT_URL_SIZE
+    url_timeout: float = DEFAULT_URL_TIMEOUT
+    url_request_headers: dict = DEFAULT_URL_REQUEST_HEADERS
+    dedent_subsections: bool = True
+    tab_length: int = 2
 
-    def __init__(self, config, md: Any, env: Optional[ENV] = None):
+
+    def __init__(self, 
+                 config: Optional[Any] = None, 
+                 md: Optional[Any] = None, 
+                 env: Optional[ENV] = None):
         """Initialize."""
 
         if env is None:
@@ -110,22 +125,32 @@ class SnippetPreprocessor(Preprocessor):
         else:
             self.env = env
 
-        base = config.get("base_path")
+        base = self.base_path
 
-        if isinstance(base, (str, os.PathLike)):
-            base = [base]
 
-        self.base_path = [os.path.abspath(b) for b in base]  # type: ignore
-        self.restrict_base_path = config["restrict_base_path"]
-        self.encoding = config.get("encoding")
-        self.check_paths = config.get("check_paths")
-        self.auto_append = config.get("auto_append")
-        self.url_download = config["url_download"]
-        self.url_max_size = config["url_max_size"]
-        self.url_timeout = config["url_timeout"]
-        self.url_request_headers = config["url_request_headers"]
-        self.dedent_subsections = config["dedent_subsections"]
-        self.tab_length = md.tab_length
+        if config is not None:
+
+            base = config.get("base_path")
+            self.base_path = []
+            for b in base:
+                if not Path(b).exists():
+                    continue
+                self.base_path.append(Path(b).absolute())
+
+            self.restrict_base_path = config["restrict_base_path"]
+            self.encoding = config.get("encoding")
+            self.check_paths = config.get("check_paths")
+            self.auto_append = config.get("auto_append")
+            self.url_download = config["url_download"]
+            self.url_max_size = config["url_max_size"]
+            self.url_timeout = config["url_timeout"]
+            self.url_request_headers = config["url_request_headers"]
+            self.dedent_subsections = config["dedent_subsections"]
+            if md is not None and hasattr(md, "tab_length"):
+                self.tab_length = md.tab_length
+            else:
+                self.tab_length = 2
+
         super().__init__()
         self.download.cache_clear()
 
@@ -530,10 +555,10 @@ class SnippetPreprocessor(Preprocessor):
 
         return new_lines
 
-    def run(self, lines):
+    def run(self, lines : List[str]) -> List[str]:
         """Process snippets."""
 
-        self.seen = set()
+        self.seen : set[str] = set()
         if self.auto_append:
             lines.extend(
                 "\n\n-8<-\n{}\n-8<-\n".format("\n\n".join(self.auto_append)).split("\n")

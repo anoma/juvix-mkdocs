@@ -13,26 +13,28 @@ done by adding the `--8<--` comment followed by the path to the file, and
 optionally a snippet identifier.
 
 The following example shows how to include a snippet of Juvix code from the
-file `test.juvix.md` with the identifier `test-add-def`.
+file `test.juvix.md` with the identifier `main`.
 
 ```markdown
-;--8<-- "test.juvix.md:test-add-def"
+;--8<-- "docs/test.juvix.md:main"
 ```
 
 which provides the following output:
 
-```juvix title="test.juvix.md"
-;--8<-- "test.juvix.md:test-add-def"
-```
+--8<-- "docs/test.juvix.md:main"
 
 
-!!! note
+!!! info
 
     If the path of the file ends with `!`, the raw content of the file
     will be included. Otherwise, for Juvix Markdown files, the content will be
     preprocessed by the Juvix compiler and then the generated HTML will be
     included.
 
+So if we would like to include the raw content of `test.juvix.md`, we can do
+this by specifying the path as `docs/test.juvix.md!:main`.
+
+--8<-- "docs/test.juvix.md!:main"
 
 !!! info "Snippet identifier"
 

@@ -1,4 +1,5 @@
 import json
+import os
 import re
 import shutil
 import subprocess
@@ -24,7 +25,7 @@ from watchdog.events import FileSystemEvent
 
 from mkdocs_juvix.env import ENV, FIXTURES_PATH
 from mkdocs_juvix.images import process_images
-from mkdocs_juvix.snippets import RE_SNIPPET_SECTION
+from mkdocs_juvix.snippets import RE_SNIPPET_SECTION, SnippetPreprocessor
 from mkdocs_juvix.utils import (
     compute_sha_over_folder,
     fix_site_url,
@@ -670,7 +671,7 @@ class EnhancedMarkdownFile:
                 FIXTURES_PATH / "isabelle_at_bottom.md"
             ).read_text().format(
                 filename=self.relative_filepath.name,
-                block_title=self.relative_filepath.name,
+                block_title=self.relative_filepath.name.replace(".juvix.md", ".thy"),
                 isabelle_html=isabelle_output,
                 juvix_version=self.env.JUVIX_VERSION,
             )
@@ -775,6 +776,7 @@ class EnhancedMarkdownFile:
 
         metadata = parse_front_matter(markdown_output) or {}
         preprocess = metadata.get("preprocess", {})
+
         # ------------------------------------------------------------
         # Process Juvix
         # ------------------------------------------------------------
@@ -822,7 +824,15 @@ class EnhancedMarkdownFile:
         # ------------------------------------------------------------
         # Process Snippets TODO
         # ------------------------------------------------------------
-        # self.process_snippets(modify_markdown_output=True)
+        needs_snippets = preprocess.get("snippets", True)
+        if needs_snippets:
+            snippets_markdown_output = self.process_snippets(
+                content=markdown_output
+            )
+            log.info(f"It seems to be working")
+            if snippets_markdown_output:
+                markdown_output = snippets_markdown_output
+                self._processed_snippets = True
 
         # ------------------------------------------------------------
         # Process Wikilinks TODO
@@ -836,6 +846,43 @@ class EnhancedMarkdownFile:
                 log.error(f"Failed to save markdown output, we however continue: {e}")
                 # Continue even if saving fails
         return markdown_output
+
+    @time_spent(message="> processing snippets")
+    def process_snippets(
+        self,
+        content: Optional[str] = None,
+        base_path: List[Path] = [Path(".")],
+        restrict_base_path: bool = True,
+        encoding: str = "utf-8",
+        check_paths: bool = True,
+        auto_append: List[str] = [],
+        url_download: bool = True,
+        url_max_size: int = 32 * 1024 * 1024,
+        url_timeout: int = 10,
+        url_request_headers: dict = {},
+        dedent_subsections: bool = True,
+        tab_length: int = 2,
+    ) -> Optional[str]:
+        
+        snippet_preprocessor = SnippetPreprocessor()
+        snippet_preprocessor.base_path = base_path
+        snippet_preprocessor.restrict_base_path = restrict_base_path
+        snippet_preprocessor.encoding = encoding
+        snippet_preprocessor.check_paths = check_paths
+        snippet_preprocessor.auto_append = auto_append
+        snippet_preprocessor.url_download = url_download
+        snippet_preprocessor.url_max_size = url_max_size
+        snippet_preprocessor.url_timeout = url_timeout
+        snippet_preprocessor.url_request_headers = url_request_headers
+        snippet_preprocessor.dedent_subsections = dedent_subsections
+        snippet_preprocessor.tab_length = tab_length
+
+        if content:
+            try:
+                content = "\n".join(snippet_preprocessor.run(content.split("\n")))
+            except Exception as e:
+                log.error(f"Error processing snippets: {e}")
+        return content
 
 
 SKIP_DIRS = [
@@ -1382,8 +1429,7 @@ class JuvixPlugin(BasePlugin):
         )
         if needs_to_update_cached_juvix_version:
             log.info(
-                f"> Juvix version: "
-                f"{Back.WHITE}{Fore.BLACK}{self.env.JUVIX_VERSION}{Back.RESET}{Style.RESET_ALL}"
+                f"> Juvix version: {Back.WHITE}{Fore.BLACK}{self.env.JUVIX_VERSION.strip()}{Back.RESET}{Style.RESET_ALL}"
             )
             self.env.CACHE_JUVIX_VERSION_FILEPATH.write_text(self.env.JUVIX_VERSION)
 
