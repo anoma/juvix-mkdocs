@@ -335,13 +335,6 @@ def new(
     # this file is a bit special, as goes separately
     everything_file = docs_path / "everything.juvix.md"
 
-    nav = "\n".join(
-        [
-            f"  - {file.stem.replace('.juvix', '')}: {file.relative_to(docs_path)}"
-            for file in (juvix_md_files + [everything_file])
-        ]
-    )
-
     if not mkdocs_file.exists() or force:
         mkdocs_file.touch()
         click.secho(f"Adding {mkdocs_file}.", nl=False)
@@ -360,7 +353,6 @@ def new(
                     if not anoma_setup
                     else (FIXTURES_PATH / "anoma_theme.yml").read_text()
                 ),
-                nav=nav,
                 year=year,
                 font_text=font_text,
                 font_code=font_code,
@@ -473,6 +465,7 @@ def new(
     try:
         poetry_file = project_path / "pyproject.toml"
         click.secho("Creating pyproject.toml... ", nl=False)
+        python_version = ">=3.10,<3.14"
         if not poetry_file.exists() or force:
             click.secho("Initializing poetry project... ", nl=False)
             subprocess.run(
@@ -483,7 +476,8 @@ def new(
                     f"--name={project_name}",
                     f"--description='{description}'",
                     f"--author={site_author}",
-                    "--python=^3.10",
+                    "--license=MIT",
+                    f"--python={python_version}",
                 ],
                 cwd=project_path,
                 check=True,
@@ -511,24 +505,27 @@ def new(
         )
 
         click.secho(f"Installing {alias_package_name}... ", nl=False)
-        poetry_cmd = [POETRY_BIN, "add", package_name, "-q", "-n"]
+        poetry_cmd = [POETRY_BIN, "add", package_name, "-n"]
         if development_flag:
             poetry_cmd.append("--editable")
         try:
             output = subprocess.run(
                 poetry_cmd,
                 cwd=project_path,
-                check=True,
                 capture_output=True,
             )
             if output.returncode != 0:
-                click.secho(f"Failed to install {package_name} using Poetry.", fg="red")
-                click.secho(f"Error: {output.stderr.decode().strip()}", fg="red")
+                # print complete output
+                click.secho(output.stdout.decode("utf-8").strip())
+                click.secho(f"Error: {output.stderr.decode('utf-8').strip()}", fg="red")
+                if not no_interactive:
+                    if questionary.confirm("Continue?", default=True).ask():
+                        return
+
             else:
                 click.secho("Done.", fg="green")
         except Exception as e:
             click.secho(f"{e}", fg="red")
-            raise
 
     try:
         if in_development:
@@ -544,6 +541,7 @@ def new(
             "mkdocs-macros-plugin",
             "mkdocs-glightbox",
             "mkdocs-kroki-plugin",
+            "mdx-truly-sane-lists",
         ]
         for plugin in rest_of_plugins:
             install_poetry_package(plugin)
@@ -643,6 +641,11 @@ def new(
         click.secho("Done.", fg="green")
     else:
         click.secho("Skipping", fg="yellow")
+
+    # Moving the `tutorial` folder to the project path
+    click.secho("Moving the `tutorial` folder to the project path...", nl=False)
+    shutil.copytree(FIXTURES_PATH / "tutorial", project_path / "docs" / "tutorial")
+    click.secho("Done.", fg="green")
 
     click.secho(f"Project '{project_name}' initialized successfully!", fg="green")
     click.secho("=" * 80, fg="white")

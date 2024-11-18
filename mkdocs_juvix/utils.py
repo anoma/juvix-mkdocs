@@ -1,13 +1,15 @@
 import hashlib
 import logging
 import os
-from functools import lru_cache
-from pathlib import Path
 import pickle
+import time
+from functools import lru_cache, wraps
+from pathlib import Path
 from typing import Any, Iterable, Optional
 
+from colorama import Fore, Style  # type: ignore
 from mkdocs.config.defaults import MkDocsConfig
-import trio
+from mkdocs.plugins import PrefixedLogger
 
 log = logging.getLogger("mkdocs")
 EXCLUDED_DIRS = {
@@ -27,17 +29,22 @@ EXCLUDED_DIRS = {
     ".idea",
 }
 
+
 def is_juvix_markdown_file(filepath: Path) -> bool:
     return filepath.as_posix().endswith(".juvix.md")
+
 
 def is_pure_juvix_file(filepath: Path) -> bool:
     return filepath.as_posix().endswith(".juvix")
 
+
 def is_isabelle_file(filepath: Path) -> bool:
     return filepath.as_posix().endswith(".thy")
 
+
 def is_juvix_file(filepath: Path) -> bool:
     return is_juvix_markdown_file(filepath) or is_pure_juvix_file(filepath)
+
 
 def is_excluded(entry):
     return (
@@ -119,14 +126,17 @@ def compute_sha_over_folder(_folder_path: Path) -> str:
 
     return sha_hash.hexdigest()
 
+
 def hash_file_hash_obj(hash_obj, filepath: Path):
     """Update the hash object with the contents of a file."""
     with open(filepath, "rb") as f:
         for chunk in iter(lambda: f.read(8192), b""):
             hash_obj.update(chunk)
 
+
 def hash_object(obj: Any) -> str:
     return hashlib.sha256(pickle.dumps(obj)).hexdigest()
+
 
 def hash_content_of(filepath: Path) -> str:
     """Compute the SHA-256 hash of a file."""
@@ -136,54 +146,49 @@ def hash_content_of(filepath: Path) -> str:
 
 
 @lru_cache(maxsize=128)
-def get_filepath_for_cached_hash_for(filepath: Path, hash_dir: Optional[Path] = None) -> Path:
+def get_filepath_for_cached_hash_for(
+    filepath: Path, hash_dir: Optional[Path] = None
+) -> Path:
     """
     Get the filepath for the cached hash of a file.
     """
     file_abspath = filepath.absolute()
-    hash_filename = hashlib.sha256(
-        file_abspath.as_posix().encode("utf-8")
-    ).hexdigest()
+    hash_filename = hashlib.sha256(file_abspath.as_posix().encode("utf-8")).hexdigest()
 
     if hash_dir is None:
         return Path(hash_filename)
 
     return hash_dir / hash_filename
 
-class Tracer(trio.abc.Instrument):
-    def before_run(self):
-        print("!!! run started")
 
-    def _print_with_task(self, msg, task):
-        # repr(task) is perhaps more useful than task.name in general,
-        # but in context of a tutorial the extra noise is unhelpful.
-        print(f"{msg}: {task.name}")
+def time_spent(
+    log: PrefixedLogger,
+    message: Optional[Any] = None,
+    print_result: bool = False,
+):
+    def decorator(func):
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            start_time = time.time()
+            result = None
+            exception = None
+            try:
+                result = func(*args, **kwargs)
+            except Exception as e:
+                exception = e
 
-    def task_spawned(self, task):
-        self._print_with_task("### new task spawned", task)
+            end_time = time.time()
+            elapsed_time = end_time - start_time
+            log_message = f"{Fore.BLUE}({elapsed_time:.3f}s){Style.RESET_ALL}"
+            if print_result and result:
+                log_message = f"{Fore.MAGENTA}{result}{Style.RESET_ALL} {log_message}"
+            log_message = f"{Fore.YELLOW}{message or func.__name__}{Style.RESET_ALL}: {log_message}"
+            if os.getenv("DEBUG", False):
+                log.info(log_message)
+            if exception:
+                raise exception
+            return result
 
-    def task_scheduled(self, task):
-        self._print_with_task("### task scheduled", task)
+        return wrapper
 
-    def before_task_step(self, task):
-        self._print_with_task(">>> about to run one step of task", task)
-
-    def after_task_step(self, task):
-        self._print_with_task("<<< task step finished", task)
-
-    def task_exited(self, task):
-        self._print_with_task("### task exited", task)
-
-    def before_io_wait(self, timeout):
-        if timeout:
-            print(f"### waiting for I/O for up to {timeout} seconds")
-        else:
-            print("### doing a quick check for I/O")
-        self._sleep_time = trio.current_time()
-
-    def after_io_wait(self, timeout):
-        duration = trio.current_time() - self._sleep_time
-        print(f"### finished I/O check (took {duration} seconds)")
-
-    def after_run(self):
-        print("!!! run finished")
+    return decorator

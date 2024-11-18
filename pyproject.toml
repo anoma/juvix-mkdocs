@@ -1,16 +1,10 @@
 [tool.poetry]
 name = "mkdocs-juvix-plugin"
-version = "0.3.11"
-description = "Support for Juvix Markdown files in MkDocs"
+version = "0.4.0"
+description = "MkDocs documentation with support for Juvix Markdown files"
 authors = ["Jonathan Prieto-Cubides, and GitHub contributors"]
 license = "MIT"
 readme = "README.md"
-
-classifiers = [
-    "Intended Audience :: Developers",
-    "Intended Audience :: Information Technology",
-    "Programming Language :: Python",
-]
 
 packages = [
     { include = "mkdocs_juvix", from = "." },
@@ -19,22 +13,18 @@ packages = [
 
 [tool.poetry.scripts]
 juvix-mkdocs = "src.cli:cli"
-build = "src.pyinstaller:install"
 
 [tool.poetry.plugins."mkdocs.plugins"]
-juvix = "mkdocs_juvix.juvix_markdown:JuvixPlugin"
+juvix = "mkdocs_juvix.main:JuvixPlugin"
 # extra plugins
 todos = "mkdocs_juvix.todos:TodosPlugin"
-wikilinks = "mkdocs_juvix.links:WikilinksPlugin"
-images = "mkdocs_juvix.images:ImagesPlugin"
-# differ = "mkdocs_juvix.differ:DifferPlugin"
 
 [tool.poetry.dependencies]
 python = ">=3.10,<3.14"
 mkdocs = "^1.6.1"
 click = "^8.1.7"
 semver = "^3.0.2"
-mkdocs-material = "^9.5.40"
+mkdocs-material = "^9.5.44"
 questionary = "^2.0.1"
 python-dotenv = "^1.0.1"
 bs4 = "^0.0.2"
@@ -45,9 +35,8 @@ graphviz = "^0.20.3"
 python-levenshtein = "^0.26.0"
 intervaltree = "^3.1.0"
 ncls = "^0.0.68"
-trio = "^0.27.0"
 tqdm = "^4.66.5"
-pyinstaller = "^6.11.0"
+trio = "^0.27.0"
 
 [tool.poetry.group.dev.dependencies]
 ruff = "^0.6.9"
@@ -58,10 +47,6 @@ pytest = "^8.3.3"
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
-
-
-
-
 
 [tool.poetry.group.test.dependencies]
 pytest = "*"

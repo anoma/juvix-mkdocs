@@ -30,13 +30,12 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 import codecs
 import functools
-import os
 import re
 import sys
 import textwrap
 import urllib
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any, List, Optional
 
 from colorama import Fore, Style  # type: ignore
 from markdown import Extension  # type: ignore
@@ -45,14 +44,19 @@ from mkdocs.plugins import get_plugin_logger
 
 from mkdocs_juvix.env import ENV
 from mkdocs_juvix.utils import find_file_in_subdirs  # type: ignore
+from mkdocs_juvix.utils import time_spent as time_spent_decorator
 
-log = get_plugin_logger(f"{Fore.BLUE}[juvix_mkdocs-snippets]{Style.RESET_ALL}")
+log = get_plugin_logger(f"{Fore.BLUE}[juvix_mkdocs] (snippets) {Style.RESET_ALL}")
+
+
+def time_spent(message: Optional[Any] = None, print_result: bool = False):
+    return time_spent_decorator(log=log, message=message, print_result=print_result)
+
 
 MI = 1024 * 1024  # mebibyte (MiB)
 DEFAULT_URL_SIZE = MI * 32
 DEFAULT_URL_TIMEOUT = 10.0  # in seconds
 DEFAULT_URL_REQUEST_HEADERS = {}  # type: ignore
-
 
 PY39 = (3, 9) <= sys.version_info
 
@@ -96,8 +100,24 @@ class SnippetPreprocessor(Preprocessor):
     """Handle snippets in Markdown content."""
 
     env: ENV
+    base_path: List[Path] = [Path("."), Path("includes")]
+    restrict_base_path: bool = True
+    encoding: str = "utf-8"
+    check_paths: bool = True
+    auto_append: List[str] = []
+    url_download: bool = True
+    url_max_size: int = DEFAULT_URL_SIZE
+    url_timeout: float = DEFAULT_URL_TIMEOUT
+    url_request_headers: dict = DEFAULT_URL_REQUEST_HEADERS
+    dedent_subsections: bool = True
+    tab_length: int = 2
 
-    def __init__(self, config, md: Any, env: Optional[ENV] = None):
+    def __init__(
+        self,
+        config: Optional[Any] = None,
+        md: Optional[Any] = None,
+        env: Optional[ENV] = None,
+    ):
         """Initialize."""
 
         if env is None:
@@ -105,22 +125,30 @@ class SnippetPreprocessor(Preprocessor):
         else:
             self.env = env
 
-        base = config.get("base_path")
+        base = self.base_path
 
-        if isinstance(base, (str, os.PathLike)):
-            base = [base]
+        if config is not None:
+            base = config.get("base_path")
+            self.base_path = []
+            for b in base:
+                if not Path(b).exists():
+                    continue
+                self.base_path.append(Path(b).absolute())
 
-        self.base_path = [os.path.abspath(b) for b in base]  # type: ignore
-        self.restrict_base_path = config["restrict_base_path"]
-        self.encoding = config.get("encoding")
-        self.check_paths = config.get("check_paths")
-        self.auto_append = config.get("auto_append")
-        self.url_download = config["url_download"]
-        self.url_max_size = config["url_max_size"]
-        self.url_timeout = config["url_timeout"]
-        self.url_request_headers = config["url_request_headers"]
-        self.dedent_subsections = config["dedent_subsections"]
-        self.tab_length = md.tab_length
+            self.restrict_base_path = config["restrict_base_path"]
+            self.encoding = config.get("encoding")
+            self.check_paths = config.get("check_paths")
+            self.auto_append = config.get("auto_append")
+            self.url_download = config["url_download"]
+            self.url_max_size = config["url_max_size"]
+            self.url_timeout = config["url_timeout"]
+            self.url_request_headers = config["url_request_headers"]
+            self.dedent_subsections = config["dedent_subsections"]
+            if md is not None and hasattr(md, "tab_length"):
+                self.tab_length = md.tab_length
+            else:
+                self.tab_length = 2
+
         super().__init__()
         self.download.cache_clear()
 
@@ -134,7 +162,6 @@ class SnippetPreprocessor(Preprocessor):
         backup_path=None,
     ):
         """Extract the specified section from the lines."""
-
         new_lines = []
         start = False
         found = False
@@ -181,12 +208,13 @@ class SnippetPreprocessor(Preprocessor):
             # We are currently in a section, so append the line
             if start:
                 new_lines.append(ln)
-
+        showed_error = False
         if not found and self.check_paths:
             if not is_juvix:
                 log.error(
                     f"[!] Snippet section {Fore.YELLOW}{section}{Style.RESET_ALL} could not be located"
                 )
+                showed_error = True
             # juvix
             elif backup_lines is not None:
                 return self.extract_section(
@@ -198,11 +226,14 @@ class SnippetPreprocessor(Preprocessor):
                     backup_path=backup_path,
                 )
 
-            log.error(
-                f"The snippet section {Fore.YELLOW}{section}{Style.RESET_ALL} could not be located."
-                f"This is likely because the section is inside a Juvix code block, which is currently not supported in Juvix v0.6.6 or previous versions. Consider wrapping the Juvix code block with a section snippet instead."
-                f"Error found in the file {Fore.GREEN}{backup_path}{Style.RESET_ALL} for the section {Fore.YELLOW}{section}{Style.RESET_ALL}."
-            )
+            if not showed_error:
+                log.error(
+                    f"Snippet section {Fore.YELLOW}{section}{Style.RESET_ALL} not found. "
+                    f"It might be inside a Juvix code block, unsupported in Juvix v0.6.6 or earlier. "
+                    f"Consider using a section snippet. "
+                    f"Error in file {Fore.GREEN}{backup_path}{Style.RESET_ALL} for section "
+                    f"{Fore.YELLOW}{section}{Style.RESET_ALL}."
+                )
         return self.dedent(new_lines) if self.dedent_subsections else new_lines
 
     def dedent(self, lines):
@@ -278,8 +309,6 @@ class SnippetPreprocessor(Preprocessor):
         self, lines, file_name=None, is_url=False, is_juvix=False, is_isabelle=False
     ) -> list[str]:
         """Parse snippets snippet."""
-        log.debug(f"Parsing snippets {file_name if file_name else ''}")
-
         if file_name:
             # Track this file.
             self.seen.add(file_name)
@@ -392,7 +421,7 @@ class SnippetPreprocessor(Preprocessor):
                 snippet = (
                     find_file_in_subdirs(
                         self.env.ROOT_ABSPATH,
-                        self.base_path, # type: ignore
+                        self.base_path,  # type: ignore
                         Path(path),  # type: ignore
                     )
                     if not url
@@ -403,9 +432,10 @@ class SnippetPreprocessor(Preprocessor):
                 if snippet:
                     original = snippet
                     if not just_raw and snippet.endswith(".juvix.md"):
-                        snippet = self.env.CACHE_MARKDOWN_JUVIX_OUTPUT_PATH / Path(
-                            snippet.replace(".juvix.md", ".md")
-                        ).relative_to(self.env.DOCS_PATH)
+                        snippet = self.env.compute_filepath_for_cached_output_of_juvix_markdown_file(
+                            Path(snippet)
+                        )
+
                         if not snippet.exists():
                             log.warning(
                                 f"Juvix Markdown file does not exist: {Fore.RED}{snippet}{Style.RESET_ALL}, report this issue on GitHub!"
@@ -413,14 +443,16 @@ class SnippetPreprocessor(Preprocessor):
                             snippet = original
 
                     if requires_thy:
-                        relative_path = Path(original).relative_to(self.env.DOCS_PATH)
-                        snippet = self.env.CACHE_ISABELLE_OUTPUT_PATH / Path(
-                            relative_path.as_posix().replace(".juvix.md", ".thy")
+                        snippet = self.env.compute_filepath_for_juvix_isabelle_output_in_cache(
+                            Path(original)
                         )
+                        if snippet is None:
+                            snippet = original
+
                         log.info(
-                            f"Snippet is an Isabelle file: {Fore.GREEN}{snippet}{Style.RESET_ALL}"
+                            f"The requested file is an Isabelle file: {Fore.GREEN}{snippet}{Style.RESET_ALL}"
                         )
-                        if not snippet.exists():
+                        if snippet is not None and not Path(snippet).exists():
                             log.warning(
                                 f"Isabelle file does not exist: {Fore.RED}{snippet}{Style.RESET_ALL}, "
                                 f"did you forget e.g. to add `isabelle: true` to the meta in the corresponding Juvix file?"
@@ -522,10 +554,10 @@ class SnippetPreprocessor(Preprocessor):
 
         return new_lines
 
-    def run(self, lines):
+    def run(self, lines: List[str]) -> List[str]:
         """Process snippets."""
 
-        self.seen = set()
+        self.seen: set[str] = set()
         if self.auto_append:
             lines.extend(
                 "\n\n-8<-\n{}\n-8<-\n".format("\n\n".join(self.auto_append)).split("\n")

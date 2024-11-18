@@ -7,7 +7,7 @@ Juvix settings.
 import os
 import shutil
 import subprocess
-from functools import lru_cache
+from functools import lru_cache, wraps
 from os import getenv
 from pathlib import Path
 from typing import List, Optional, Tuple
@@ -17,10 +17,10 @@ from mkdocs.config.defaults import MkDocsConfig
 from mkdocs.plugins import get_plugin_logger
 from semver import Version
 
-from mkdocs_juvix.juvix_version import MIN_JUVIX_VERSION
 import mkdocs_juvix.utils as utils
+from mkdocs_juvix.juvix_version import MIN_JUVIX_VERSION
 
-log = get_plugin_logger(f"{Fore.BLUE}[juvix_mkdocs-env]{Style.RESET_ALL}")
+log = get_plugin_logger(f"{Fore.BLUE}[juvix_mkdocs] (env) {Style.RESET_ALL}")
 
 BASE_PATH = Path(__file__).parent
 FIXTURES_PATH = BASE_PATH / "fixtures"
@@ -44,6 +44,8 @@ class ENV:
     DOT_BIN: str
     DOT_FLAGS: str
     IMAGES_ENABLED: bool
+    CLEAN_DEPS: bool = bool(getenv("CLEAN_DEPS", False))
+    UPDATE_DEPS: bool = bool(getenv("UPDATE_DEPS", False))
 
     REMOVE_CACHE: bool = bool(
         getenv("REMOVE_CACHE", False)
@@ -54,7 +56,7 @@ class ENV:
     )  # Whether the user wants to use Juvix
     JUVIX_FULL_VERSION: str
     JUVIX_BIN_NAME: str = getenv("JUVIX_BIN", "juvix")  # The name of the Juvix binary
-    JUVIX_BIN_PATH: str = getenv("JUVIX_PATH", "")  # The path to the Juvix binary
+    JUVIX_BIN_PATH: str = getenv("JUVIX_PATH", "")  # The path to the Juvix binaries
     JUVIX_BIN: str = (
         JUVIX_BIN_PATH + "/" + JUVIX_BIN_NAME
         if JUVIX_BIN_PATH != ""
@@ -69,19 +71,19 @@ class ENV:
     JUVIX_FOOTER_CSS_FILENAME: str = getenv(
         "JUVIX_FOOTER_CSS_FILENAME", "juvix_codeblock_footer.css"
     )
-    CACHE_JUVIX_MARKDOWN_DIRNAME: str = getenv(
-        "CACHE_JUVIX_MARKDOWN_DIRNAME", ".original_juvix_markdown_files"
-    )  # The name of the directory where the Juvix Markdown files are cached
-    CACHE_JUVIX_PROJECT_HASH_FILENAME: str = getenv(
-        "CACHE_JUVIX_PROJECT_HASH_FILENAME", ".hash_compound_of_juvix_markdown_files"
-    )  # The name of the file where the Juvix Markdown files are cached
+    CACHE_ORIGINALS_DIRNAME: str = getenv(
+        "CACHE_ORIGINALS_DIRNAME", ".original_files"
+    )  # The name of the directory where the original files are cached
+    CACHE_PROJECT_HASH_FILENAME: str = getenv(
+        "CACHE_PROJECT_HASH_FILENAME", ".hash_compound_of_original_files"
+    )  # The name of the file where the hash of the original files is cached
 
     CACHE_ISABELLE_THEORIES_DIRNAME: str = getenv(
         "CACHE_ISABELLE_THEORIES_DIRNAME", ".isabelle_theories"
     )  # The name of the directory where the Isabelle Markdown files are cached
     CACHE_ISABELLE_OUTPUT_PATH: Path
     CACHE_HASHES_DIRNAME: str = getenv(
-        "CACHE_HASHES_DIRNAME", ".hashes_for_juvix_markdown_files"
+        "CACHE_HASHES_DIRNAME", ".hashes_for_original_files"
     )  # The name of the directory where the hashes are stored
     CACHE_HTML_DIRNAME: str = getenv(
         "CACHE_HTML_DIRNAME", ".html"
@@ -90,30 +92,24 @@ class ENV:
     DOCS_INDEXES_DIRNAME: str = getenv("DOCS_INDEXES_DIRNAME", "indexes")
     CACHE_MARKDOWN_JUVIX_OUTPUT_DIRNAME: str = getenv(
         "CACHE_MARKDOWN_JUVIX_OUTPUT_DIRNAME",
-        ".markdown_output_from_juvix_markdown_files",
+        ".markdown_output_from_original_files",
     )  # The name of the file where the Juvix Markdown files are stored
-    CACHE_WIKILINKS_DIRNAME: str = getenv(
-        "CACHE_WIKILINKS_DIRNAME", ".wikilinks"
-    )  # The name of the file where the Juvix Markdown files are stored
+    CACHE_WIKILINKS_DIRNAME: str = getenv("CACHE_WIKILINKS_DIRNAME", ".wikilinks")
     DOCS_IMAGES_DIRNAME: str = getenv("DOCS_IMAGES_DIRNAME", "images")
     CACHE_JUVIX_VERSION_FILENAME: str = getenv(
         "CACHE_JUVIX_VERSION_FILENAME", ".juvix_version"
-    )  # The name of the file where the Juvix version is stored
-
-    CACHE_ABSPATH: Path  # The path to the cache directory
-    CACHE_ORIGINAL_JUVIX_MARKDOWN_FILES_ABSPATH: (
-        Path  # The path to the Juvix Markdown cache directory
     )
-    ROOT_ABSPATH: Path  # The path to the root directory
+
+    ROOT_ABSPATH: Path  # The path to the root directory used by MkDocs
+    CACHE_ABSPATH: Path  # The path to the cache directory
     DOCS_ABSPATH: Path  # The path to the documentation directory
+    CACHE_ORIGINALS_ABSPATH: Path  # The path to the original files cache directory
     CACHE_MARKDOWN_JUVIX_OUTPUT_PATH: (
         Path  # The path to the Juvix Markdown output directory
     )
     CACHE_WIKILINKS_PATH: Path  # The path to the wikilinks cache directory
-    CACHE_HTML_PATH: Path  # The path to the Juvix Markdown output directory
-    CACHE_JUVIX_PROJECT_HASH_FILEPATH: (
-        Path  # The path to the Juvix Markdown output directory
-    )
+    CACHE_HTML_PATH: Path  # The path to the HTML output directory
+    CACHE_PROJECT_HASH_FILEPATH: Path  # The path to the Juvix Markdown output directory
     CACHE_HASHES_PATH: Path  # The path where hashes are stored (not the project hash)
     JUVIX_FOOTER_CSS_FILEPATH: Path  # The path to the Juvix footer CSS file
     CACHE_JUVIX_VERSION_FILEPATH: Path  # The path to the Juvix version file
@@ -133,7 +129,7 @@ class ENV:
                 exit(1)
 
             self.ROOT_PATH = Path(config_file).parent
-            self.SITE_URL = config.get("site_url", "")
+            self.SITE_URL = config.get("site_url", "")  # TODO: "" or "/" ?
         else:
             self.ROOT_PATH = Path(".").resolve()
             self.SITE_URL = ""
@@ -166,8 +162,8 @@ class ENV:
                     "The diff binary is not available. Please install diff and make sure it's available in the PATH."
                 )
 
-        self.CACHE_ORIGINAL_JUVIX_MARKDOWN_FILES_ABSPATH: Path = (
-            self.CACHE_ABSPATH / self.CACHE_JUVIX_MARKDOWN_DIRNAME
+        self.CACHE_ORIGINALS_ABSPATH: Path = (
+            self.CACHE_ABSPATH / self.CACHE_ORIGINALS_DIRNAME
         )  # The path to the Juvix Markdown cache directory
         self.ROOT_ABSPATH: Path = (
             self.CACHE_ABSPATH.parent
@@ -190,8 +186,8 @@ class ENV:
             self.CACHE_ABSPATH / self.CACHE_ISABELLE_THEORIES_DIRNAME
         )  # The path to the Isabelle output directory
 
-        self.CACHE_JUVIX_PROJECT_HASH_FILEPATH: Path = (
-            self.CACHE_ABSPATH / self.CACHE_JUVIX_PROJECT_HASH_FILENAME
+        self.CACHE_PROJECT_HASH_FILEPATH: Path = (
+            self.CACHE_ABSPATH / self.CACHE_PROJECT_HASH_FILENAME
         )  # The path to the Juvix Markdown output directory
         self.CACHE_HASHES_PATH: Path = (
             self.CACHE_ABSPATH / self.CACHE_HASHES_DIRNAME
@@ -213,33 +209,30 @@ class ENV:
             )
             exit(1)
 
-        directories: List[Path] = [
-            self.CACHE_MARKDOWN_JUVIX_OUTPUT_PATH,
-            self.CACHE_ISABELLE_OUTPUT_PATH,
-            self.CACHE_ORIGINAL_JUVIX_MARKDOWN_FILES_ABSPATH,
-            self.CACHE_ABSPATH,
-            self.CACHE_HASHES_PATH,
-            self.JUVIX_FOOTER_CSS_FILEPATH.parent,
-            self.CACHE_WIKILINKS_PATH,
-        ]
+        if (
+            self.CACHE_ABSPATH.exists()
+            and self.REMOVE_CACHE
+            and config
+            and not config.get("env_init", False)
+        ):
+            try:
+                log.info(
+                    f"Removing directory {Fore.RED}{self.CACHE_ABSPATH}{Style.RESET_ALL}"
+                )
+                shutil.rmtree(self.CACHE_ABSPATH, ignore_errors=True)
+            except Exception as e:
+                log.error(
+                    f"Something went wrong while removing the directory {self.CACHE_ABSPATH}. Error: {e}"
+                )
+            self.CACHE_ABSPATH.mkdir(parents=True, exist_ok=True)
 
-        for directory in directories:
-            if (
-                directory.exists()
-                and self.REMOVE_CACHE
-                and config
-                and not config.get("env_init", False)
-            ):
-                try:
-                    log.info(
-                        f"Removing directory {Fore.RED}{directory}{Style.RESET_ALL}"
-                    )
-                    shutil.rmtree(directory, ignore_errors=True)
-                except Exception as e:
-                    log.error(
-                        f"Something went wrong while removing the directory {directory}. Error: {e}"
-                    )
-            directory.mkdir(parents=True, exist_ok=True)
+        # Create the cache directories
+        self.CACHE_ORIGINALS_ABSPATH.mkdir(parents=True, exist_ok=True)
+        self.CACHE_MARKDOWN_JUVIX_OUTPUT_PATH.mkdir(parents=True, exist_ok=True)
+        self.CACHE_ISABELLE_OUTPUT_PATH.mkdir(parents=True, exist_ok=True)
+        self.CACHE_HTML_PATH.mkdir(parents=True, exist_ok=True)
+        self.CACHE_HASHES_PATH.mkdir(parents=True, exist_ok=True)
+        self.CACHE_WIKILINKS_PATH.mkdir(parents=True, exist_ok=True)
 
         self.JUVIX_VERSION = ""
         self.JUVIX_FULL_VERSION = ""
@@ -280,7 +273,8 @@ class ENV:
 
         if Version.parse(self.JUVIX_VERSION) < MIN_JUVIX_VERSION:
             log.debug(
-                f"""Juvix version {MIN_JUVIX_VERSION} or higher is required. Please upgrade Juvix and try again."""
+                f"""Juvix version {Fore.RED}{MIN_JUVIX_VERSION}{Style.RESET_ALL}
+                or higher is required. Please upgrade Juvix and try again."""
             )
             self.JUVIX_ENABLED = False
             self.JUVIX_AVAILABLE = False
@@ -293,13 +287,28 @@ class ENV:
         if config:
             config["env_init"] = True
 
-    @lru_cache(maxsize=128)
+    @property
+    def juvix_enabled(self) -> bool:
+        return self.JUVIX_ENABLED and self.JUVIX_AVAILABLE
+
+    @staticmethod
+    def when_juvix_enabled(func):
+        @wraps(func)
+        def wrapper(self, *args, **kwargs):
+            if self.juvix_enabled:
+                return func(self, *args, **kwargs)
+            return None
+
+        return wrapper
+
     def read_markdown_file_from_cache(self, filepath: Path) -> Optional[str]:
-        if cache_ABSpath := self.get_filepath_for_cache_markdown_output_of_juvix_markdown_file(filepath):
+        if (
+            cache_ABSpath
+            := self.compute_filepath_for_cached_output_of_juvix_markdown_file(filepath)
+        ):
             return cache_ABSpath.read_text()
         return None
 
-    @lru_cache(maxsize=128)
     def read_wikilinks_file_from_cache(self, filepath: Path) -> Optional[str]:
         if cache_ABSpath := self.get_filepath_for_wikilinks_in_cache(filepath):
             return cache_ABSpath.read_text()
@@ -313,36 +322,42 @@ class ENV:
         filepath = filepath.absolute()
         rel_to_docs = filepath.relative_to(self.DOCS_ABSPATH)
         return self.CACHE_WIKILINKS_PATH / rel_to_docs.parent / filepath.name
-    
-    def get_expected_filepath_for_cached_hash_for(self, filepath: Path) -> Path:
+
+    def compute_filepath_for_cached_hash_for(self, filepath: Path) -> Path:
         file_abspath = filepath.absolute()
-        return utils.get_filepath_for_cached_hash_for(file_abspath, hash_dir=self.CACHE_HASHES_PATH)
+        return utils.get_filepath_for_cached_hash_for(
+            file_abspath, hash_dir=self.CACHE_HASHES_PATH
+        )
 
     def is_file_new_or_changed_for_cache(self, filepath: Path) -> bool:
         file_abspath = filepath.absolute()
-        hash_file = self.get_expected_filepath_for_cached_hash_for(file_abspath)
+        hash_file = self.compute_filepath_for_cached_hash_for(file_abspath)
         if not hash_file.exists():
             return True  # File is new
         # compute the hash of the file content to check if it has changed
         current_hash = utils.hash_content_of(file_abspath)
         cached_hash = hash_file.read_text().strip()
         return current_hash != cached_hash  # File has changed if hashes are different
-    
+
     def update_cache_for_file(self, filepath: Path, file_content: str) -> None:
         file_abspath = filepath.absolute()
-        cache_filepath = self.get_expected_filepath_for_cached_hash_for(file_abspath)
+        cache_filepath = self.compute_filepath_for_cached_hash_for(file_abspath)
         cache_filepath.parent.mkdir(parents=True, exist_ok=True)
         cache_filepath.write_text(file_content)
         self.update_hash_file(file_abspath)
 
     @lru_cache(maxsize=128)
-    def get_filepath_for_cache_markdown_output_of_juvix_markdown_file(
+    def compute_filepath_for_cached_output_of_juvix_markdown_file(
         self, filepath: Path
     ) -> Path:
         file_abspath = filepath.absolute()
         md_filename = filepath.name.replace(".juvix.md", ".md")
         file_rel_to_docs = file_abspath.relative_to(self.DOCS_ABSPATH)
-        return self.CACHE_MARKDOWN_JUVIX_OUTPUT_PATH / file_rel_to_docs.parent / md_filename
+        return (
+            self.CACHE_MARKDOWN_JUVIX_OUTPUT_PATH
+            / file_rel_to_docs.parent
+            / md_filename
+        )
 
     def unqualified_module_name(self, filepath: Path) -> Optional[str]:
         fposix: str = filepath.as_posix()
@@ -384,8 +399,8 @@ class ENV:
         module_name = self.unqualified_module_name(filepath)
         return module_name + extension if module_name else None
 
-    def update_hash_file(self, filepath: Path) -> Optional[Tuple[Path, str]]: 
-        filepath_hash = self.get_expected_filepath_for_cached_hash_for(filepath)
+    def update_hash_file(self, filepath: Path) -> Optional[Tuple[Path, str]]:
+        filepath_hash = self.compute_filepath_for_cached_hash_for(filepath)
         try:
             with open(filepath_hash, "w") as f:
                 content_hash = utils.hash_content_of(filepath)
@@ -395,7 +410,19 @@ class ENV:
             log.error(f"Error updating hash file: {e}")
             return None
 
-    def get_expected_filepath_for_juvix_markdown_output_in_cache(
+    def remove_directory(self, directory: Path) -> None:
+        try:
+            shutil.rmtree(directory, ignore_errors=True)
+        except Exception as e:
+            log.error(f"Error removing folder: {e}")
+
+    def copy_directory(self, src: Path, dst: Path) -> None:
+        try:
+            shutil.copytree(src, dst, dirs_exist_ok=True)
+        except Exception as e:
+            log.error(f"Error copying folder: {e}")
+
+    def compute_filepath_for_juvix_markdown_output_in_cache(
         self, filepath: Path
     ) -> Optional[Path]:
         cache_markdown_filename: Optional[str] = self.get_filename_module_by_extension(
@@ -411,7 +438,7 @@ class ENV:
         )
         return cache_markdown_filepath
 
-    def get_expected_filepath_for_juvix_isabelle_output_in_cache(
+    def compute_filepath_for_juvix_isabelle_output_in_cache(
         self, filepath: Path
     ) -> Optional[Path]:
         cache_isabelle_filename: Optional[str] = self.get_filename_module_by_extension(

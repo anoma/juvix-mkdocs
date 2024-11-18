@@ -1,7 +1,7 @@
 ---
-isabelle:
-  generate: true
-  include_at_bottom: true
+preprocess:
+  isabelle: true
+  isabelle_at_bottom: true
 ---
 
 # Juvix can be used to generate Isabelle theories

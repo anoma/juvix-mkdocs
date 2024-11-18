@@ -8,6 +8,7 @@ env:
   GH_TOKEN: ${{{{ secrets.GITHUB_TOKEN }}}}
   PYTHON_VERSION: 3.x
   POETRY_VERSION: 1.8.3
+  JUVIX_VERSION: {juvix_version}
   GIT_COMMITTER_EMAIL: {site_author_email}
   GIT_COMMITTER_NAME: {site_author}
   BRANCH_NAME: ${{{{ github.head_ref || github.ref_name }}}}
@@ -31,7 +32,7 @@ jobs:
         uses: jaxxstorm/action-install-gh-release@v1.12.0
         with:
           repo: anoma/juvix
-          tag: v{juvix_version}
+          tag: v${{{{ env.JUVIX_VERSION }}}}
           cache: enable
           rename-to: juvix
           chmod: 0755
