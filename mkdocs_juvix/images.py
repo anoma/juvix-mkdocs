@@ -11,7 +11,7 @@ from colorama import Fore, Style  # type: ignore
 from markdown.extensions import Extension  # type: ignore
 from markdown.preprocessors import Preprocessor  # type: ignore
 from mkdocs.config.defaults import MkDocsConfig  # type: ignore
-from mkdocs.plugins import BasePlugin, get_plugin_logger
+from mkdocs.plugins import BasePlugin
 from mkdocs.structure.files import Files  # type: ignore
 from mkdocs.structure.pages import Page
 from ncls import NCLS  # type: ignore
@@ -19,8 +19,8 @@ from ncls import NCLS  # type: ignore
 from mkdocs_juvix.common.utils import fix_site_url  # type:ignore
 from mkdocs_juvix.env import ENV  # type: ignore
 from mkdocs_juvix.utils import time_spent as time_spent_decorator
+from mkdocs_juvix.logger import log
 
-log = get_plugin_logger(f"{Fore.BLUE}[juvix_mkdocs]{Style.RESET_ALL} (images)")
 
 IMAGES_PATTERN = re.compile(
     r"""

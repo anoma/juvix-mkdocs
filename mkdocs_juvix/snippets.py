@@ -40,14 +40,9 @@ from typing import Any, List, Optional
 from colorama import Fore, Style  # type: ignore
 from markdown import Extension  # type: ignore
 from markdown.preprocessors import Preprocessor  # type: ignore
-from mkdocs.plugins import get_plugin_logger
-
 from mkdocs_juvix.env import ENV
-from mkdocs_juvix.utils import find_file_in_subdirs  # type: ignore
 from mkdocs_juvix.utils import time_spent as time_spent_decorator
-
-log = get_plugin_logger(f"{Fore.BLUE}[juvix_mkdocs] (snippets) {Style.RESET_ALL}")
-
+from mkdocs_juvix.logger import log
 
 def time_spent(message: Optional[Any] = None, print_result: bool = False):
     return time_spent_decorator(log=log, message=message, print_result=print_result)
@@ -99,18 +94,18 @@ class SnippetMissingError(Exception):
 class SnippetPreprocessor(Preprocessor):
     """Handle snippets in Markdown content."""
 
+    base_path: List[Path]
+    restrict_base_path: bool
+    encoding: str
+    check_paths: bool
+    auto_append: List[str]
+    url_download: bool
+    url_max_size: int
+    url_timeout: float
+    url_request_headers: dict
+    dedent_subsections: bool
+    tab_length: int
     env: ENV
-    base_path: List[Path] = [Path("."), Path("includes")]
-    restrict_base_path: bool = True
-    encoding: str = "utf-8"
-    check_paths: bool = True
-    auto_append: List[str] = []
-    url_download: bool = True
-    url_max_size: int = DEFAULT_URL_SIZE
-    url_timeout: float = DEFAULT_URL_TIMEOUT
-    url_request_headers: dict = DEFAULT_URL_REQUEST_HEADERS
-    dedent_subsections: bool = True
-    tab_length: int = 2
 
     def __init__(
         self,
@@ -119,6 +114,18 @@ class SnippetPreprocessor(Preprocessor):
         env: Optional[ENV] = None,
     ):
         """Initialize."""
+
+        self.base_path: List[Path] = [Path("."), Path("includes")]
+        self.restrict_base_path: bool = True
+        self.encoding: str = "utf-8"
+        self.check_paths: bool = True
+        self.auto_append: List[str] = []
+        self.url_download: bool = True
+        self.url_max_size: int = DEFAULT_URL_SIZE
+        self.url_timeout: float = DEFAULT_URL_TIMEOUT
+        self.url_request_headers: dict = DEFAULT_URL_REQUEST_HEADERS
+        self.dedent_subsections: bool = True
+        self.tab_length: int = 2
 
         if env is None:
             self.env = ENV(config)
@@ -144,6 +151,7 @@ class SnippetPreprocessor(Preprocessor):
             self.url_timeout = config["url_timeout"]
             self.url_request_headers = config["url_request_headers"]
             self.dedent_subsections = config["dedent_subsections"]
+
             if md is not None and hasattr(md, "tab_length"):
                 self.tab_length = md.tab_length
             else:
@@ -234,37 +242,16 @@ class SnippetPreprocessor(Preprocessor):
                     f"Error in file {Fore.GREEN}{backup_path}{Style.RESET_ALL} for section "
                     f"{Fore.YELLOW}{section}{Style.RESET_ALL}."
                 )
+            new_lines.append(
+                f"\n!!! error\n\n"
+                f"    Snippet section '{section}' not found! Please report this issue on GitHub!\n"
+            )
         return self.dedent(new_lines) if self.dedent_subsections else new_lines
 
     def dedent(self, lines):
         """De-indent lines."""
 
         return textwrap.dedent("\n".join(lines)).split("\n")
-
-    def get_snippet_path(self, path) -> Optional[str]:
-        """Get snippet path."""
-        snippet = None
-        for base in self.base_path:
-            base_path = Path(base)
-            if base_path.exists():
-                if base_path.is_dir():
-                    if self.restrict_base_path:
-                        filename = (base_path / path).resolve()
-                        if not str(filename).startswith(str(base_path)):
-                            continue
-                    else:
-                        filename = base_path / path
-                    if filename.exists():
-                        snippet = str(filename)
-                        break
-                else:
-                    dirname = base_path.parent
-                    filename = dirname / path
-                    if filename.exists() and filename.samefile(base_path):
-                        snippet = str(filename)
-                        break
-
-        return snippet
 
     @functools.lru_cache()  # noqa: B019
     def download(self, url):
@@ -305,9 +292,76 @@ class SnippetPreprocessor(Preprocessor):
                 ln.decode(self.encoding).rstrip("\r\n") for ln in response.readlines()
             ]
 
+    def get_snippet_path(self, path: Path | str):
+        """Get snippet path."""
+        log.info(
+            f"{Fore.MAGENTA}> getting snippet path for {path}{Style.RESET_ALL}"
+        )
+        if isinstance(path, str):
+            path = Path(path)
+
+        base_paths = self.base_path
+        if path.is_relative_to(self.env.DOCS_ABSPATH):
+            path = path.relative_to(self.env.DOCS_ABSPATH)
+        if path.is_relative_to("docs"):
+            log.info(f"Path is relative to docs: {path}")
+            path = path.relative_to("docs")
+        if path.is_relative_to("./docs"):
+            log.info(f"Path is relative to ./docs: {path}")
+            path = path.relative_to("./docs")
+
+        if path.as_posix().endswith(".thy"):
+            log.info(f"Path is an Isabelle file: {path}")
+            base_paths = [self.env.ISABELLE_OUTPUT_PATH / path.parent]
+
+        snippet = None
+
+        if path.as_posix().endswith(".juvix.md"):
+            path = Path(path.as_posix().replace(".juvix.md", ".md"))
+
+        log.info(f"Base path: {Fore.MAGENTA}{base_paths}{Style.RESET_ALL}")
+
+        for base in base_paths:
+            if Path(base).exists():
+                if Path(base).is_dir():
+                    log.info(f"Base path is a directory: {base}")
+                    if self.restrict_base_path:
+                        filename = Path(base).absolute() / path
+                        log.info(f"Checking restricted base path: {filename}")
+                        if not filename.as_posix().startswith(base.as_posix()):
+                            log.info(f"Rejected file not under base path: {filename}")
+                            continue
+                        else:
+                            if filename.exists():
+                                log.info(f"Accepted file under base path: {filename}")
+                                return filename
+                            else:
+                                log.info(f"File does not exist: {filename}")
+                    else:
+                        filename = Path(base).absolute() / path
+                        log.info(f"Checking unrestricted base path: {filename}")
+                        if filename.exists():
+                            log.info(f"Snippet found: {filename}")
+                            snippet = filename
+                            break
+                else:
+                    dirname = Path(base).parent
+                    filename = dirname / path
+                    log.info(f"Checking file in directory: {filename}")
+                    if filename.exists():
+                        log.info(f"Snippet found: {filename}")
+                        snippet = filename
+                        break
+        return snippet
+
     def parse_snippets(
-        self, lines, file_name=None, is_url=False, is_juvix=False, is_isabelle=False
-    ) -> list[str]:
+        self,
+        lines,
+        file_name: Optional[Path | str] = None,
+        is_url: bool = False,
+        is_juvix: bool = False,
+        is_isabelle: bool = False,
+    ) -> list[str] | Exception:
         """Parse snippets snippet."""
         if file_name:
             # Track this file.
@@ -379,15 +433,15 @@ class SnippetPreprocessor(Preprocessor):
                 m = RE_SNIPPET_FILE.match(path)
                 if m is None:
                     continue
+
                 path = m.group(1).strip()
 
                 if not path:
                     if self.check_paths:
-                        raise SnippetMissingError(
-                            "1. Snippet at path '{}' could not be found".format(path)
-                        )
+                        return SnippetMissingError("No path specified for snippet")
                     else:
                         continue
+
                 ending = m.group(3)
                 if ending and len(ending) > 1:
                     end = int(ending[1:])
@@ -418,23 +472,47 @@ class SnippetPreprocessor(Preprocessor):
                     path = path[:-4]
                     is_isabelle = True
 
-                snippet = (
-                    find_file_in_subdirs(
-                        self.env.ROOT_ABSPATH,
-                        self.base_path,  # type: ignore
-                        Path(path),  # type: ignore
+                log.info(f"<snippet> Looking for snippet in cache: {path}")
+                log.info(f"<snippet> type of path: {type(path)}")
+                _path = Path(path)
+                if is_isabelle:
+                    _path = _path.with_name(_path.name.replace(".juvix.md", ".thy"))
+
+                found_snippet = self.get_snippet_path(_path)
+
+                if found_snippet is None:
+                    if self.check_paths:
+                        log.error(f"XXX. Snippet at path '{path}' could not be found")
+                        return SnippetMissingError(
+                            f"YYYY. Snippet at path '{path}' could not be found"
+                        )
+
+                log.info(f"{Fore.GREEN}Found!!:{found_snippet}{Style.RESET_ALL}")
+
+                if found_snippet is None:
+                    log.info(
+                        f"<snippet> Snippet not found in cache, using path: {path}"
                     )
-                    if not url
-                    else path
-                )
+                    snippet = path
+                else:
+                    log.info(
+                        f"<snippet> Snippet found in cache, using filepath: {found_snippet}"
+                    )
+                    snippet = (
+                        found_snippet.as_posix() if found_snippet and not url else path
+                    )
 
                 is_juvix = False
                 if snippet:
+                    # original = self.env.compute_filepath_for_original_file_in_cache(
+                    #     Path(snippet)
+                    # )
                     original = snippet
                     if not just_raw and snippet.endswith(".juvix.md"):
-                        snippet = self.env.compute_filepath_for_cached_output_of_juvix_markdown_file(
-                            Path(snippet)
+                        log.info(
+                            f"<snippet> Computing processed filepath for {snippet}"
                         )
+                        snippet = self.env.compute_processed_filepath(snippet)
 
                         if not snippet.exists():
                             log.warning(
@@ -470,6 +548,8 @@ class SnippetPreprocessor(Preprocessor):
                     original_lines = []
 
                     if is_juvix:
+                        if isinstance(original, Path):
+                            original = original.as_posix()
                         with codecs.open(original, "r", encoding=self.encoding) as f:
                             original_lines = [ln.rstrip("\r\n") for ln in f]
                             if start is not None or end is not None:
@@ -482,6 +562,8 @@ class SnippetPreprocessor(Preprocessor):
 
                     if not url:
                         # Read file content
+                        if isinstance(snippet, Path):
+                            snippet = snippet.as_posix()
                         with codecs.open(snippet, "r", encoding=self.encoding) as f:
                             s_lines = [ln.rstrip("\r\n") for ln in f]
                             if start is not None or end is not None:
@@ -527,26 +609,27 @@ class SnippetPreprocessor(Preprocessor):
                                 )
                         except SnippetMissingError:
                             if self.check_paths:
-                                raise
+                                return SnippetMissingError(
+                                    f"2. Snippet at URL '{snippet}' could not be found"
+                                )
                             s_lines = []
 
                     # Process lines looking for more snippets
-                    new_lines.extend(
-                        [
-                            space + l2
-                            for l2 in self.parse_snippets(
-                                s_lines,
-                                file_name=snippet,
-                                is_url=url,
-                                is_juvix=is_juvix,
-                                is_isabelle=is_isabelle,
-                            )
-                        ]
+                    parsed_snippets = self.parse_snippets(
+                        s_lines,
+                        file_name=snippet,
+                        is_url=url,
+                        is_juvix=is_juvix,
+                        is_isabelle=is_isabelle,
                     )
+                    if isinstance(parsed_snippets, Exception):
+                        return parsed_snippets
+                    new_lines.extend([space + l2 for l2 in parsed_snippets])
 
                 elif self.check_paths:
-                    log.error("2. Snippet at path '{}' could not be found".format(path))
-                    exit(1)
+                    raise SnippetMissingError(
+                        f"3. Snippet at path '{path}' could not be found!"
+                    )
 
         # Pop the current file name out of the cache
         if file_name:
@@ -554,15 +637,16 @@ class SnippetPreprocessor(Preprocessor):
 
         return new_lines
 
-    def run(self, lines: List[str]) -> List[str]:
+    def run(
+        self, lines: List[str], file_name: Optional[Path | str] = None
+    ) -> List[str] | Exception:
         """Process snippets."""
-
-        self.seen: set[str] = set()
+        self.seen: set[Path | str] = set()
         if self.auto_append:
             lines.extend(
                 "\n\n-8<-\n{}\n-8<-\n".format("\n\n".join(self.auto_append)).split("\n")
             )
-        return self.parse_snippets(lines)
+        return self.parse_snippets(lines, file_name=file_name)
 
 
 class SnippetExtension(Extension):

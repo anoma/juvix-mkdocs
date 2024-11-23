@@ -1,4 +1,4 @@
 site/
 .DS_Store
 .juvix-build/
-.hooks/
+.cache-juvix-mkdocs/
