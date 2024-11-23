@@ -164,8 +164,6 @@ class SnippetPreprocessor(Preprocessor):
         self,
         section,
         lines,
-        is_juvix=False,
-        is_isabelle=False,
         backup_lines=None,
         backup_path=None,
     ):
@@ -216,31 +214,13 @@ class SnippetPreprocessor(Preprocessor):
             # We are currently in a section, so append the line
             if start:
                 new_lines.append(ln)
-        showed_error = False
         if not found and self.check_paths:
-            if not is_juvix:
-                log.error(
-                    f"[!] Snippet section {Fore.YELLOW}{section}{Style.RESET_ALL} could not be located"
-                )
-                showed_error = True
-            # juvix
-            elif backup_lines is not None:
+            if backup_lines is not None:
                 return self.extract_section(
                     section,
                     backup_lines,
-                    is_juvix=False,
-                    is_isabelle=False,
                     backup_lines=None,
                     backup_path=backup_path,
-                )
-
-            if not showed_error:
-                log.error(
-                    f"Snippet section {Fore.YELLOW}{section}{Style.RESET_ALL} not found. "
-                    f"It might be inside a Juvix code block, unsupported in Juvix v0.6.6 or earlier. "
-                    f"Consider using a section snippet. "
-                    f"Error in file {Fore.GREEN}{backup_path}{Style.RESET_ALL} for section "
-                    f"{Fore.YELLOW}{section}{Style.RESET_ALL}."
                 )
             new_lines.append(
                 f"\n!!! error\n\n"
@@ -577,8 +557,6 @@ class SnippetPreprocessor(Preprocessor):
                                 s_lines = self.extract_section(
                                     section,
                                     s_lines,
-                                    is_juvix,
-                                    is_isabelle,
                                     original_lines,
                                     original,
                                 )
