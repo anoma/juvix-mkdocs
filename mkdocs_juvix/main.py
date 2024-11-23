@@ -326,14 +326,14 @@ class EnhancedMarkdownFile:
         """
         if self.changed_since_last_run():
             self.generate_juvix_markdown(save_markdown=save_markdown, force=force)
-            self.generate_isabelle_theories(save_markdown=save_markdown, force=force)
+            if is_juvix_markdown_file(self.absolute_filepath):
+                self.generate_isabelle_theories(save_markdown=save_markdown, force=force)
             self.generate_images(save_markdown=save_markdown, force=force)
             self.generate_wikilinks(save_markdown=save_markdown, force=force)
             self.generate_snippets(save_markdown=save_markdown, force=force)
             self.generate_errors(save_markdown=save_markdown, force=force)
         return self.markdown_output
 
-    @time_spent(message="> Updating cached markdown output", print_result=True)
     def save_markdown_output(self, md_output: str) -> Optional[Path]:
         """
         Cache the input provided as the cached markdown. Update the hash of the
@@ -1313,7 +1313,8 @@ class EnhancedMarkdownCollection:
                 file.generate_juvix_markdown(save_markdown=True)
         if generate_juvix_isabelle:
             for file in self.files:
-                file.generate_isabelle_theories(save_markdown=True)
+                if is_juvix_markdown_file(file.absolute_filepath):
+                    file.generate_isabelle_theories(save_markdown=True)
         if generate_images:
             for file in self.files:
                 file.generate_images(save_markdown=True)
@@ -1493,7 +1494,7 @@ class JuvixPlugin(BasePlugin):
             generate_wikilinks=True,
             generate_snippets=True,
             generate_errors=True,
-            generate_html=True,
+            generate_html=False,
         )
 
     def on_files(self, files: Files, *, config: MkDocsConfig) -> Optional[Files]:

@@ -223,7 +223,7 @@ class SnippetPreprocessor(Preprocessor):
                     backup_path=backup_path,
                 )
             new_lines.append(
-                f"\n!!! error\n\n"
+                f"\n!!! failure\n\n"
                 f"    Snippet section '{section}' not found! Please report this issue on GitHub!\n"
             )
         return self.dedent(new_lines) if self.dedent_subsections else new_lines
@@ -271,16 +271,74 @@ class SnippetPreprocessor(Preprocessor):
             return [
                 ln.decode(self.encoding).rstrip("\r\n") for ln in response.readlines()
             ]
-
+        
+    def _get_snippet_path(self, 
+        base_paths : List[Path], path : Path):
+        snippet = None
+        for base in base_paths:
+            if Path(base).exists():
+                if Path(base).is_dir():
+                    log.info(f"Base path is a directory: {Fore.MAGENTA}{base}{Style.RESET_ALL}")
+                    if self.restrict_base_path:
+                        filename = Path(base).absolute() / path
+                        log.info(f"Checking restricted base path: {Fore.MAGENTA}{filename}{Style.RESET_ALL}")
+                        if not filename.as_posix().startswith(base.as_posix()):
+                            log.info(f"Rejected file not under base path: {Fore.MAGENTA}{filename}{Style.RESET_ALL}")
+                            continue
+                        else:
+                            if filename.exists():
+                                log.info(f"Accepted file under base path: {Fore.MAGENTA}{filename}{Style.RESET_ALL}")
+                                return filename
+                            else:
+                                log.info(f"File does not exist: {Fore.MAGENTA}{filename}{Style.RESET_ALL}")
+                    else:
+                        filename = Path(base).absolute() / path
+                        log.info(f"Checking unrestricted base path: {Fore.MAGENTA}{filename}{Style.RESET_ALL}")
+                        if filename.exists():
+                            log.info(f"Snippet found: {Fore.MAGENTA}{filename}{Style.RESET_ALL}")
+                            snippet = filename
+                            break
+                else:
+                    dirname = Path(base).parent
+                    filename = dirname / path
+                    log.info(f"Checking file in directory: {Fore.MAGENTA}{filename}{Style.RESET_ALL}")
+                    if filename.exists():
+                        log.info(f"Snippet found: {Fore.MAGENTA}{filename}{Style.RESET_ALL}")
+                        snippet = filename
+                        break
+        return snippet
+        
     def get_snippet_path(self, path: Path | str):
         """Get snippet path."""
         log.info(
-            f"{Fore.MAGENTA}> getting snippet path for {path}{Style.RESET_ALL}"
+            f"{Fore.CYAN}> getting snippet path for {path}{Style.RESET_ALL}"
         )
         if isinstance(path, str):
             path = Path(path)
-
         base_paths = self.base_path
+        just_raw = path and path.as_posix().endswith("!")
+        search_for_juvix_isabelle_output = False
+
+        if path and path.as_posix().endswith(".juvix.md!thy"):
+            search_for_juvix_isabelle_output = True
+            log.info(f"Path ends with .juvix.md!thy: {Fore.MAGENTA}{path}{Style.RESET_ALL}")
+            juvix_path = path.with_name(path.name.replace("!thy", ""))
+            log.info(f"Juvix path: {Fore.MAGENTA}{juvix_path}{Style.RESET_ALL}")
+            # isabelle_path = juvix_path
+            isabelle_path = self.env.compute_filepath_for_juvix_isabelle_output_in_cache(
+                juvix_path
+            )
+            log.info(f"Isabelle path: {Fore.MAGENTA}{isabelle_path}{Style.RESET_ALL}")
+            if isabelle_path is not None and isabelle_path.exists():
+                path = isabelle_path
+                log.info(f"Changed path to Isabelle file: {Fore.MAGENTA}{path}{Style.RESET_ALL}")
+
+        
+        if just_raw:
+            path = Path(path.as_posix()[:-1])
+            log.info(f"Requested raw snippet: {path}")
+            base_paths = [self.env.DOCS_ABSPATH]
+
         if path.is_relative_to(self.env.DOCS_ABSPATH):
             path = path.relative_to(self.env.DOCS_ABSPATH)
         if path.is_relative_to("docs"):
@@ -290,57 +348,28 @@ class SnippetPreprocessor(Preprocessor):
             log.info(f"Path is relative to ./docs: {path}")
             path = path.relative_to("./docs")
 
-        if path.as_posix().endswith(".thy"):
+        if path.is_relative_to(self.env.ISABELLE_OUTPUT_PATH):
+            log.info(f"Path is relative to Isabelle output path: {path}")
+            path = path.relative_to(self.env.ISABELLE_OUTPUT_PATH)
+        if path.is_relative_to(self.env.ISABELLE_THEORIES_DIRNAME):
+            log.info(f"Path is relative to Isabelle theories directory: {path}")
+            path = path.relative_to(self.env.ISABELLE_THEORIES_DIRNAME)
+
+        if path.as_posix().endswith(".thy") or search_for_juvix_isabelle_output:
             log.info(f"Path is an Isabelle file: {path}")
-            base_paths = [self.env.ISABELLE_OUTPUT_PATH / path.parent]
+            base_paths = [self.env.ISABELLE_OUTPUT_PATH]
 
-        snippet = None
-
-        if path.as_posix().endswith(".juvix.md"):
+        if not just_raw and path.as_posix().endswith(".juvix.md"):
             path = Path(path.as_posix().replace(".juvix.md", ".md"))
 
-        log.info(f"Base path: {Fore.MAGENTA}{base_paths}{Style.RESET_ALL}")
+        return self._get_snippet_path(base_paths, path)
 
-        for base in base_paths:
-            if Path(base).exists():
-                if Path(base).is_dir():
-                    log.info(f"Base path is a directory: {base}")
-                    if self.restrict_base_path:
-                        filename = Path(base).absolute() / path
-                        log.info(f"Checking restricted base path: {filename}")
-                        if not filename.as_posix().startswith(base.as_posix()):
-                            log.info(f"Rejected file not under base path: {filename}")
-                            continue
-                        else:
-                            if filename.exists():
-                                log.info(f"Accepted file under base path: {filename}")
-                                return filename
-                            else:
-                                log.info(f"File does not exist: {filename}")
-                    else:
-                        filename = Path(base).absolute() / path
-                        log.info(f"Checking unrestricted base path: {filename}")
-                        if filename.exists():
-                            log.info(f"Snippet found: {filename}")
-                            snippet = filename
-                            break
-                else:
-                    dirname = Path(base).parent
-                    filename = dirname / path
-                    log.info(f"Checking file in directory: {filename}")
-                    if filename.exists():
-                        log.info(f"Snippet found: {filename}")
-                        snippet = filename
-                        break
-        return snippet
 
     def parse_snippets(
         self,
         lines,
         file_name: Optional[Path | str] = None,
         is_url: bool = False,
-        is_juvix: bool = False,
-        is_isabelle: bool = False,
     ) -> list[str] | Exception:
         """Parse snippets snippet."""
         if file_name:
@@ -410,8 +439,10 @@ class SnippetPreprocessor(Preprocessor):
                 end = None
                 start = None
                 section = None
+                log.info(f"{Fore.YELLOW}>>>>>> path: {path}{Style.RESET_ALL}")
                 m = RE_SNIPPET_FILE.match(path)
                 if m is None:
+                    log.info(f"{Fore.YELLOW}>>>>>> m is None{Style.RESET_ALL}")
                     continue
 
                 path = m.group(1).strip()
@@ -441,24 +472,7 @@ class SnippetPreprocessor(Preprocessor):
                 # Make sure we don't process `path` as a local file reference.
                 url = self.url_download and is_link
 
-                # juvix.md with or without ! with or without thy
-                just_raw = path and path.endswith("!")
-                if just_raw:
-                    path = path[:-1]
-
-                is_isabelle = False
-                requires_thy = path and path.endswith("!thy")
-                if requires_thy:
-                    path = path[:-4]
-                    is_isabelle = True
-
-                log.info(f"<snippet> Looking for snippet in cache: {path}")
-                log.info(f"<snippet> type of path: {type(path)}")
-                _path = Path(path)
-                if is_isabelle:
-                    _path = _path.with_name(_path.name.replace(".juvix.md", ".thy"))
-
-                found_snippet = self.get_snippet_path(_path)
+                found_snippet = self.get_snippet_path(path)
 
                 if found_snippet is None:
                     if self.check_paths:
@@ -482,42 +496,9 @@ class SnippetPreprocessor(Preprocessor):
                         found_snippet.as_posix() if found_snippet and not url else path
                     )
 
-                is_juvix = False
                 if snippet:
-                    # original = self.env.compute_filepath_for_original_file_in_cache(
-                    #     Path(snippet)
-                    # )
                     original = snippet
-                    if not just_raw and snippet.endswith(".juvix.md"):
-                        log.info(
-                            f"<snippet> Computing processed filepath for {snippet}"
-                        )
-                        snippet = self.env.compute_processed_filepath(snippet)
 
-                        if not snippet.exists():
-                            log.warning(
-                                f"Juvix Markdown file does not exist: {Fore.RED}{snippet}{Style.RESET_ALL}, report this issue on GitHub!"
-                            )
-                            snippet = original
-
-                    if requires_thy:
-                        snippet = self.env.compute_filepath_for_juvix_isabelle_output_in_cache(
-                            Path(original)
-                        )
-                        if snippet is None:
-                            snippet = original
-
-                        log.info(
-                            f"The requested file is an Isabelle file: {Fore.GREEN}{snippet}{Style.RESET_ALL}"
-                        )
-                        if snippet is not None and not Path(snippet).exists():
-                            log.warning(
-                                f"Isabelle file does not exist: {Fore.RED}{snippet}{Style.RESET_ALL}, "
-                                f"did you forget e.g. to add `isabelle: true` to the meta in the corresponding Juvix file?"
-                            )
-                            snippet = original
-
-                    is_juvix = True
                     if isinstance(snippet, Path):
                         snippet = snippet.as_posix()
 
@@ -525,20 +506,19 @@ class SnippetPreprocessor(Preprocessor):
                     if snippet in self.seen:
                         continue
 
-                    original_lines = []
 
-                    if is_juvix:
-                        if isinstance(original, Path):
-                            original = original.as_posix()
-                        with codecs.open(original, "r", encoding=self.encoding) as f:
-                            original_lines = [ln.rstrip("\r\n") for ln in f]
-                            if start is not None or end is not None:
-                                s = slice(start, end)
-                                original_lines = (
-                                    self.dedent(original_lines[s])
-                                    if self.dedent_subsections
-                                    else original_lines[s]
-                                )
+                    # if is_juvix:
+                    #     if isinstance(original, Path):
+                    #         original = original.as_posix()
+                    #     with codecs.open(original, "r", encoding=self.encoding) as f:
+                    #         original_lines = [ln.rstrip("\r\n") for ln in f]
+                    #         if start is not None or end is not None:
+                    #             s = slice(start, end)
+                    #             original_lines = (
+                    #                 self.dedent(original_lines[s])
+                    #                 if self.dedent_subsections
+                    #                 else original_lines[s]
+                    #             )
 
                     if not url:
                         # Read file content
@@ -557,7 +537,6 @@ class SnippetPreprocessor(Preprocessor):
                                 s_lines = self.extract_section(
                                     section,
                                     s_lines,
-                                    original_lines,
                                     original,
                                 )
                             else:
@@ -583,7 +562,7 @@ class SnippetPreprocessor(Preprocessor):
                                 )
                             elif section:
                                 s_lines = self.extract_section(
-                                    section, s_lines, is_juvix, is_isabelle
+                                    section, s_lines
                                 )
                         except SnippetMissingError:
                             if self.check_paths:
@@ -597,8 +576,6 @@ class SnippetPreprocessor(Preprocessor):
                         s_lines,
                         file_name=snippet,
                         is_url=url,
-                        is_juvix=is_juvix,
-                        is_isabelle=is_isabelle,
                     )
                     if isinstance(parsed_snippets, Exception):
                         return parsed_snippets

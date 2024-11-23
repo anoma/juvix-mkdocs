@@ -17,6 +17,13 @@ from mkdocs.config.defaults import MkDocsConfig
 from mkdocs.plugins import get_plugin_logger
 from semver import Version
 
+from mkdocs_juvix.utils import (
+    compute_sha_over_folder,
+    fix_site_url,
+    hash_content_of,
+    is_juvix_markdown_file,
+)
+
 import mkdocs_juvix.utils as utils
 from mkdocs_juvix.juvix_version import MIN_JUVIX_VERSION
 
@@ -188,7 +195,7 @@ class ENV:
         ):
             try:
                 log.info(
-                    f"Removing directory {Fore.RED}{self.CACHE_ABSPATH}{Style.RESET_ALL}"
+                    f"{Fore.YELLOW}Removing directory {self.CACHE_ABSPATH}{Style.RESET_ALL}"
                 )
                 shutil.rmtree(self.CACHE_ABSPATH, ignore_errors=True)
             except Exception as e:
@@ -395,7 +402,9 @@ class ENV:
         """
         The markdown filename is the same as the juvix file name but without the .juvix.md extension.
         """
+        log.info(f"Getting filename module by extension for {filepath} with extension {extension}")
         module_name = self.unqualified_module_name(filepath)
+        log.info(f"Module name: {module_name}")
         return module_name + extension if module_name else None
 
     def update_hash_file(self, filepath: Path) -> Optional[Tuple[Path, str]]:
@@ -424,19 +433,36 @@ class ENV:
     def compute_filepath_for_juvix_isabelle_output_in_cache(
         self, filepath: Path
     ) -> Optional[Path]:
+        if not is_juvix_markdown_file(filepath):
+            log.info(f"Filepath is not a Juvix Markdown filepath: {filepath}")
+            return None
+
+        log.info(f"Computing filepath for Isabelle output in cache for {filepath}")
         cache_markdown_filename: Optional[str] = (
             self.get_filename_module_by_extension(filepath, extension=".thy")
         )
+        log.info(f"Cache markdown filename: {cache_markdown_filename}")
+    
         if cache_markdown_filename is None:
+            log.info(f"No Isabelle output filename found for {filepath}")
             return None
         
-        rel_to_docs = filepath.relative_to(self.DOCS_ABSPATH)
+        if filepath.is_relative_to(self.DOCS_ABSPATH):
+            rel_to_docs = filepath.relative_to(self.DOCS_ABSPATH)
+        elif filepath.is_relative_to("./docs"):
+            rel_to_docs = filepath.relative_to("./docs")
+        elif filepath.is_relative_to("docs"):
+            rel_to_docs = filepath.relative_to("docs")
+        else:
+            rel_to_docs = filepath
+
         cache_markdown_filepath: Path = (
             self.ISABELLE_OUTPUT_PATH
             / rel_to_docs.parent
             / cache_markdown_filename
         )
         cache_markdown_filepath.parent.mkdir(parents=True, exist_ok=True)
+        log.info(f"Computed filepath for Isabelle output in cache: {cache_markdown_filepath}")
         return cache_markdown_filepath
 
 

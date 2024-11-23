@@ -175,7 +175,7 @@ def time_spent(
             result = None
             exception = None
             if message:
-                log_message = f"{message} ..."
+                log_message = f"{Fore.YELLOW}{message} ...{Style.RESET_ALL}"
                 if os.getenv("DEBUG", False):
                     log.info(log_message)
             try:
