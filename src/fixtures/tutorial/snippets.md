@@ -23,6 +23,10 @@ which provides the following output:
 
 --8<-- "docs/test.juvix.md:main"
 
+You can also include relative paths:
+
+--8<-- "./hello.juvix.md:axiom"
+
 
 !!! info
 

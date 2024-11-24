@@ -13,7 +13,6 @@ from urllib.parse import urljoin
 from colorama import Fore, Style  # type: ignore
 from markdown.extensions import Extension  # type: ignore
 from mkdocs.config.defaults import MkDocsConfig
-from mkdocs.plugins import get_plugin_logger
 from mkdocs.structure.files import File, Files
 from mkdocs.structure.pages import Page
 from mkdocs.utils import meta
@@ -22,8 +21,7 @@ from mkdocs_juvix.common.models.entry import ResultEntry
 from mkdocs_juvix.common.preprocesors.links import WLPreprocessor
 from mkdocs_juvix.common.utils import fix_site_url, get_page_title
 from mkdocs_juvix.env import ENV
-
-log = get_plugin_logger(f"{Fore.BLUE}[juvix_mkdocs] (wikilinks) {Style.RESET_ALL}")
+from mkdocs_juvix.logger import log
 
 files_relation: List[ResultEntry] = []
 EXCLUDED_DIRS = [
@@ -93,7 +91,7 @@ class WikilinksPlugin:
         self.PAGE_LINK_DIAGS = self.env.CACHE_PATH / self.PAGE_LINK_DIAGSNAME
         self.PAGE_LINK_DIAGS.mkdir(parents=True, exist_ok=True)
 
-        log.info("Wikilinks plugin initialized")
+        log.debug("Wikilinks plugin initialized")
         return config
 
     def on_pre_build(self, config: MkDocsConfig) -> None:
@@ -149,10 +147,6 @@ class WikilinksPlugin:
             ]
         )
 
-        log.info(
-            f"Processing wikilinks for {Fore.GREEN}{len(files)}{Style.RESET_ALL} files"
-        )
-
         def process_file(file: File) -> None:
             pathFile: str | None = file.abs_src_path
             if pathFile is not None:
@@ -183,9 +177,6 @@ class WikilinksPlugin:
         if self.LINKS_JSON.exists():
             self.LINKS_JSON.unlink()
 
-        log.info(
-            f"> writing page aliases to {Fore.YELLOW}{self.LINKS_JSON}{Style.RESET_ALL}"
-        )
         with open(self.LINKS_JSON, "w") as f:
             json.dump(
                 {
@@ -201,15 +192,6 @@ class WikilinksPlugin:
                 f,
                 indent=2,
             )
-
-    # @mkdocs.plugins.event_priority(-200)
-    # def on_page_markdown(
-    #     self, markdown, page: Page, config: MkDocsConfig, files: Files
-    # ) -> str:
-    #     config["current_page"] = page  # needed for the preprocessor
-    #     config["links_number"] = []
-    #     markdown += "\n" + self.TOKEN_LIST_WIKILINKS + "\n"
-    #     return markdown
 
     def on_page_content(
         self, html, page: Page, config: MkDocsConfig, files: Files

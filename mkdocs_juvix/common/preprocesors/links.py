@@ -1,20 +1,17 @@
 import os
 import re
-import time
 from pathlib import Path
 from typing import Any, List, Optional, Tuple
 from urllib.parse import urljoin
 
 import numpy as np  # type: ignore
-from colorama import Fore, Style  # type: ignore
 from fuzzywuzzy import fuzz  # type: ignore
 from markdown.preprocessors import Preprocessor  # type: ignore
-from mkdocs.plugins import get_plugin_logger
-from mkdocs.structure.pages import Page
 from ncls import NCLS  # type: ignore
 
 from mkdocs_juvix.common.models import FileLoc, WikiLink
 from mkdocs_juvix.env import ENV
+from mkdocs_juvix.logger import log
 from mkdocs_juvix.utils import time_spent as time_spent_decorator
 
 WIKILINK_PATTERN = re.compile(
@@ -27,10 +24,6 @@ WIKILINK_PATTERN = re.compile(
 \]\]
 """,
     re.VERBOSE,
-)
-
-log = get_plugin_logger(
-    f"{Fore.BLUE}[juvix_mkdocs] (preprocessor: wikilinks){Style.RESET_ALL}"
 )
 
 
@@ -189,7 +182,6 @@ class WLPreprocessor(Preprocessor):
         return self._run("\n".join(lines)).split("\n")
 
     def _run(self, content: str) -> str:
-        log.info(f"{Fore.MAGENTA}Running wikilinks preprocessor{Style.RESET_ALL}")
         if (
             self.absolute_path is None
             and self.relative_path is None

@@ -1,5 +1,4 @@
 import hashlib
-import logging
 import os
 import pickle
 import time
@@ -9,9 +8,9 @@ from typing import Any, Iterable, Optional
 
 from colorama import Fore, Style  # type: ignore
 from mkdocs.config.defaults import MkDocsConfig
-from mkdocs.plugins import PrefixedLogger
 
-log = logging.getLogger("mkdocs")
+from mkdocs_juvix.logger import PrefixedLogger, log
+
 EXCLUDED_DIRS = {
     ".git",
     ".hooks",
@@ -80,11 +79,14 @@ def find_file_in_subdirs(
     full_path = base_dir / filepath
     if full_path.exists():
         return full_path.absolute().as_posix()
-    subdirs = [base_dir / "images"] + list(subdirs)
+    subdirs = [base_dir / "images"] + list(set(subdirs))
     for subdir in subdirs:
         full_path = Path(subdir) / filepath.name
         if full_path.exists():
-            return full_path.absolute().as_posix()
+            if full_path.is_file():
+                return full_path.absolute().as_posix()
+            else:
+                log.error(f"Found directory {full_path} instead of file")
     return None
 
 
@@ -172,6 +174,10 @@ def time_spent(
             start_time = time.time()
             result = None
             exception = None
+            if message:
+                log_message = f"{Fore.YELLOW}{message} ...{Style.RESET_ALL}"
+                if os.getenv("DEBUG", False):
+                    log.info(log_message)
             try:
                 result = func(*args, **kwargs)
             except Exception as e:
@@ -179,10 +185,13 @@ def time_spent(
 
             end_time = time.time()
             elapsed_time = end_time - start_time
-            log_message = f"{Fore.BLUE}({elapsed_time:.3f}s){Style.RESET_ALL}"
+            log_message = (
+                f"done in {Fore.BLUE}{elapsed_time:.3f} seconds{Style.RESET_ALL}"
+            )
             if print_result and result:
-                log_message = f"{Fore.MAGENTA}{result}{Style.RESET_ALL} {log_message}"
-            log_message = f"{Fore.YELLOW}{message or func.__name__}{Style.RESET_ALL}: {log_message}"
+                log_message = f"`{func.__name__} =>` {result} - {log_message}"
+            if not print_result:
+                log_message = f"`{func.__name__}` - {log_message}"
             if os.getenv("DEBUG", False):
                 log.info(log_message)
             if exception:

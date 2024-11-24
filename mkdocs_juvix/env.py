@@ -19,6 +19,12 @@ from semver import Version
 
 import mkdocs_juvix.utils as utils
 from mkdocs_juvix.juvix_version import MIN_JUVIX_VERSION
+from mkdocs_juvix.utils import (
+    compute_sha_over_folder,
+    fix_site_url,
+    hash_content_of,
+    is_juvix_markdown_file,
+)
 
 log = get_plugin_logger(f"{Fore.BLUE}[juvix_mkdocs] (env) {Style.RESET_ALL}")
 
@@ -30,7 +36,7 @@ class ENV:
     ROOT_PATH: Path
     DOCS_DIRNAME: str = getenv("DOCS_DIRNAME", "docs")
     DOCS_PATH: Path
-    CACHE_DIRNAME: str = getenv("CACHE_DIRNAME", ".hooks")
+    CACHE_DIRNAME: str = getenv("CACHE_DIRNAME", ".cache-juvix-mkdocs")
     CACHE_PATH: Path
     DIFF_ENABLED: bool
     DIFF_BIN: str
@@ -47,72 +53,56 @@ class ENV:
     CLEAN_DEPS: bool = bool(getenv("CLEAN_DEPS", False))
     UPDATE_DEPS: bool = bool(getenv("UPDATE_DEPS", False))
 
-    REMOVE_CACHE: bool = bool(
-        getenv("REMOVE_CACHE", False)
-    )  # Whether the cache should be removed
+    REMOVE_CACHE: bool = bool(getenv("REMOVE_CACHE", False))
 
-    JUVIX_ENABLED: bool = bool(
-        getenv("JUVIX_ENABLED", True)
-    )  # Whether the user wants to use Juvix
+    JUVIX_ENABLED: bool = bool(getenv("JUVIX_ENABLED", True))
     JUVIX_FULL_VERSION: str
-    JUVIX_BIN_NAME: str = getenv("JUVIX_BIN", "juvix")  # The name of the Juvix binary
-    JUVIX_BIN_PATH: str = getenv("JUVIX_PATH", "")  # The path to the Juvix binaries
+    JUVIX_BIN_NAME: str = getenv("JUVIX_BIN", "juvix")
+    JUVIX_BIN_PATH: str = getenv("JUVIX_PATH", "")
     JUVIX_BIN: str = (
         JUVIX_BIN_PATH + "/" + JUVIX_BIN_NAME
         if JUVIX_BIN_PATH != ""
         else JUVIX_BIN_NAME
-    )  # The full path to the Juvix binary
+    )
     JUVIX_AVAILABLE: bool = shutil.which(JUVIX_BIN) is not None
 
-    FIRST_RUN: bool = bool(
-        getenv("FIRST_RUN", True)
-    )  # Whether this is the first time the plugin is run
+    FIRST_RUN: bool = bool(getenv("FIRST_RUN", True))
 
     JUVIX_FOOTER_CSS_FILENAME: str = getenv(
         "JUVIX_FOOTER_CSS_FILENAME", "juvix_codeblock_footer.css"
     )
-    CACHE_ORIGINALS_DIRNAME: str = getenv(
-        "CACHE_ORIGINALS_DIRNAME", ".original_files"
-    )  # The name of the directory where the original files are cached
+    CACHE_ORIGINALS_DIRNAME: str = getenv("CACHE_ORIGINALS_DIRNAME", ".originals")
     CACHE_PROJECT_HASH_FILENAME: str = getenv(
-        "CACHE_PROJECT_HASH_FILENAME", ".hash_compound_of_original_files"
-    )  # The name of the file where the hash of the original files is cached
+        "CACHE_PROJECT_HASH_FILENAME", ".compound_hash_of_originals"
+    )
 
-    CACHE_ISABELLE_THEORIES_DIRNAME: str = getenv(
-        "CACHE_ISABELLE_THEORIES_DIRNAME", ".isabelle_theories"
-    )  # The name of the directory where the Isabelle Markdown files are cached
-    CACHE_ISABELLE_OUTPUT_PATH: Path
-    CACHE_HASHES_DIRNAME: str = getenv(
-        "CACHE_HASHES_DIRNAME", ".hashes_for_original_files"
-    )  # The name of the directory where the hashes are stored
-    CACHE_HTML_DIRNAME: str = getenv(
-        "CACHE_HTML_DIRNAME", ".html"
-    )  # The name of the directory where the HTML files are cached
+    ISABELLE_THEORIES_DIRNAME: str = getenv(
+        "CACHE_ISABELLE_THEORIES_DIRNAME", "isabelle_theories"
+    )
+    ISABELLE_OUTPUT_PATH: Path
+    CACHE_HASHES_DIRNAME: str = getenv("CACHE_HASHES_DIRNAME", ".hashes")
+    CACHE_HTML_DIRNAME: str = getenv("CACHE_HTML_DIRNAME", ".html")
 
     DOCS_INDEXES_DIRNAME: str = getenv("DOCS_INDEXES_DIRNAME", "indexes")
-    CACHE_MARKDOWN_JUVIX_OUTPUT_DIRNAME: str = getenv(
-        "CACHE_MARKDOWN_JUVIX_OUTPUT_DIRNAME",
-        ".markdown_output_from_original_files",
-    )  # The name of the file where the Juvix Markdown files are stored
-    CACHE_WIKILINKS_DIRNAME: str = getenv("CACHE_WIKILINKS_DIRNAME", ".wikilinks")
+    CACHE_PROCESSED_MARKDOWN_DIRNAME: str = getenv(
+        "CACHE_PROCESSED_MARKDOWN_DIRNAME",
+        ".processed_markdown",
+    )
     DOCS_IMAGES_DIRNAME: str = getenv("DOCS_IMAGES_DIRNAME", "images")
     CACHE_JUVIX_VERSION_FILENAME: str = getenv(
         "CACHE_JUVIX_VERSION_FILENAME", ".juvix_version"
     )
 
-    ROOT_ABSPATH: Path  # The path to the root directory used by MkDocs
-    CACHE_ABSPATH: Path  # The path to the cache directory
-    DOCS_ABSPATH: Path  # The path to the documentation directory
-    CACHE_ORIGINALS_ABSPATH: Path  # The path to the original files cache directory
-    CACHE_MARKDOWN_JUVIX_OUTPUT_PATH: (
-        Path  # The path to the Juvix Markdown output directory
-    )
-    CACHE_WIKILINKS_PATH: Path  # The path to the wikilinks cache directory
-    CACHE_HTML_PATH: Path  # The path to the HTML output directory
-    CACHE_PROJECT_HASH_FILEPATH: Path  # The path to the Juvix Markdown output directory
-    CACHE_HASHES_PATH: Path  # The path where hashes are stored (not the project hash)
-    JUVIX_FOOTER_CSS_FILEPATH: Path  # The path to the Juvix footer CSS file
-    CACHE_JUVIX_VERSION_FILEPATH: Path  # The path to the Juvix version file
+    ROOT_ABSPATH: Path
+    CACHE_ABSPATH: Path
+    DOCS_ABSPATH: Path
+    CACHE_ORIGINALS_ABSPATH: Path
+    CACHE_PROCESSED_MARKDOWN_PATH: Path
+    CACHE_HTML_PATH: Path
+    CACHE_PROJECT_HASH_FILEPATH: Path
+    CACHE_HASHES_PATH: Path
+    JUVIX_FOOTER_CSS_FILEPATH: Path
+    CACHE_JUVIX_VERSION_FILEPATH: Path
     TOKEN_ISABELLE_THEORY: str = "<!-- ISABELLE_THEORY -->"
     SHOW_TODOS_IN_MD: bool
     INDEXES_PATH: Path
@@ -129,7 +119,7 @@ class ENV:
                 exit(1)
 
             self.ROOT_PATH = Path(config_file).parent
-            self.SITE_URL = config.get("site_url", "")  # TODO: "" or "/" ?
+            self.SITE_URL = config.get("site_url", "")
         else:
             self.ROOT_PATH = Path(".").resolve()
             self.SITE_URL = ""
@@ -164,44 +154,31 @@ class ENV:
 
         self.CACHE_ORIGINALS_ABSPATH: Path = (
             self.CACHE_ABSPATH / self.CACHE_ORIGINALS_DIRNAME
-        )  # The path to the Juvix Markdown cache directory
-        self.ROOT_ABSPATH: Path = (
-            self.CACHE_ABSPATH.parent
-        )  # The path to the root directory
-        self.DOCS_ABSPATH: Path = (
-            self.ROOT_ABSPATH / self.DOCS_DIRNAME
-        )  # The path to the documentation directory
-        self.IMAGES_PATH: Path = (
-            self.DOCS_ABSPATH / self.DOCS_IMAGES_DIRNAME
-        )  # The path to the images directory
+        )
+        self.DOCS_ABSPATH: Path = self.ROOT_ABSPATH / self.DOCS_DIRNAME
+        self.IMAGES_PATH: Path = self.DOCS_ABSPATH / self.DOCS_IMAGES_DIRNAME
 
-        self.CACHE_MARKDOWN_JUVIX_OUTPUT_PATH: Path = (
-            self.CACHE_ABSPATH / self.CACHE_MARKDOWN_JUVIX_OUTPUT_DIRNAME
-        )  # The path to the Juvix Markdown output directory
-        self.CACHE_HTML_PATH: Path = (
-            self.CACHE_ABSPATH / self.CACHE_HTML_DIRNAME
-        )  # The path to the Juvix Markdown output directory
+        self.CACHE_PROCESSED_MARKDOWN_PATH: Path = (
+            self.CACHE_ABSPATH / self.CACHE_PROCESSED_MARKDOWN_DIRNAME
+        )
+        self.CACHE_HTML_PATH: Path = self.CACHE_ABSPATH / self.CACHE_HTML_DIRNAME
 
-        self.CACHE_ISABELLE_OUTPUT_PATH: Path = (
-            self.CACHE_ABSPATH / self.CACHE_ISABELLE_THEORIES_DIRNAME
-        )  # The path to the Isabelle output directory
+        self.ISABELLE_OUTPUT_PATH: Path = (
+            self.ROOT_ABSPATH / self.ISABELLE_THEORIES_DIRNAME
+        )
+        self.ISABELLE_OUTPUT_PATH.mkdir(parents=True, exist_ok=True)
 
         self.CACHE_PROJECT_HASH_FILEPATH: Path = (
             self.CACHE_ABSPATH / self.CACHE_PROJECT_HASH_FILENAME
-        )  # The path to the Juvix Markdown output directory
-        self.CACHE_HASHES_PATH: Path = (
-            self.CACHE_ABSPATH / self.CACHE_HASHES_DIRNAME
-        )  # The path where hashes are stored (not the project hash)
+        )
+        self.CACHE_HASHES_PATH: Path = self.CACHE_ABSPATH / self.CACHE_HASHES_DIRNAME
 
         self.JUVIX_FOOTER_CSS_FILEPATH: Path = (
             self.DOCS_ABSPATH / "assets" / "css" / self.JUVIX_FOOTER_CSS_FILENAME
         )
         self.CACHE_JUVIX_VERSION_FILEPATH: Path = (
             self.CACHE_ABSPATH / self.CACHE_JUVIX_VERSION_FILENAME
-        )  # The path to the Juvix version file
-        self.CACHE_WIKILINKS_PATH: Path = (
-            self.CACHE_ABSPATH / self.CACHE_WIKILINKS_DIRNAME
-        )  # The path to the wikilinks cache directory
+        )
 
         if not self.DOCS_ABSPATH.exists():
             log.error(
@@ -217,7 +194,7 @@ class ENV:
         ):
             try:
                 log.info(
-                    f"Removing directory {Fore.RED}{self.CACHE_ABSPATH}{Style.RESET_ALL}"
+                    f"{Fore.YELLOW}Removing directory {self.CACHE_ABSPATH}{Style.RESET_ALL}"
                 )
                 shutil.rmtree(self.CACHE_ABSPATH, ignore_errors=True)
             except Exception as e:
@@ -228,11 +205,10 @@ class ENV:
 
         # Create the cache directories
         self.CACHE_ORIGINALS_ABSPATH.mkdir(parents=True, exist_ok=True)
-        self.CACHE_MARKDOWN_JUVIX_OUTPUT_PATH.mkdir(parents=True, exist_ok=True)
-        self.CACHE_ISABELLE_OUTPUT_PATH.mkdir(parents=True, exist_ok=True)
+        self.CACHE_PROCESSED_MARKDOWN_PATH.mkdir(parents=True, exist_ok=True)
+        self.ISABELLE_OUTPUT_PATH.mkdir(parents=True, exist_ok=True)
         self.CACHE_HTML_PATH.mkdir(parents=True, exist_ok=True)
         self.CACHE_HASHES_PATH.mkdir(parents=True, exist_ok=True)
-        self.CACHE_WIKILINKS_PATH.mkdir(parents=True, exist_ok=True)
 
         self.JUVIX_VERSION = ""
         self.JUVIX_FULL_VERSION = ""
@@ -276,9 +252,7 @@ class ENV:
                 f"""Juvix version {Fore.RED}{MIN_JUVIX_VERSION}{Style.RESET_ALL}
                 or higher is required. Please upgrade Juvix and try again."""
             )
-            self.JUVIX_ENABLED = False
-            self.JUVIX_AVAILABLE = False
-            return
+            exit(1)
 
         self.USE_DOT = bool(getenv("USE_DOT", True))
         self.DOT_BIN = getenv("DOT_BIN", "dot")
@@ -302,26 +276,9 @@ class ENV:
         return wrapper
 
     def read_markdown_file_from_cache(self, filepath: Path) -> Optional[str]:
-        if (
-            cache_ABSpath
-            := self.compute_filepath_for_cached_output_of_juvix_markdown_file(filepath)
-        ):
+        if cache_ABSpath := self.compute_processed_filepath(filepath):
             return cache_ABSpath.read_text()
         return None
-
-    def read_wikilinks_file_from_cache(self, filepath: Path) -> Optional[str]:
-        if cache_ABSpath := self.get_filepath_for_wikilinks_in_cache(filepath):
-            return cache_ABSpath.read_text()
-        return None
-
-    def write_wikilinks_file_to_cache(self, filepath: Path, content: str) -> None:
-        if cache_ABSpath := self.get_filepath_for_wikilinks_in_cache(filepath):
-            cache_ABSpath.write_text(content)
-
-    def get_filepath_for_wikilinks_in_cache(self, filepath: Path) -> Optional[Path]:
-        filepath = filepath.absolute()
-        rel_to_docs = filepath.relative_to(self.DOCS_ABSPATH)
-        return self.CACHE_WIKILINKS_PATH / rel_to_docs.parent / filepath.name
 
     def compute_filepath_for_cached_hash_for(self, filepath: Path) -> Path:
         file_abspath = filepath.absolute()
@@ -346,18 +303,66 @@ class ENV:
         cache_filepath.write_text(file_content)
         self.update_hash_file(file_abspath)
 
-    @lru_cache(maxsize=128)
-    def compute_filepath_for_cached_output_of_juvix_markdown_file(
-        self, filepath: Path
-    ) -> Path:
+    def compute_filepath_for_original_file_in_cache(self, filepath: Path) -> Path:
         file_abspath = filepath.absolute()
-        md_filename = filepath.name.replace(".juvix.md", ".md")
-        file_rel_to_docs = file_abspath.relative_to(self.DOCS_ABSPATH)
-        return (
-            self.CACHE_MARKDOWN_JUVIX_OUTPUT_PATH
-            / file_rel_to_docs.parent
-            / md_filename
-        )
+        rel_to_docs = file_abspath.relative_to(self.DOCS_ABSPATH)
+        return self.CACHE_ORIGINALS_ABSPATH / rel_to_docs.parent / filepath.name
+
+    @lru_cache(maxsize=128)
+    def compute_processed_filepath(
+        self,
+        filepath: Path,
+        relative_to: Optional[Path] = None,
+    ) -> Path:
+        log.debug(f"Computing processed filepath for {filepath}")
+
+        if filepath.name.endswith(".juvix.md"):
+            md_filename = filepath.name.replace(".juvix.md", ".md")
+            log.debug(f"Converted Juvix markdown filename to: {md_filename}")
+        else:
+            md_filename = filepath.name
+            log.debug(f"Using markdown filename: {md_filename}")
+
+        # check if the filepath is absolute
+        if filepath.is_absolute():
+            log.debug(f"Filepath is absolute: {filepath}")
+            filepath = filepath.relative_to(self.DOCS_ABSPATH)
+            processed_path = (
+                self.CACHE_PROCESSED_MARKDOWN_PATH / filepath.parent / md_filename
+            )
+            log.debug(
+                f"Computed processed filepath for absolute path: {processed_path}"
+            )
+            return processed_path
+        else:
+            log.debug(f"Filepath is relative: {filepath}")
+
+        if len(filepath.parts) > 0 and filepath.parts[0] in ["docs", "./docs"]:
+            filepath = Path(*filepath.parts[1:])
+            processed_path = (
+                self.CACHE_PROCESSED_MARKDOWN_PATH / filepath.parent / md_filename
+            )
+            log.debug(f"Computed processed filepath for docs path: {processed_path}")
+            return processed_path
+
+        if relative_to is None:
+            log.error("No relative path specified for the processed filepath")
+            return filepath
+
+        if relative_to.is_file():
+            processed_path = (
+                self.CACHE_PROCESSED_MARKDOWN_PATH / relative_to.parent / md_filename
+            )
+            log.debug(f"Computed processed filepath relative to file: {processed_path}")
+            return processed_path
+        else:
+            processed_path = (
+                self.CACHE_PROCESSED_MARKDOWN_PATH / relative_to / md_filename
+            )
+            log.debug(
+                f"Computed processed filepath relative to directory: {processed_path}"
+            )
+            return processed_path
 
     def unqualified_module_name(self, filepath: Path) -> Optional[str]:
         fposix: str = filepath.as_posix()
@@ -396,7 +401,11 @@ class ENV:
         """
         The markdown filename is the same as the juvix file name but without the .juvix.md extension.
         """
+        log.debug(
+            f"Getting filename module by extension for {filepath} with extension {extension}"
+        )
         module_name = self.unqualified_module_name(filepath)
+        log.debug(f"Module name: {module_name}")
         return module_name + extension if module_name else None
 
     def update_hash_file(self, filepath: Path) -> Optional[Tuple[Path, str]]:
@@ -422,34 +431,138 @@ class ENV:
         except Exception as e:
             log.error(f"Error copying folder: {e}")
 
-    def compute_filepath_for_juvix_markdown_output_in_cache(
-        self, filepath: Path
-    ) -> Optional[Path]:
-        cache_markdown_filename: Optional[str] = self.get_filename_module_by_extension(
-            filepath, extension=".md"
-        )
-        if cache_markdown_filename is None:
-            return None
-        rel_to_docs = filepath.relative_to(self.DOCS_ABSPATH)
-        cache_markdown_filepath: Path = (
-            self.CACHE_MARKDOWN_JUVIX_OUTPUT_PATH
-            / rel_to_docs.parent
-            / cache_markdown_filename
-        )
-        return cache_markdown_filepath
-
     def compute_filepath_for_juvix_isabelle_output_in_cache(
         self, filepath: Path
     ) -> Optional[Path]:
-        cache_isabelle_filename: Optional[str] = self.get_filename_module_by_extension(
+        if not is_juvix_markdown_file(filepath):
+            log.debug(f"Filepath is not a Juvix Markdown filepath: {filepath}")
+            return None
+
+        log.debug(f"Computing filepath for Isabelle output in cache for {filepath}")
+        cache_markdown_filename: Optional[str] = self.get_filename_module_by_extension(
             filepath, extension=".thy"
         )
-        if cache_isabelle_filename is None:
+        log.debug(f"Cache markdown filename: {cache_markdown_filename}")
+
+        if cache_markdown_filename is None:
+            log.debug(f"No Isabelle output filename found for {filepath}")
             return None
-        rel_to_docs = filepath.relative_to(self.DOCS_ABSPATH)
-        cache_isabelle_filepath: Path = (
-            self.CACHE_ISABELLE_OUTPUT_PATH
-            / rel_to_docs.parent
-            / cache_isabelle_filename
+
+        if filepath.is_relative_to(self.DOCS_ABSPATH):
+            rel_to_docs = filepath.relative_to(self.DOCS_ABSPATH)
+        elif filepath.is_relative_to("./docs"):
+            rel_to_docs = filepath.relative_to("./docs")
+        elif filepath.is_relative_to("docs"):
+            rel_to_docs = filepath.relative_to("docs")
+        else:
+            rel_to_docs = filepath
+
+        cache_markdown_filepath: Path = (
+            self.ISABELLE_OUTPUT_PATH / rel_to_docs.parent / cache_markdown_filename
         )
-        return cache_isabelle_filepath
+        cache_markdown_filepath.parent.mkdir(parents=True, exist_ok=True)
+        log.debug(
+            f"Computed filepath for Isabelle output in cache: {cache_markdown_filepath}"
+        )
+        return cache_markdown_filepath
+
+    def find_file_in(
+        self,
+        _filepath: Path | str,
+        _relative_to: Optional[Path | str],
+        _base_path: Optional[Path | str],
+        cache: bool = True,
+    ) -> Optional[Path]:
+        """
+        The filepath can be:
+        - Relative to the docs directory, e.g., "docs/..." or "./docs/..."
+        - Absolute, e.g., "/some/path/to/docs/..."
+        - Relative to the current working directory, in which case, relative_to
+        should be specified.
+
+        Otherwise, the search will be done relative to
+        self.CACHE_PROCESSED_MARKDOWN_PATH first, or relative to the docs
+        directory otherwise.
+
+        If the filepath is relative to the docs directory, the path to the
+        processed markdown file in the cache is obtained using
+        self.CACHE_PROCESSED_MARKDOWN_PATH. If the filepath is absolute, it is
+        checked for existence. If the filepath is relative to the current
+        working directory, relative_to is used to find the file.
+        """
+        filepath: Path = Path(_filepath) if isinstance(_filepath, str) else _filepath
+        relative_to = (
+            Path(_relative_to) if isinstance(_relative_to, str) else _relative_to
+        )
+        base_path = Path(_base_path) if isinstance(_base_path, str) else _base_path
+
+        filepath = Path(filepath.name.replace(".juvix.md", ".md"))
+
+        log.debug(f"Attempting to find file: {filepath}")
+
+        if filepath.is_relative_to("./docs") or filepath.is_relative_to("docs"):
+            filepath = (
+                filepath.relative_to("./docs")
+                if filepath.is_relative_to("./docs")
+                else filepath.relative_to("docs")
+            )
+            # Check if the filepath is relative to the docs directory
+            docs_relative_path = self.DOCS_ABSPATH / filepath
+            if docs_relative_path.exists():
+                log.debug(
+                    f"File found relative to docs directory: {docs_relative_path}"
+                )
+                if not base_path and cache:
+                    new_path = self.CACHE_PROCESSED_MARKDOWN_PATH / filepath
+                    if new_path.exists():
+                        log.debug(
+                            f"File found relative to cache processed markdown path: {new_path}"
+                        )
+                        return new_path
+                new_path = base_path / filepath if base_path else docs_relative_path
+                if new_path.exists():
+                    log.debug(f"File found relative to base path: {new_path}")
+                    return new_path
+
+        # Check if the filepath is absolute
+        if filepath.is_absolute():
+            log.debug(f"Filepath is absolute: {filepath}")
+            if filepath.exists():
+                log.debug(f"File found at absolute path: {filepath}")
+                return filepath
+            else:
+                log.debug(f"File not found at absolute path: {filepath}")
+                return None
+
+        # Check if the filepath is relative to the current working directory
+        if relative_to:
+            if isinstance(relative_to, str):
+                relative_to = Path(relative_to)
+            relative_to = relative_to.resolve().absolute()
+            if relative_to.is_file():
+                relative_path = relative_to.parent / filepath
+            else:
+                relative_path = relative_to / filepath
+
+            log.debug(f"Checking relative to provided path: {relative_path}")
+            if relative_path.exists():
+                log.debug(f"File found relative to provided path: {relative_path}")
+                return relative_path if base_path is None else base_path / relative_path
+
+        # Fallback to checking relative to the cache processed markdown path
+        cache_relative_path = self.CACHE_PROCESSED_MARKDOWN_PATH / filepath
+        log.debug(
+            f"Checking relative to cache processed markdown path: {cache_relative_path}"
+        )
+        if cache_relative_path.exists():
+            log.debug(
+                f"File found relative to cache processed markdown path: {cache_relative_path}"
+            )
+            return (
+                cache_relative_path
+                if base_path is None
+                else base_path / cache_relative_path
+            )
+
+        log.debug(f"File not found: {filepath}")
+        return None

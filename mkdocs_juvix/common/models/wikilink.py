@@ -1,10 +1,6 @@
 from typing import Optional
 
-from mkdocs.plugins import get_plugin_logger
-
 from .loc import FileLoc
-
-log = get_plugin_logger("\033[94m[wikilinks]\033[0m")
 
 
 class WikiLink:
