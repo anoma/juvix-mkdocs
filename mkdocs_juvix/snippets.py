@@ -44,6 +44,7 @@ from mkdocs_juvix.env import ENV
 from mkdocs_juvix.utils import time_spent as time_spent_decorator
 from mkdocs_juvix.logger import log
 
+
 def time_spent(message: Optional[Any] = None, print_result: bool = False):
     return time_spent_decorator(log=log, message=message, print_result=print_result)
 
@@ -271,48 +272,63 @@ class SnippetPreprocessor(Preprocessor):
             return [
                 ln.decode(self.encoding).rstrip("\r\n") for ln in response.readlines()
             ]
-        
-    def _get_snippet_path(self, 
-        base_paths : List[Path], path : Path):
+
+    def _get_snippet_path(self, base_paths: List[Path], path: Path):
         snippet = None
         for base in base_paths:
             if Path(base).exists():
                 if Path(base).is_dir():
-                    log.debug(f"Base path is a directory: {Fore.MAGENTA}{base}{Style.RESET_ALL}")
+                    log.debug(
+                        f"Base path is a directory: {Fore.MAGENTA}{base}{Style.RESET_ALL}"
+                    )
                     if self.restrict_base_path:
                         filename = Path(base).absolute() / path
-                        log.debug(f"Checking restricted base path: {Fore.MAGENTA}{filename}{Style.RESET_ALL}")
+                        log.debug(
+                            f"Checking restricted base path: {Fore.MAGENTA}{filename}{Style.RESET_ALL}"
+                        )
                         if not filename.as_posix().startswith(base.as_posix()):
-                            log.debug(f"Rejected file not under base path: {Fore.MAGENTA}{filename}{Style.RESET_ALL}")
+                            log.debug(
+                                f"Rejected file not under base path: {Fore.MAGENTA}{filename}{Style.RESET_ALL}"
+                            )
                             continue
                         else:
                             if filename.exists():
-                                log.debug(f"Accepted file under base path: {Fore.MAGENTA}{filename}{Style.RESET_ALL}")
+                                log.debug(
+                                    f"Accepted file under base path: {Fore.MAGENTA}{filename}{Style.RESET_ALL}"
+                                )
                                 return filename
                             else:
-                                log.debug(f"File does not exist: {Fore.MAGENTA}{filename}{Style.RESET_ALL}")
+                                log.debug(
+                                    f"File does not exist: {Fore.MAGENTA}{filename}{Style.RESET_ALL}"
+                                )
                     else:
                         filename = Path(base).absolute() / path
-                        log.debug(f"Checking unrestricted base path: {Fore.MAGENTA}{filename}{Style.RESET_ALL}")
+                        log.debug(
+                            f"Checking unrestricted base path: {Fore.MAGENTA}{filename}{Style.RESET_ALL}"
+                        )
                         if filename.exists():
-                            log.debug(f"Snippet found: {Fore.MAGENTA}{filename}{Style.RESET_ALL}")
+                            log.debug(
+                                f"Snippet found: {Fore.MAGENTA}{filename}{Style.RESET_ALL}"
+                            )
                             snippet = filename
                             break
                 else:
                     dirname = Path(base).parent
                     filename = dirname / path
-                    log.debug(f"Checking file in directory: {Fore.MAGENTA}{filename}{Style.RESET_ALL}")
+                    log.debug(
+                        f"Checking file in directory: {Fore.MAGENTA}{filename}{Style.RESET_ALL}"
+                    )
                     if filename.exists():
-                        log.debug(f"Snippet found: {Fore.MAGENTA}{filename}{Style.RESET_ALL}")
+                        log.debug(
+                            f"Snippet found: {Fore.MAGENTA}{filename}{Style.RESET_ALL}"
+                        )
                         snippet = filename
                         break
         return snippet
-        
+
     def get_snippet_path(self, path: Path | str):
         """Get snippet path."""
-        log.debug(
-            f"{Fore.CYAN}> getting snippet path for {path}{Style.RESET_ALL}"
-        )
+        log.debug(f"{Fore.CYAN}> getting snippet path for {path}{Style.RESET_ALL}")
         if isinstance(path, str):
             path = Path(path)
         base_paths = self.base_path
@@ -321,19 +337,22 @@ class SnippetPreprocessor(Preprocessor):
 
         if path and path.as_posix().endswith(".juvix.md!thy"):
             search_for_juvix_isabelle_output = True
-            log.debug(f"Path ends with .juvix.md!thy: {Fore.MAGENTA}{path}{Style.RESET_ALL}")
+            log.debug(
+                f"Path ends with .juvix.md!thy: {Fore.MAGENTA}{path}{Style.RESET_ALL}"
+            )
             juvix_path = path.with_name(path.name.replace("!thy", ""))
             log.debug(f"Juvix path: {Fore.MAGENTA}{juvix_path}{Style.RESET_ALL}")
             # isabelle_path = juvix_path
-            isabelle_path = self.env.compute_filepath_for_juvix_isabelle_output_in_cache(
-                juvix_path
+            isabelle_path = (
+                self.env.compute_filepath_for_juvix_isabelle_output_in_cache(juvix_path)
             )
             log.debug(f"Isabelle path: {Fore.MAGENTA}{isabelle_path}{Style.RESET_ALL}")
             if isabelle_path is not None and isabelle_path.exists():
                 path = isabelle_path
-                log.debug(f"Changed path to Isabelle file: {Fore.MAGENTA}{path}{Style.RESET_ALL}")
+                log.debug(
+                    f"Changed path to Isabelle file: {Fore.MAGENTA}{path}{Style.RESET_ALL}"
+                )
 
-        
         if just_raw:
             path = Path(path.as_posix()[:-1])
             log.debug(f"Requested raw snippet: {path}")
@@ -363,7 +382,6 @@ class SnippetPreprocessor(Preprocessor):
             path = Path(path.as_posix().replace(".juvix.md", ".md"))
 
         return self._get_snippet_path(base_paths, path)
-
 
     def parse_snippets(
         self,
@@ -476,10 +494,8 @@ class SnippetPreprocessor(Preprocessor):
 
                 if found_snippet is None:
                     if self.check_paths:
-                        log.error(f"XXX. Snippet at path '{path}' could not be found")
-                        return SnippetMissingError(
-                            f"YYYY. Snippet at path '{path}' could not be found"
-                        )
+                        msg = f"Error type 3. Snippet at path '{Fore.MAGENTA}{path}{Style.RESET_ALL}' could not be found"
+                        return SnippetMissingError(msg)
 
                 log.debug(f"{Fore.GREEN}Snippet found:{found_snippet}{Style.RESET_ALL}")
 
@@ -547,13 +563,11 @@ class SnippetPreprocessor(Preprocessor):
                                     else s_lines[s]
                                 )
                             elif section:
-                                s_lines = self.extract_section(
-                                    section, s_lines
-                                )
+                                s_lines = self.extract_section(section, s_lines)
                         except SnippetMissingError:
                             if self.check_paths:
                                 return SnippetMissingError(
-                                    f"2. Snippet at URL '{snippet}' could not be found"
+                                    f"Error type 2 while processing {Fore.MAGENTA}{file_name}{Style.RESET_ALL} when trying to extract snippet: {snippet}"
                                 )
                             s_lines = []
 

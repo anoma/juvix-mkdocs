@@ -787,7 +787,7 @@ def new(
 @click.option("--debug", is_flag=True, help="Set the environment variable DEBUG to 1")
 @click.option("--remove-cache", "-r", is_flag=True, help="Remove the cache before serving")
 @click.option("--verbose", "-v", is_flag=True, help="Set the environment variable VERBOSE to 1")
-def serve(project_path: Path, no_open: bool, quiet: bool, config_file: Path, debug: bool, verbose: bool):
+def serve(project_path: Path, no_open: bool, quiet: bool, config_file: Path, debug: bool, verbose: bool, remove_cache: bool):
     """This is a wrapper around `poetry run mkdocs serve`.
     It is used to serve the project using mkdocs."""
 
@@ -803,6 +803,14 @@ def serve(project_path: Path, no_open: bool, quiet: bool, config_file: Path, deb
     previous_debug : str | None = os.environ.get("DEBUG")
     if debug:
         os.environ["DEBUG"] = "1"
+    if remove_cache:
+        try:
+            shutil.rmtree(project_path / ".cache-juvix-mkdocs")
+        except Exception:
+            click.secho("Failed to remove .cache-juvix-mkdocs folder.", fg="red")
+            if previous_debug:
+                os.environ["DEBUG"] = previous_debug
+            return
     mkdocs_serve_cmd = ["poetry", "run", "mkdocs", "serve", "--clean"]
     if not no_open:
         mkdocs_serve_cmd.append("--open")

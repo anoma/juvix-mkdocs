@@ -307,7 +307,7 @@ class EnhancedMarkdownFile:
         """
         if self._markdown_output is None:
             try:
-                log.info(
+                log.debug(
                     f"> Because it was asked markdown and it was not cached, "
                     f"generating markdown output for {Fore.GREEN}{self}{Style.RESET_ALL}"
                 )
@@ -988,22 +988,12 @@ class EnhancedMarkdownFile:
         Modify the markdown output by adding the snippets. This requires the
         preprocess of Juvix and Isabelle to be ocurred before.
         """
-        self._processed_snippets = False if force else self._processed_snippets
-
-        _markdown_output = self.markdown_output
-        if _markdown_output is None:
-            log.error(
-                f"Failed to read markdown output from {self.absolute_filepath} "
-                f"when processing for snippets"
-            )
-            return None
-
+        _markdown_output: str = self.cache_filepath.read_text()
         metadata = parse_front_matter(_markdown_output) or {}
         preprocess = metadata.get("preprocess", {})
         needs_snippets = preprocess.get("snippets", True)
-
         _output = None
-        if needs_snippets and not self._processed_snippets:
+        if needs_snippets and (not self._processed_snippets or force):
             _output = self.run_snippet_preprocessor(content=_markdown_output)
             if _output and save_markdown:
                 self._processed_snippets = True
@@ -1048,8 +1038,7 @@ class EnhancedMarkdownFile:
         _markdown_output = self.markdown_output
         if _markdown_output is None:
             log.error(
-                f"Failed to read markdown output from {self.absolute_filepath} "
-                f"when processing for wikilinks"
+                f"Failed to read markdown output from {self.relative_filepath} when processing for wikilinks"
             )
             return None
         metadata = parse_front_matter(_markdown_output) or {}
@@ -1185,17 +1174,23 @@ class EnhancedMarkdownCollection:
             )
 
             self.files = []
-            for file in tqdm(md_files):
-                if not set(file.parts) & set(SKIP_DIRS):
+            files_to_process = [file for file in md_files if not set(file.parts) & set(SKIP_DIRS)]
+    
+            with tqdm(total=len(files_to_process), desc="> creating cache database") as pbar:
+                for file in files_to_process:
                     enhanced_file = EnhancedMarkdownFile(file, self.env, self.config)
                     self.files.append(enhanced_file)
                     enhanced_file.original_in_cache_filepath.parent.mkdir(
-                        parents=True, exist_ok=True
+                    parents=True, exist_ok=True
                     )
+                    current_file = enhanced_file.relative_filepath
+                    pbar.set_postfix_str(f"{Fore.MAGENTA}{current_file}{Style.RESET_ALL}")
+
                     log.debug(
                         f"Copying original content from {file} to {enhanced_file.original_in_cache_filepath} for safe content extraction"
                     )
                     shutil.copy(file, enhanced_file.original_in_cache_filepath)
+                    pbar.update(1)
             return self.files
 
         except Exception as e:
@@ -1301,6 +1296,7 @@ class EnhancedMarkdownCollection:
         if self.files is None:
             log.debug("> no files to process")
             return
+        
         clear_screen()
         log.info(
             f"> running pipeline on {Fore.GREEN}{len(self.files)}{Style.RESET_ALL} files"
@@ -1315,33 +1311,63 @@ class EnhancedMarkdownCollection:
             log.debug(f"{Fore.YELLOW}no files to process{Style.RESET_ALL}")
         else:
             log.info(
-                f"> {Fore.GREEN}{len(files_to_process)}{Style.RESET_ALL} file{'s' if len(files_to_process) > 1 else ''} need to be processed"
+                f"> {Fore.GREEN}{len(files_to_process)}{Style.RESET_ALL} file{'s' if len(files_to_process) > 1 else ''} need to be processed due to changes or errors on previous processing"
             )
 
-            for file in tqdm(files_to_process, desc="> generating original markdown"):
-                file.generate_original_markdown()
+
+            with tqdm(total=len(files_to_process), desc="> collecting original markdown for safe lookup") as pbar:
+                for file in files_to_process:
+                    current_file = file.relative_filepath
+                    pbar.set_postfix_str(f"{Fore.MAGENTA}{current_file}{Style.RESET_ALL}")
+                    file.generate_original_markdown()
+                    pbar.update(1)
+
             clear_line()
+            juvix_files = [file for file in files_to_process if is_juvix_markdown_file(file.absolute_filepath)]
             if generate_juvix_markdown:
-                for file in tqdm(files_to_process, desc="> generating Juvix markdown"):
-                    file.generate_juvix_markdown()
+                with tqdm(total=len(juvix_files), desc="> processing Juvix markdown") as pbar:
+                    for file in juvix_files:
+                        current_file = file.relative_filepath
+                        pbar.set_postfix_str(f"{Fore.MAGENTA}{current_file}{Style.RESET_ALL}")
+                        file.generate_juvix_markdown()
+                        pbar.update(1)
+
             clear_line()
             if generate_juvix_isabelle:
-                for file in tqdm(files_to_process, desc="> generating Isabelle theories"):
-                    file.generate_isabelle_theories()
+                with tqdm(total=len(juvix_files), desc="> processing Isabelle theories") as pbar:
+                    for file in juvix_files:
+                        current_file = file.relative_filepath
+                        pbar.set_postfix_str(f"{Fore.MAGENTA}{current_file}{Style.RESET_ALL}")
+                        file.generate_isabelle_theories()
+                        pbar.update(1)
+    
             clear_line()
             if generate_images:
-                for file in tqdm(files_to_process, desc="> generating images"):
-                    file.generate_images()
+                with tqdm(total=len(files_to_process), desc="> processing images") as pbar:
+                    for file in files_to_process:
+                        file.generate_images()
+                        current_file = file.relative_filepath
+                        pbar.set_postfix_str(f"{Fore.MAGENTA}{current_file}{Style.RESET_ALL}")
+                        pbar.update(1)
+
             clear_line()
             if generate_wikilinks:
-                for file in tqdm(files_to_process, desc="> generating wikilinks"):
-                    file.generate_wikilinks()
+                with tqdm(total=len(files_to_process), desc="> processing wikilinks") as pbar:
+                    for file in files_to_process:
+                        current_file = file.relative_filepath
+                        pbar.set_postfix_str(f"{Fore.MAGENTA}{current_file}{Style.RESET_ALL}")
+                        file.generate_wikilinks()
+                        pbar.update(1)
 
         clear_line()
         # snippets are generated on all the files
         if generate_snippets:
-            for file in tqdm(self.files, desc="> generating snippets"):
-                file.generate_snippets()
+            with tqdm(total=len(self.files), desc="> extracting snippets") as pbar:
+                for file in self.files:
+                    current_file = file.relative_filepath
+                    pbar.set_postfix_str(f"{Fore.MAGENTA}{current_file}{Style.RESET_ALL}")
+                    file.generate_snippets()
+                    pbar.update(1)
 
         clear_line()
         self.update_cached_hash()
