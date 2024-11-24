@@ -91,7 +91,7 @@ class WikilinksPlugin:
         self.PAGE_LINK_DIAGS = self.env.CACHE_PATH / self.PAGE_LINK_DIAGSNAME
         self.PAGE_LINK_DIAGS.mkdir(parents=True, exist_ok=True)
 
-        log.info("Wikilinks plugin initialized")
+        log.debug("Wikilinks plugin initialized")
         return config
 
     def on_pre_build(self, config: MkDocsConfig) -> None:

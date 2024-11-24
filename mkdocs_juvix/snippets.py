@@ -278,39 +278,39 @@ class SnippetPreprocessor(Preprocessor):
         for base in base_paths:
             if Path(base).exists():
                 if Path(base).is_dir():
-                    log.info(f"Base path is a directory: {Fore.MAGENTA}{base}{Style.RESET_ALL}")
+                    log.debug(f"Base path is a directory: {Fore.MAGENTA}{base}{Style.RESET_ALL}")
                     if self.restrict_base_path:
                         filename = Path(base).absolute() / path
-                        log.info(f"Checking restricted base path: {Fore.MAGENTA}{filename}{Style.RESET_ALL}")
+                        log.debug(f"Checking restricted base path: {Fore.MAGENTA}{filename}{Style.RESET_ALL}")
                         if not filename.as_posix().startswith(base.as_posix()):
-                            log.info(f"Rejected file not under base path: {Fore.MAGENTA}{filename}{Style.RESET_ALL}")
+                            log.debug(f"Rejected file not under base path: {Fore.MAGENTA}{filename}{Style.RESET_ALL}")
                             continue
                         else:
                             if filename.exists():
-                                log.info(f"Accepted file under base path: {Fore.MAGENTA}{filename}{Style.RESET_ALL}")
+                                log.debug(f"Accepted file under base path: {Fore.MAGENTA}{filename}{Style.RESET_ALL}")
                                 return filename
                             else:
-                                log.info(f"File does not exist: {Fore.MAGENTA}{filename}{Style.RESET_ALL}")
+                                log.debug(f"File does not exist: {Fore.MAGENTA}{filename}{Style.RESET_ALL}")
                     else:
                         filename = Path(base).absolute() / path
-                        log.info(f"Checking unrestricted base path: {Fore.MAGENTA}{filename}{Style.RESET_ALL}")
+                        log.debug(f"Checking unrestricted base path: {Fore.MAGENTA}{filename}{Style.RESET_ALL}")
                         if filename.exists():
-                            log.info(f"Snippet found: {Fore.MAGENTA}{filename}{Style.RESET_ALL}")
+                            log.debug(f"Snippet found: {Fore.MAGENTA}{filename}{Style.RESET_ALL}")
                             snippet = filename
                             break
                 else:
                     dirname = Path(base).parent
                     filename = dirname / path
-                    log.info(f"Checking file in directory: {Fore.MAGENTA}{filename}{Style.RESET_ALL}")
+                    log.debug(f"Checking file in directory: {Fore.MAGENTA}{filename}{Style.RESET_ALL}")
                     if filename.exists():
-                        log.info(f"Snippet found: {Fore.MAGENTA}{filename}{Style.RESET_ALL}")
+                        log.debug(f"Snippet found: {Fore.MAGENTA}{filename}{Style.RESET_ALL}")
                         snippet = filename
                         break
         return snippet
         
     def get_snippet_path(self, path: Path | str):
         """Get snippet path."""
-        log.info(
+        log.debug(
             f"{Fore.CYAN}> getting snippet path for {path}{Style.RESET_ALL}"
         )
         if isinstance(path, str):
@@ -321,42 +321,42 @@ class SnippetPreprocessor(Preprocessor):
 
         if path and path.as_posix().endswith(".juvix.md!thy"):
             search_for_juvix_isabelle_output = True
-            log.info(f"Path ends with .juvix.md!thy: {Fore.MAGENTA}{path}{Style.RESET_ALL}")
+            log.debug(f"Path ends with .juvix.md!thy: {Fore.MAGENTA}{path}{Style.RESET_ALL}")
             juvix_path = path.with_name(path.name.replace("!thy", ""))
-            log.info(f"Juvix path: {Fore.MAGENTA}{juvix_path}{Style.RESET_ALL}")
+            log.debug(f"Juvix path: {Fore.MAGENTA}{juvix_path}{Style.RESET_ALL}")
             # isabelle_path = juvix_path
             isabelle_path = self.env.compute_filepath_for_juvix_isabelle_output_in_cache(
                 juvix_path
             )
-            log.info(f"Isabelle path: {Fore.MAGENTA}{isabelle_path}{Style.RESET_ALL}")
+            log.debug(f"Isabelle path: {Fore.MAGENTA}{isabelle_path}{Style.RESET_ALL}")
             if isabelle_path is not None and isabelle_path.exists():
                 path = isabelle_path
-                log.info(f"Changed path to Isabelle file: {Fore.MAGENTA}{path}{Style.RESET_ALL}")
+                log.debug(f"Changed path to Isabelle file: {Fore.MAGENTA}{path}{Style.RESET_ALL}")
 
         
         if just_raw:
             path = Path(path.as_posix()[:-1])
-            log.info(f"Requested raw snippet: {path}")
+            log.debug(f"Requested raw snippet: {path}")
             base_paths = [self.env.DOCS_ABSPATH]
 
         if path.is_relative_to(self.env.DOCS_ABSPATH):
             path = path.relative_to(self.env.DOCS_ABSPATH)
         if path.is_relative_to("docs"):
-            log.info(f"Path is relative to docs: {path}")
+            log.debug(f"Path is relative to docs: {path}")
             path = path.relative_to("docs")
         if path.is_relative_to("./docs"):
-            log.info(f"Path is relative to ./docs: {path}")
+            log.debug(f"Path is relative to ./docs: {path}")
             path = path.relative_to("./docs")
 
         if path.is_relative_to(self.env.ISABELLE_OUTPUT_PATH):
-            log.info(f"Path is relative to Isabelle output path: {path}")
+            log.debug(f"Path is relative to Isabelle output path: {path}")
             path = path.relative_to(self.env.ISABELLE_OUTPUT_PATH)
         if path.is_relative_to(self.env.ISABELLE_THEORIES_DIRNAME):
-            log.info(f"Path is relative to Isabelle theories directory: {path}")
+            log.debug(f"Path is relative to Isabelle theories directory: {path}")
             path = path.relative_to(self.env.ISABELLE_THEORIES_DIRNAME)
 
         if path.as_posix().endswith(".thy") or search_for_juvix_isabelle_output:
-            log.info(f"Path is an Isabelle file: {path}")
+            log.debug(f"Path is an Isabelle file: {path}")
             base_paths = [self.env.ISABELLE_OUTPUT_PATH]
 
         if not just_raw and path.as_posix().endswith(".juvix.md"):
@@ -439,10 +439,10 @@ class SnippetPreprocessor(Preprocessor):
                 end = None
                 start = None
                 section = None
-                log.info(f"{Fore.YELLOW}>>>>>> path: {path}{Style.RESET_ALL}")
+                log.debug(f"{Fore.YELLOW}>>>>>> path: {path}{Style.RESET_ALL}")
                 m = RE_SNIPPET_FILE.match(path)
                 if m is None:
-                    log.info(f"{Fore.YELLOW}>>>>>> m is None{Style.RESET_ALL}")
+                    log.debug(f"{Fore.YELLOW}>>>>>> m is None{Style.RESET_ALL}")
                     continue
 
                 path = m.group(1).strip()
@@ -481,15 +481,15 @@ class SnippetPreprocessor(Preprocessor):
                             f"YYYY. Snippet at path '{path}' could not be found"
                         )
 
-                log.info(f"{Fore.GREEN}Found!!:{found_snippet}{Style.RESET_ALL}")
+                log.debug(f"{Fore.GREEN}Snippet found:{found_snippet}{Style.RESET_ALL}")
 
                 if found_snippet is None:
-                    log.info(
+                    log.debug(
                         f"<snippet> Snippet not found in cache, using path: {path}"
                     )
                     snippet = path
                 else:
-                    log.info(
+                    log.debug(
                         f"<snippet> Snippet found in cache, using filepath: {found_snippet}"
                     )
                     snippet = (
@@ -505,20 +505,6 @@ class SnippetPreprocessor(Preprocessor):
                     # This is in the stack and we don't want an infinite loop!
                     if snippet in self.seen:
                         continue
-
-
-                    # if is_juvix:
-                    #     if isinstance(original, Path):
-                    #         original = original.as_posix()
-                    #     with codecs.open(original, "r", encoding=self.encoding) as f:
-                    #         original_lines = [ln.rstrip("\r\n") for ln in f]
-                    #         if start is not None or end is not None:
-                    #             s = slice(start, end)
-                    #             original_lines = (
-                    #                 self.dedent(original_lines[s])
-                    #                 if self.dedent_subsections
-                    #                 else original_lines[s]
-                    #             )
 
                     if not url:
                         # Read file content

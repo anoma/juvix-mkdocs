@@ -11,4 +11,3 @@ import test;
 import isabelle;
 import diagrams;
 ```
-

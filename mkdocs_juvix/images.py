@@ -89,7 +89,7 @@ def process_images(
         for match in pattern.finditer(text):
             start, end = match.span()
             if should_process_match(ignore_tree, start, end):
-                log.info(
+                log.debug(
                     f"Processing image URL: {Fore.GREEN}{match.group('url')}{Style.RESET_ALL}"
                 )
                 url = Path(match.group("url"))

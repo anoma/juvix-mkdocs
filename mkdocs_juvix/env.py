@@ -317,33 +317,33 @@ class ENV:
         filepath: Path,
         relative_to: Optional[Path] = None,
     ) -> Path:
-        log.info(f"Computing processed filepath for {filepath}")
+        log.debug(f"Computing processed filepath for {filepath}")
 
         if filepath.name.endswith(".juvix.md"):
             md_filename = filepath.name.replace(".juvix.md", ".md")
-            log.info(f"Converted Juvix markdown filename to: {md_filename}")
+            log.debug(f"Converted Juvix markdown filename to: {md_filename}")
         else:
             md_filename = filepath.name
-            log.info(f"Using markdown filename: {md_filename}")
+            log.debug(f"Using markdown filename: {md_filename}")
 
         # check if the filepath is absolute
         if filepath.is_absolute():
-            log.info(f"Filepath is absolute: {filepath}")
+            log.debug(f"Filepath is absolute: {filepath}")
             filepath = filepath.relative_to(self.DOCS_ABSPATH)
             processed_path = (
                 self.CACHE_PROCESSED_MARKDOWN_PATH / filepath.parent / md_filename
             )
-            log.info(f"Computed processed filepath for absolute path: {processed_path}")
+            log.debug(f"Computed processed filepath for absolute path: {processed_path}")
             return processed_path
         else:
-            log.info(f"Filepath is relative: {filepath}")
+            log.debug(f"Filepath is relative: {filepath}")
 
         if len(filepath.parts) > 0 and filepath.parts[0] in ["docs", "./docs"]:
             filepath = Path(*filepath.parts[1:])
             processed_path = (
                 self.CACHE_PROCESSED_MARKDOWN_PATH / filepath.parent / md_filename
             )
-            log.info(f"Computed processed filepath for docs path: {processed_path}")
+            log.debug(f"Computed processed filepath for docs path: {processed_path}")
             return processed_path
 
         if relative_to is None:
@@ -354,13 +354,13 @@ class ENV:
             processed_path = (
                 self.CACHE_PROCESSED_MARKDOWN_PATH / relative_to.parent / md_filename
             )
-            log.info(f"Computed processed filepath relative to file: {processed_path}")
+            log.debug(f"Computed processed filepath relative to file: {processed_path}")
             return processed_path
         else:
             processed_path = (
                 self.CACHE_PROCESSED_MARKDOWN_PATH / relative_to / md_filename
             )
-            log.info(
+            log.debug(
                 f"Computed processed filepath relative to directory: {processed_path}"
             )
             return processed_path
@@ -402,9 +402,9 @@ class ENV:
         """
         The markdown filename is the same as the juvix file name but without the .juvix.md extension.
         """
-        log.info(f"Getting filename module by extension for {filepath} with extension {extension}")
+        log.debug(f"Getting filename module by extension for {filepath} with extension {extension}")
         module_name = self.unqualified_module_name(filepath)
-        log.info(f"Module name: {module_name}")
+        log.debug(f"Module name: {module_name}")
         return module_name + extension if module_name else None
 
     def update_hash_file(self, filepath: Path) -> Optional[Tuple[Path, str]]:
@@ -434,17 +434,17 @@ class ENV:
         self, filepath: Path
     ) -> Optional[Path]:
         if not is_juvix_markdown_file(filepath):
-            log.info(f"Filepath is not a Juvix Markdown filepath: {filepath}")
+            log.debug(f"Filepath is not a Juvix Markdown filepath: {filepath}")
             return None
 
-        log.info(f"Computing filepath for Isabelle output in cache for {filepath}")
+        log.debug(f"Computing filepath for Isabelle output in cache for {filepath}")
         cache_markdown_filename: Optional[str] = (
             self.get_filename_module_by_extension(filepath, extension=".thy")
         )
-        log.info(f"Cache markdown filename: {cache_markdown_filename}")
+        log.debug(f"Cache markdown filename: {cache_markdown_filename}")
     
         if cache_markdown_filename is None:
-            log.info(f"No Isabelle output filename found for {filepath}")
+            log.debug(f"No Isabelle output filename found for {filepath}")
             return None
         
         if filepath.is_relative_to(self.DOCS_ABSPATH):
@@ -462,7 +462,7 @@ class ENV:
             / cache_markdown_filename
         )
         cache_markdown_filepath.parent.mkdir(parents=True, exist_ok=True)
-        log.info(f"Computed filepath for Isabelle output in cache: {cache_markdown_filepath}")
+        log.debug(f"Computed filepath for Isabelle output in cache: {cache_markdown_filepath}")
         return cache_markdown_filepath
 
 
@@ -498,7 +498,7 @@ class ENV:
 
         filepath = Path(filepath.name.replace(".juvix.md", ".md"))
 
-        log.info(f"Attempting to find file: {filepath}")
+        log.debug(f"Attempting to find file: {filepath}")
 
         if filepath.is_relative_to("./docs") or filepath.is_relative_to("docs"):
             filepath = (
@@ -509,27 +509,27 @@ class ENV:
             # Check if the filepath is relative to the docs directory
             docs_relative_path = self.DOCS_ABSPATH / filepath
             if docs_relative_path.exists():
-                log.info(f"File found relative to docs directory: {docs_relative_path}")
+                log.debug(f"File found relative to docs directory: {docs_relative_path}")
                 if not base_path and cache:
                     new_path = self.CACHE_PROCESSED_MARKDOWN_PATH / filepath
                     if new_path.exists():
-                        log.info(
+                        log.debug(
                             f"File found relative to cache processed markdown path: {new_path}"
                         )
                         return new_path
                 new_path = base_path / filepath if base_path else docs_relative_path
                 if new_path.exists():
-                    log.info(f"File found relative to base path: {new_path}")
+                    log.debug(f"File found relative to base path: {new_path}")
                     return new_path
 
         # Check if the filepath is absolute
         if filepath.is_absolute():
-            log.info(f"Filepath is absolute: {filepath}")
+            log.debug(f"Filepath is absolute: {filepath}")
             if filepath.exists():
-                log.info(f"File found at absolute path: {filepath}")
+                log.debug(f"File found at absolute path: {filepath}")
                 return filepath
             else:
-                log.info(f"File not found at absolute path: {filepath}")
+                log.debug(f"File not found at absolute path: {filepath}")
                 return None
 
         # Check if the filepath is relative to the current working directory
@@ -542,18 +542,18 @@ class ENV:
             else:
                 relative_path = relative_to / filepath
 
-            log.info(f"Checking relative to provided path: {relative_path}")
+            log.debug(f"Checking relative to provided path: {relative_path}")
             if relative_path.exists():
-                log.info(f"File found relative to provided path: {relative_path}")
+                log.debug(f"File found relative to provided path: {relative_path}")
                 return relative_path if base_path is None else base_path / relative_path
 
         # Fallback to checking relative to the cache processed markdown path
         cache_relative_path = self.CACHE_PROCESSED_MARKDOWN_PATH / filepath
-        log.info(
+        log.debug(
             f"Checking relative to cache processed markdown path: {cache_relative_path}"
         )
         if cache_relative_path.exists():
-            log.info(
+            log.debug(
                 f"File found relative to cache processed markdown path: {cache_relative_path}"
             )
             return (
@@ -562,5 +562,5 @@ class ENV:
                 else base_path / cache_relative_path
             )
 
-        log.info(f"File not found: {filepath}")
+        log.debug(f"File not found: {filepath}")
         return None
