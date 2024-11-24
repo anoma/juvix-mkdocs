@@ -2,22 +2,58 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
     <url>
          <loc>https://anoma.github.io/juvix-mkdocs/index.html</loc>
-         <lastmod>2024-11-18</lastmod>
+         <lastmod>2024-11-24</lastmod>
     </url>
     <url>
          <loc>https://anoma.github.io/juvix-mkdocs/diagrams.juvix.html</loc>
-         <lastmod>2024-11-18</lastmod>
+         <lastmod>2024-11-24</lastmod>
     </url>
     <url>
          <loc>https://anoma.github.io/juvix-mkdocs/everything.juvix.html</loc>
-         <lastmod>2024-11-18</lastmod>
+         <lastmod>2024-11-24</lastmod>
     </url>
     <url>
          <loc>https://anoma.github.io/juvix-mkdocs/isabelle.juvix.html</loc>
-         <lastmod>2024-11-18</lastmod>
+         <lastmod>2024-11-24</lastmod>
     </url>
     <url>
          <loc>https://anoma.github.io/juvix-mkdocs/test.juvix.html</loc>
-         <lastmod>2024-11-18</lastmod>
+         <lastmod>2024-11-24</lastmod>
+    </url>
+    <url>
+         <loc>https://anoma.github.io/juvix-mkdocs/tutorial/bibliography.html</loc>
+         <lastmod>2024-11-24</lastmod>
+    </url>
+    <url>
+         <loc>https://anoma.github.io/juvix-mkdocs/tutorial/diagrams_using_kroki.html</loc>
+         <lastmod>2024-11-24</lastmod>
+    </url>
+    <url>
+         <loc>https://anoma.github.io/juvix-mkdocs/tutorial/hello.juvix.html</loc>
+         <lastmod>2024-11-24</lastmod>
+    </url>
+    <url>
+         <loc>https://anoma.github.io/juvix-mkdocs/tutorial/installation.html</loc>
+         <lastmod>2024-11-24</lastmod>
+    </url>
+    <url>
+         <loc>https://anoma.github.io/juvix-mkdocs/tutorial/isabelle.html</loc>
+         <lastmod>2024-11-24</lastmod>
+    </url>
+    <url>
+         <loc>https://anoma.github.io/juvix-mkdocs/tutorial/juvix_markdown.html</loc>
+         <lastmod>2024-11-24</lastmod>
+    </url>
+    <url>
+         <loc>https://anoma.github.io/juvix-mkdocs/tutorial/snippets.html</loc>
+         <lastmod>2024-11-24</lastmod>
+    </url>
+    <url>
+         <loc>https://anoma.github.io/juvix-mkdocs/tutorial/todos.html</loc>
+         <lastmod>2024-11-24</lastmod>
+    </url>
+    <url>
+         <loc>https://anoma.github.io/juvix-mkdocs/tutorial/wikilinks.html</loc>
+         <lastmod>2024-11-24</lastmod>
     </url>
 </urlset>
