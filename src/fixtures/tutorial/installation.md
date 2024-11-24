@@ -61,7 +61,18 @@ Run the development server:
 juvix-mkdocs serve
 ```
 
+Some flags are available for these commands:
+
+- `--remove-cache`: Remove the cache database.
+- `--verbose`: Print verbose output.
+- `--debug`: Print debug output.
+- `--no-open`: Do not open the browser after building.
+- `--quiet`: Do not print any output.
+
+
 !!! info "Development Mode"
+
+
     For development, after `poetry install` and `poetry shell`:
     ```bash
     juvix-mkdocs new -n -f -D

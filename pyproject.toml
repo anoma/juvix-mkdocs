@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "mkdocs-juvix-plugin"
-version = "0.4.1"
+version = "0.4.2"
 description = "MkDocs documentation with support for Juvix Markdown files"
 authors = ["Jonathan Prieto-Cubides, and GitHub contributors"]
 license = "MIT"
@@ -24,7 +24,7 @@ python = ">=3.10,<3.14"
 mkdocs = "^1.6.1"
 click = "^8.1.7"
 semver = "^3.0.2"
-mkdocs-material = "^9.5.44"
+mkdocs-material = "^9.5.45"
 questionary = "^2.0.1"
 python-dotenv = "^1.0.1"
 bs4 = "^0.0.2"
