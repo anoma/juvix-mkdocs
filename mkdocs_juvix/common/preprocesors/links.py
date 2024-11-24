@@ -8,9 +8,10 @@ import numpy as np  # type: ignore
 from fuzzywuzzy import fuzz  # type: ignore
 from markdown.preprocessors import Preprocessor  # type: ignore
 from ncls import NCLS  # type: ignore
-from mkdocs_juvix.logger import log
+
 from mkdocs_juvix.common.models import FileLoc, WikiLink
 from mkdocs_juvix.env import ENV
+from mkdocs_juvix.logger import log
 from mkdocs_juvix.utils import time_spent as time_spent_decorator
 
 WIKILINK_PATTERN = re.compile(
@@ -24,6 +25,7 @@ WIKILINK_PATTERN = re.compile(
 """,
     re.VERBOSE,
 )
+
 
 def time_spent(message: Optional[Any] = None, print_result: bool = False):
     return time_spent_decorator(log=log, message=message, print_result=print_result)

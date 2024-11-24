@@ -8,8 +8,8 @@ from typing import Any, Iterable, Optional
 
 from colorama import Fore, Style  # type: ignore
 from mkdocs.config.defaults import MkDocsConfig
-from mkdocs_juvix.logger import PrefixedLogger, log
 
+from mkdocs_juvix.logger import PrefixedLogger, log
 
 EXCLUDED_DIRS = {
     ".git",
@@ -185,7 +185,9 @@ def time_spent(
 
             end_time = time.time()
             elapsed_time = end_time - start_time
-            log_message = f"done in {Fore.BLUE}{elapsed_time:.3f} seconds{Style.RESET_ALL}"
+            log_message = (
+                f"done in {Fore.BLUE}{elapsed_time:.3f} seconds{Style.RESET_ALL}"
+            )
             if print_result and result:
                 log_message = f"`{func.__name__} =>` {result} - {log_message}"
             if not print_result:

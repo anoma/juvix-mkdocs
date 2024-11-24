@@ -1,8 +1,7 @@
-
 import logging
 from typing import Any, MutableMapping
-from colorama import Fore, Style  # type: ignore
 
+from colorama import Fore, Style  # type: ignore
 
 
 class PrefixedLogger(logging.LoggerAdapter):
@@ -56,10 +55,13 @@ def get_plugin_logger(name: str) -> PrefixedLogger:
     setattr(logger, "info", lambda msg: clear_screen() and getattr(logger, "info")(msg))
     return PrefixedLogger(name.split(".", 1)[0], logger)
 
+
 log = get_plugin_logger(f"{Fore.BLUE}juvix_mkdocs{Style.RESET_ALL}")
+
 
 def clear_screen():
     print("\033[H\033[J", end="", flush=True)
+
 
 def clear_line():
     print("\033[A", end="", flush=True)

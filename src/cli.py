@@ -785,9 +785,21 @@ def new(
     show_default=True,
 )
 @click.option("--debug", is_flag=True, help="Set the environment variable DEBUG to 1")
-@click.option("--remove-cache", "-r", is_flag=True, help="Remove the cache before serving")
-@click.option("--verbose", "-v", is_flag=True, help="Set the environment variable VERBOSE to 1")
-def serve(project_path: Path, no_open: bool, quiet: bool, config_file: Path, debug: bool, verbose: bool, remove_cache: bool):
+@click.option(
+    "--remove-cache", "-r", is_flag=True, help="Remove the cache before serving"
+)
+@click.option(
+    "--verbose", "-v", is_flag=True, help="Set the environment variable VERBOSE to 1"
+)
+def serve(
+    project_path: Path,
+    no_open: bool,
+    quiet: bool,
+    config_file: Path,
+    debug: bool,
+    verbose: bool,
+    remove_cache: bool,
+):
     """This is a wrapper around `poetry run mkdocs serve`.
     It is used to serve the project using mkdocs."""
 
@@ -800,7 +812,7 @@ def serve(project_path: Path, no_open: bool, quiet: bool, config_file: Path, deb
             fg="red",
         )
         return
-    previous_debug : str | None = os.environ.get("DEBUG")
+    previous_debug: str | None = os.environ.get("DEBUG")
     if debug:
         os.environ["DEBUG"] = "1"
     if remove_cache:
@@ -852,10 +864,21 @@ def serve(project_path: Path, no_open: bool, quiet: bool, config_file: Path, deb
     show_default=True,
 )
 @click.option("--debug", is_flag=True, help="Set the environment variable DEBUG to 1")
-@click.option("--remove-cache", "-r", is_flag=True, help="Remove the cache before building")
+@click.option(
+    "--remove-cache", "-r", is_flag=True, help="Remove the cache before building"
+)
 @click.option("--quiet", "-q", is_flag=True, help="Run mkdocs build in quiet mode")
-@click.option("--verbose", "-v", is_flag=True, help="Set the environment variable VERBOSE to 1")
-def build(project_path: Path, config_file: Path, debug: bool, remove_cache: bool, quiet: bool, verbose: bool):
+@click.option(
+    "--verbose", "-v", is_flag=True, help="Set the environment variable VERBOSE to 1"
+)
+def build(
+    project_path: Path,
+    config_file: Path,
+    debug: bool,
+    remove_cache: bool,
+    quiet: bool,
+    verbose: bool,
+):
     """This is a wrapper around `poetry run mkdocs build`."""
     click.secho("Running in project path: ", nl=False)
     click.secho(f"{project_path}", fg="blue")
@@ -866,7 +889,7 @@ def build(project_path: Path, config_file: Path, debug: bool, remove_cache: bool
             fg="red",
         )
         return
-    previous_debug : str | None = os.environ.get("DEBUG")
+    previous_debug: str | None = os.environ.get("DEBUG")
     if debug:
         os.environ["DEBUG"] = "1"
     mkdocs_build_cmd = ["poetry", "run", "mkdocs", "build"]

@@ -18,9 +18,8 @@ from ncls import NCLS  # type: ignore
 
 from mkdocs_juvix.common.utils import fix_site_url  # type:ignore
 from mkdocs_juvix.env import ENV  # type: ignore
-from mkdocs_juvix.utils import time_spent as time_spent_decorator
 from mkdocs_juvix.logger import log
-
+from mkdocs_juvix.utils import time_spent as time_spent_decorator
 
 IMAGES_PATTERN = re.compile(
     r"""

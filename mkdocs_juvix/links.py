@@ -193,7 +193,6 @@ class WikilinksPlugin:
                 indent=2,
             )
 
-
     def on_page_content(
         self, html, page: Page, config: MkDocsConfig, files: Files
     ) -> str:

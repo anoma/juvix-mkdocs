@@ -17,15 +17,14 @@ from mkdocs.config.defaults import MkDocsConfig
 from mkdocs.plugins import get_plugin_logger
 from semver import Version
 
+import mkdocs_juvix.utils as utils
+from mkdocs_juvix.juvix_version import MIN_JUVIX_VERSION
 from mkdocs_juvix.utils import (
     compute_sha_over_folder,
     fix_site_url,
     hash_content_of,
     is_juvix_markdown_file,
 )
-
-import mkdocs_juvix.utils as utils
-from mkdocs_juvix.juvix_version import MIN_JUVIX_VERSION
 
 log = get_plugin_logger(f"{Fore.BLUE}[juvix_mkdocs] (env) {Style.RESET_ALL}")
 
@@ -333,7 +332,9 @@ class ENV:
             processed_path = (
                 self.CACHE_PROCESSED_MARKDOWN_PATH / filepath.parent / md_filename
             )
-            log.debug(f"Computed processed filepath for absolute path: {processed_path}")
+            log.debug(
+                f"Computed processed filepath for absolute path: {processed_path}"
+            )
             return processed_path
         else:
             log.debug(f"Filepath is relative: {filepath}")
@@ -402,7 +403,9 @@ class ENV:
         """
         The markdown filename is the same as the juvix file name but without the .juvix.md extension.
         """
-        log.debug(f"Getting filename module by extension for {filepath} with extension {extension}")
+        log.debug(
+            f"Getting filename module by extension for {filepath} with extension {extension}"
+        )
         module_name = self.unqualified_module_name(filepath)
         log.debug(f"Module name: {module_name}")
         return module_name + extension if module_name else None
@@ -438,15 +441,15 @@ class ENV:
             return None
 
         log.debug(f"Computing filepath for Isabelle output in cache for {filepath}")
-        cache_markdown_filename: Optional[str] = (
-            self.get_filename_module_by_extension(filepath, extension=".thy")
+        cache_markdown_filename: Optional[str] = self.get_filename_module_by_extension(
+            filepath, extension=".thy"
         )
         log.debug(f"Cache markdown filename: {cache_markdown_filename}")
-    
+
         if cache_markdown_filename is None:
             log.debug(f"No Isabelle output filename found for {filepath}")
             return None
-        
+
         if filepath.is_relative_to(self.DOCS_ABSPATH):
             rel_to_docs = filepath.relative_to(self.DOCS_ABSPATH)
         elif filepath.is_relative_to("./docs"):
@@ -457,14 +460,13 @@ class ENV:
             rel_to_docs = filepath
 
         cache_markdown_filepath: Path = (
-            self.ISABELLE_OUTPUT_PATH
-            / rel_to_docs.parent
-            / cache_markdown_filename
+            self.ISABELLE_OUTPUT_PATH / rel_to_docs.parent / cache_markdown_filename
         )
         cache_markdown_filepath.parent.mkdir(parents=True, exist_ok=True)
-        log.debug(f"Computed filepath for Isabelle output in cache: {cache_markdown_filepath}")
+        log.debug(
+            f"Computed filepath for Isabelle output in cache: {cache_markdown_filepath}"
+        )
         return cache_markdown_filepath
-
 
     def find_file_in(
         self,
@@ -509,7 +511,9 @@ class ENV:
             # Check if the filepath is relative to the docs directory
             docs_relative_path = self.DOCS_ABSPATH / filepath
             if docs_relative_path.exists():
-                log.debug(f"File found relative to docs directory: {docs_relative_path}")
+                log.debug(
+                    f"File found relative to docs directory: {docs_relative_path}"
+                )
                 if not base_path and cache:
                     new_path = self.CACHE_PROCESSED_MARKDOWN_PATH / filepath
                     if new_path.exists():

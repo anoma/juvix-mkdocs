@@ -40,9 +40,10 @@ from typing import Any, List, Optional
 from colorama import Fore, Style  # type: ignore
 from markdown import Extension  # type: ignore
 from markdown.preprocessors import Preprocessor  # type: ignore
+
 from mkdocs_juvix.env import ENV
-from mkdocs_juvix.utils import time_spent as time_spent_decorator
 from mkdocs_juvix.logger import log
+from mkdocs_juvix.utils import time_spent as time_spent_decorator
 
 
 def time_spent(message: Optional[Any] = None, print_result: bool = False):
