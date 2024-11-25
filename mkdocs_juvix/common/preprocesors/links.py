@@ -204,31 +204,34 @@ class WLPreprocessor(Preprocessor):
             log.error(f"Error occurred while processing ignore patterns: {str(e)}")
             return content
 
-        intervals_where_not_to_look = None
-        if intervals:
-            starts, ends, ids = map(np.array, zip(*intervals))
-            intervals_where_not_to_look = NCLS(starts, ends, ids)
+        # intervals_where_not_to_look = None
+        # if intervals:
+        #     starts, ends, ids = map(np.array, zip(*intervals))
+        #     intervals_where_not_to_look = NCLS(starts, ends, ids)
 
         # Find all wikilinks
         str_wikilinks = list(WIKILINK_PATTERN.finditer(content))
-
+        log.debug(f"Found {len(str_wikilinks)} wikilinks")
         replacements = []
         for m in str_wikilinks:
             start, end = m.start(), m.end()
-            if intervals_where_not_to_look and not list(
-                intervals_where_not_to_look.find_overlap(start, end)
-            ):
-                link: Optional[WikiLink] = process_wikilink(
-                    self.config, content, m, self.absolute_path
-                )
-                if link is not None:
-                    replacements.append(
-                        (
-                            start,
-                            end,
-                            link.markdown(),
-                        )
+
+            # TODO: review this
+            # if intervals_where_not_to_look and not list(
+            #     intervals_where_not_to_look.find_overlap(start, end)
+            # ):
+            link: Optional[WikiLink] = process_wikilink(
+                self.config, content, m, self.absolute_path
+            )
+            log.debug(f"Processing wikilink: {link}")
+            if link is not None:
+                replacements.append(
+                    (
+                        start,
+                        end,
+                        link.markdown(),
                     )
+                )
         for start, end, new_text in reversed(replacements):
             content = content[:start] + new_text + content[end:]
         return content

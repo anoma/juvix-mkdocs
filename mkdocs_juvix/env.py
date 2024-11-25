@@ -19,12 +19,7 @@ from semver import Version
 
 import mkdocs_juvix.utils as utils
 from mkdocs_juvix.juvix_version import MIN_JUVIX_VERSION
-from mkdocs_juvix.utils import (
-    compute_sha_over_folder,
-    fix_site_url,
-    hash_content_of,
-    is_juvix_markdown_file,
-)
+from mkdocs_juvix.utils import is_juvix_markdown_file
 
 log = get_plugin_logger(f"{Fore.BLUE}[juvix_mkdocs] (env) {Style.RESET_ALL}")
 
@@ -43,7 +38,7 @@ class ENV:
     DIFF_AVAILABLE: bool
     DIFF_DIR: Path
     DIFF_OPTIONS: List[str]
-    SITE_URL: str
+    SITE_URL: str = getenv("SITE_URL", "/")
     SITE_DIR: Optional[str]
     JUVIX_VERSION: str = ""
     USE_DOT: bool
@@ -52,6 +47,7 @@ class ENV:
     IMAGES_ENABLED: bool
     CLEAN_DEPS: bool = bool(getenv("CLEAN_DEPS", False))
     UPDATE_DEPS: bool = bool(getenv("UPDATE_DEPS", False))
+    TIMELIMIT: int = int(getenv("TIMELIMIT", 10))
 
     REMOVE_CACHE: bool = bool(getenv("REMOVE_CACHE", False))
 
@@ -119,10 +115,8 @@ class ENV:
                 exit(1)
 
             self.ROOT_PATH = Path(config_file).parent
-            self.SITE_URL = config.get("site_url", "")
         else:
             self.ROOT_PATH = Path(".").resolve()
-            self.SITE_URL = ""
 
         self.ROOT_ABSPATH = self.ROOT_PATH.absolute()
         self.CACHE_ABSPATH = self.ROOT_ABSPATH / self.CACHE_DIRNAME
