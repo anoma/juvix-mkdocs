@@ -75,7 +75,6 @@ jobs:
         env:
           SITE_URL: https://anoma.github.io/juvix-mkdocs
           SITE_NAME: Juvix MkDocs
-          
       - if: success()
         uses: JamesIves/github-pages-deploy-action@v4.6.4
         with:

@@ -69,7 +69,7 @@ jobs:
         env:
           SITE_URL: https://${{{{ github.repository_owner }}}}.github.io/${{{{
           github.event.repository.name }}}}
-          
+
       - if: success()
         uses: JamesIves/github-pages-deploy-action@v4.6.4
         with:

@@ -84,6 +84,7 @@ _pipeline: str = """ For reference, the Mkdocs Pipeline is the following:
 
 T = TypeVar("T")
 
+
 def template_error_message(
     filepath: Optional[Path], command: List[str], error_message: str
 ) -> str:
@@ -112,7 +113,6 @@ class EnhancedMarkdownFile:
             / self.absolute_filepath.relative_to(self.env.DOCS_ABSPATH)
         )
 
-
         self.src_uri: str = filepath.as_posix()
         self.relative_filepath: Path = self.absolute_filepath.relative_to(
             env.DOCS_ABSPATH
@@ -126,9 +126,7 @@ class EnhancedMarkdownFile:
 
         # Module information
         self.module_name: Optional[str] = env.unqualified_module_name(filepath)
-        self.qualified_module_name: Optional[str] = env.qualified_module_name(
-            filepath
-        )
+        self.qualified_module_name: Optional[str] = env.qualified_module_name(filepath)
 
         # Markdown related, some filled later in the process
         self._markdown_output: Optional[str] = None
@@ -382,15 +380,6 @@ class EnhancedMarkdownFile:
                 f"{Fore.GREEN}{self.absolute_filepath}{Style.RESET_ALL}"
             )
         return markdown_output
-
-    # # -----------------------------------------------------------------
-    # # Processed flags
-    # # -----------------------------------------------------------------
-
-    # def load_processed_flags(self) -> None:
-    #     """Load the processed flags from the cache file."""
-    #     # load the status from the juvix_modules.json file
-    #     pass
 
     # ------------------------------------------------------------------
     # Error handling for markdown output
@@ -647,7 +636,7 @@ class EnhancedMarkdownFile:
             or not self.env.juvix_enabled
         ):
             return None
-        
+
         if self._processed_juvix_html and not self.changed_since_last_run():
             log.debug(
                 f"> Skipping HTML generation for {Fore.GREEN}{self.relative_filepath}{Style.RESET_ALL} using cached output"
@@ -670,7 +659,7 @@ class EnhancedMarkdownFile:
             if output.returncode != 0:
                 self.save_error_message(output.stderr, "juvix_html")
                 return None
-            
+
             self._processed_juvix_html = True
             # ------------------------------------------------------------
             # Rename the HTML files of Juvix Markdown files, .html -> .judoc.html
@@ -909,7 +898,7 @@ class EnhancedMarkdownFile:
                 f"{Fore.GREEN}{self.cache_filepath}{Style.RESET_ALL}:\n{e}"
             )
         return None
-    
+
     # ------------------------------------------------------------------------
     # Generate and save markdown output, the task run over either markdown or
     # Juvix Markdown files
@@ -939,7 +928,11 @@ class EnhancedMarkdownFile:
             )
             return None
 
-        if self._processed_juvix_markdown and not force and not self.changed_since_last_run():
+        if (
+            self._processed_juvix_markdown
+            and not force
+            and not self.changed_since_last_run()
+        ):
             log.debug(
                 f"> Skipping markdown generation for {Fore.GREEN}{self.relative_filepath}{Style.RESET_ALL} using cached output"
             )
@@ -970,7 +963,11 @@ class EnhancedMarkdownFile:
         if not is_juvix_markdown_file(self.absolute_filepath):
             return None
 
-        if self._processed_juvix_isabelle and not force and not self.changed_since_last_run():  
+        if (
+            self._processed_juvix_isabelle
+            and not force
+            and not self.changed_since_last_run()
+        ):
             log.debug(
                 f"> Skipping isabelle generation for {Fore.GREEN}{self.relative_filepath}{Style.RESET_ALL} using cached output"
             )
@@ -999,9 +996,7 @@ class EnhancedMarkdownFile:
                 self._processed_juvix_isabelle = False
 
     @time_spent(message="> extracting snippets")
-    def render_snippets(
-        self, save_markdown: bool = True, force: bool = False
-    ) -> None:
+    def render_snippets(self, save_markdown: bool = True, force: bool = False) -> None:
         """
         Modify the markdown output by adding the snippets found in the file.
         This requires the preprocess of Juvix and Isabelle to be ocurred before.
@@ -1063,15 +1058,17 @@ class EnhancedMarkdownFile:
         This requires the preprocess of Juvix and Isabelle to be ocurred before.
         """
 
-        if self._processed_wikilinks and not force and not self.changed_since_last_run():
+        if (
+            self._processed_wikilinks
+            and not force
+            and not self.changed_since_last_run()
+        ):
             log.debug(
                 f"> Skipping wikilinks generation for {Fore.GREEN}{self}{Style.RESET_ALL} using cached output"
             )
             return None
 
-        log.debug(
-            f"Processing wikilinks for {Fore.GREEN}{self}{Style.RESET_ALL}"
-        )
+        log.debug(f"Processing wikilinks for {Fore.GREEN}{self}{Style.RESET_ALL}")
         _output = None
         _markdown_output = self.cache_filepath.read_text()
         log.debug(f"Read markdown content from {self.cache_filepath}")
@@ -1148,6 +1145,7 @@ class EnhancedMarkdownFile:
                 self._processed_images = False
         return _output
 
+
 class EnhancedMarkdownCollection:
     """
     A collection of EnhancedMarkdownFile objects.
@@ -1156,7 +1154,7 @@ class EnhancedMarkdownCollection:
     env: ENV
     config: MkDocsConfig
     force_wikilinks_generation: bool = False
-    
+
     # @time_spent(message="> initializing enhanced markdown collection")
     def __init__(self, config, env: ENV, docs: Optional[Path] = None):
         self.env: ENV = env
@@ -1164,7 +1162,6 @@ class EnhancedMarkdownCollection:
         self.docs_path: Path = docs or env.DOCS_ABSPATH
 
         try:
-
             # The list of markdown files to be processed, filled later
             self.files: Optional[List[EnhancedMarkdownFile]] = None
 
@@ -1208,12 +1205,18 @@ class EnhancedMarkdownCollection:
                 file for file in md_files if not set(file.parts) & set(SKIP_DIRS)
             ]
 
-            with sync_tqdm(total=len(files_to_process), desc='Scanning files for faster lookup') as pbar:   
+            with sync_tqdm(
+                total=len(files_to_process), desc="Scanning files for faster lookup"
+            ) as pbar:
                 for file in files_to_process:
-                    pbar.set_postfix_str(f"{Fore.MAGENTA}{file.relative_to(self.docs_path)}{Style.RESET_ALL}")
+                    pbar.set_postfix_str(
+                        f"{Fore.MAGENTA}{file.relative_to(self.docs_path)}{Style.RESET_ALL}"
+                    )
                     enhanced_file = EnhancedMarkdownFile(file, self.env, self.config)
                     self.files.append(enhanced_file)
-                    enhanced_file.original_in_cache_filepath.parent.mkdir(parents=True, exist_ok=True)
+                    enhanced_file.original_in_cache_filepath.parent.mkdir(
+                        parents=True, exist_ok=True
+                    )
                     log.debug(
                         f"Copying original content from {file} to {enhanced_file.original_in_cache_filepath} for safe content extraction"
                     )
@@ -1326,7 +1329,7 @@ class EnhancedMarkdownCollection:
             f"> running pipeline on {Fore.GREEN}{len(self.files)}{Style.RESET_ALL} files"
         )
 
-        files_to_process : List[EnhancedMarkdownFile] = [
+        files_to_process: List[EnhancedMarkdownFile] = [
             file
             for file in self.files
             if file.changed_since_last_run() or file.has_error_message()
@@ -1335,20 +1338,24 @@ class EnhancedMarkdownCollection:
         if len(files_to_process) == 0:
             log.debug(f"{Fore.YELLOW}no files to process{Style.RESET_ALL}")
             return
-        
+
         log.info(
             f"> {Fore.GREEN}{len(files_to_process)}{Style.RESET_ALL} file"
             f"{'s' if len(files_to_process) > 1 else ''} need to be processed "
             "because it's the first time, their cached version is not up to date, "
             "or the file has errors on previous processing"
         )
-        
+
         @time_spent(message="collecting original markdowns for caching")
         async def process_original_markdowns():
             await async_tqdm.gather(
-                *[asyncio.to_thread(file.generate_original_markdown) for file in files_to_process],
+                *[
+                    asyncio.to_thread(file.generate_original_markdown)
+                    for file in files_to_process
+                ],
                 desc="> collecting original markdowns for caching",
             )
+
         asyncio.run(process_original_markdowns())
         clear_line()
 
@@ -1359,7 +1366,9 @@ class EnhancedMarkdownCollection:
         ]
 
         if generate_juvix_markdown and self.env.juvix_enabled:
-            with sync_tqdm(total=len(juvix_files), desc="> running Juvix markdown") as pbar:
+            with sync_tqdm(
+                total=len(juvix_files), desc="> running Juvix markdown"
+            ) as pbar:
                 for file in juvix_files:
                     current_file = file.relative_filepath
                     pbar.set_postfix_str(
@@ -1394,6 +1403,7 @@ class EnhancedMarkdownCollection:
         #             pbar.update(1)
 
         if generate_wikilinks:
+
             @time_spent(message="> processing wikilinks")
             async def process_wikilinks():
                 # if mkdocs
@@ -1403,26 +1413,29 @@ class EnhancedMarkdownCollection:
                     else self.files
                 )
                 await async_tqdm.gather(
-                    *[asyncio.to_thread(file.replaces_wikilinks_by_markdown_links) for file in flist],
+                    *[
+                        asyncio.to_thread(file.replaces_wikilinks_by_markdown_links)
+                        for file in flist
+                    ],
                     total=len(flist),
                     desc="> processing wikilinks",
                 )
+
             asyncio.run(process_wikilinks())
             clear_line()
 
-
         if generate_snippets:
+
             async def process_snippets():
                 await async_tqdm.gather(
                     *[asyncio.to_thread(file.render_snippets) for file in self.files],
                     total=len(self.files),
                     desc="> processing snippets",
                 )
+
             asyncio.run(process_snippets())
             clear_line()
 
-
-        # clear_line()
         self.update_cached_hash()
         self.save_juvix_modules_json()
 
@@ -1441,7 +1454,9 @@ class EnhancedMarkdownCollection:
         every Juvix Markdown file individually (not recommended).
         """
         if not self.env.JUVIX_ENABLED:
-            log.info(f"{Fore.YELLOW}Juvix is not enabled, skipping HTML generation{Style.RESET_ALL}")
+            log.info(
+                f"{Fore.YELLOW}Juvix is not enabled, skipping HTML generation{Style.RESET_ALL}"
+            )
             return
 
         needs_to_generate_html = self.is_html_cache_empty() or self.has_changes()
@@ -1464,10 +1479,16 @@ class EnhancedMarkdownCollection:
 
         @time_spent(message="> generating HTML for files")
         def run_html_generation(files: List[EnhancedMarkdownFile]) -> None:
-            juvix_files = [file for file in files if is_juvix_markdown_file(file.absolute_filepath)]
-            with sync_tqdm(total=len(juvix_files), desc="> generating HTML for files") as pbar:
+            juvix_files = [
+                file for file in files if is_juvix_markdown_file(file.absolute_filepath)
+            ]
+            with sync_tqdm(
+                total=len(juvix_files), desc="> generating HTML for files"
+            ) as pbar:
                 for file in juvix_files:
-                    pbar.set_postfix_str(f"{Fore.MAGENTA}{file.relative_filepath}{Style.RESET_ALL}")
+                    pbar.set_postfix_str(
+                        f"{Fore.MAGENTA}{file.relative_filepath}{Style.RESET_ALL}"
+                    )
                     file._process_juvix_html(update_assets=True)
                     pbar.update(1)
 
@@ -1538,7 +1559,7 @@ class JuvixPlugin(BasePlugin):
     use_juvix_question = questionary.select(
         "Do you want to process Juvix Markdown files (this will take longer)?",
         choices=["yes", "no", "always", "never"],
-        default="no"
+        default="no",
     )
 
     def on_startup(self, *, command: str, dirty: bool) -> None:
@@ -1633,7 +1654,6 @@ class JuvixPlugin(BasePlugin):
                 self.enhanced_collection.get_enhanced_file_entry(abs_src_path)
             )
             if file:
-                # return file.write_errors_in_markdown() // this doesn't read the file
                 output = file.cache_filepath.read_text()
                 return file.add_errors_to_markdown(output)
             else:
@@ -1742,7 +1762,6 @@ class JuvixPlugin(BasePlugin):
             callback: Callable[[FileSystemEvent], None],
         ) -> Callable[[FileSystemEvent], None]:
             def wrapper(event: FileSystemEvent) -> None:
-                # if press C-c, stop the server
                 if gitignore and gitignore.match_file(
                     Path(event.src_path).relative_to(config.docs_dir).as_posix()  # type: ignore
                 ):
@@ -1868,9 +1887,11 @@ class JuvixPlugin(BasePlugin):
             ]
         return self.config
 
+
 # --------------------------------------------------------------------------
 # Auxiliary functions
 # --------------------------------------------------------------------------
+
 
 def parse_front_matter(content: str) -> Optional[dict]:
     if not content.startswith("---"):

@@ -810,7 +810,7 @@ def serve(
             fg="red",
         )
         return
-    
+
     if remove_cache:
         try:
             if (project_path / ".cache-juvix-mkdocs").exists():
@@ -819,10 +819,8 @@ def serve(
                 click.secho("Cache folder not found.", fg="yellow")
         except Exception:
             click.secho("Failed to remove .cache-juvix-mkdocs folder.", fg="red")
-        
-    mkdocs_serve_cmd = [
-        "poetry", "run", "mkdocs", "serve", "--clean"
-    ]
+
+    mkdocs_serve_cmd = ["poetry", "run", "mkdocs", "serve", "--clean"]
     if not no_open:
         mkdocs_serve_cmd.append("--open")
     if quiet:
@@ -840,6 +838,7 @@ def serve(
     except FileNotFoundError:
         click.secho("Failed to start the server.", fg="red")
         click.secho("Make sure Poetry is installed and in your system PATH.", fg="red")
+
 
 @cli.command()
 @click.option(
@@ -881,9 +880,7 @@ def build(
             fg="red",
         )
         return
-    mkdocs_build_cmd = [
-        "poetry", "run", "mkdocs", "build"
-    ]
+    mkdocs_build_cmd = ["poetry", "run", "mkdocs", "build"]
     if config_file:
         mkdocs_build_cmd.append(f"--config-file={config_file}")
     if quiet:
@@ -901,6 +898,7 @@ def build(
     except subprocess.CalledProcessError as e:
         click.secho("Failed to build the project.", fg="red")
         click.secho(f"Error: {e}", fg="red")
+
 
 if __name__ == "__main__":
     cli()
