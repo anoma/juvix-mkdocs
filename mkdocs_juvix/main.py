@@ -1,5 +1,6 @@
 import asyncio
 import json
+import os
 import shutil
 import subprocess
 import textwrap
@@ -1556,11 +1557,8 @@ class JuvixPlugin(BasePlugin):
     wikilinks_plugin: WikilinksPlugin
     first_run: bool = True
     response: Optional[str] = None
-    use_juvix_question = questionary.select(
-        "Do you want to process Juvix Markdown files (this will take longer)?",
-        choices=["yes", "no", "always", "never"],
-        default="no",
-    )
+    use_juvix_question: Optional[questionary.Question] = None
+   
 
     def on_startup(self, *, command: str, dirty: bool) -> None:
         clear_screen()
@@ -1571,14 +1569,17 @@ class JuvixPlugin(BasePlugin):
 
         self.env.SITE_DIR = config.get("site_dir", getenv("SITE_DIR", None))
 
-        # ask the user if they want to process Juvix Markdown files, options,
-        # yes no, always, never
-        if self.response in ["yes", "no"] or self.response is None:
+        if not os.environ.get("CI") or os.getenv("NO_INTERACTION"):
+            self.use_juvix_question = questionary.select(
+                "Do you want to process Juvix Markdown files (this will take longer)?",
+            choices=["yes", "no", "always", "never"],
+                default="no",
+            )
             self.response = self.use_juvix_question.ask()
-        if self.response == "never":
-            self.env.JUVIX_ENABLED = False
-        elif self.response == "always":
-            self.env.JUVIX_ENABLED = True
+            if self.response == "never":
+                self.env.JUVIX_ENABLED = False
+            elif self.response == "always":
+                self.env.JUVIX_ENABLED = True
 
         if self.env.JUVIX_ENABLED and not self.env.JUVIX_AVAILABLE:
             log.error(
