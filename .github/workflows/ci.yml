@@ -68,11 +68,13 @@ jobs:
         run: poetry run pytest
       - name: Create MkDocs Project
         run: |
-          juvix-mkdocs new -f -n --no-run-server --no-open --project-name my-juvix-project --anoma-setup
+          juvix-mkdocs new -f -n --no-run-server --no-open --project-name
+          my-juvix-project --anoma-setup
       - name: Build MkDocs Project
         run: juvix-mkdocs build -p my-juvix-project
         env:
           SITE_URL: https://anoma.github.io/juvix-mkdocs
+          SITE_NAME: Juvix MkDocs
       - if: success()
         uses: JamesIves/github-pages-deploy-action@v4.6.4
         with:

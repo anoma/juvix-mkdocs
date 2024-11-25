@@ -92,17 +92,8 @@ def find_file_in_subdirs(
 
 def fix_site_url(config: MkDocsConfig) -> MkDocsConfig:
     site_url = os.getenv("SITE_URL")
-
     if site_url:
         config["site_url"] = site_url
-    else:
-        mike_docs_version = os.getenv("MIKE_DOCS_VERSION")
-        if mike_docs_version:
-            log.debug(
-                f"Using MIKE_DOCS_VERSION environment variable: {mike_docs_version}"
-            )
-            config["docs_version"] = mike_docs_version
-
     # Ensure site_url ends with a slash
     if not config.get("site_url", None):
         config["site_url"] = ""

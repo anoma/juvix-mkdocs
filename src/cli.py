@@ -784,7 +784,6 @@ def new(
     help="Path to the mkdocs configuration file",
     show_default=True,
 )
-@click.option("--debug", is_flag=True, help="Set the environment variable DEBUG to 1")
 @click.option(
     "--remove-cache", "-r", is_flag=True, help="Remove the cache before serving"
 )
@@ -796,7 +795,6 @@ def serve(
     no_open: bool,
     quiet: bool,
     config_file: Path,
-    debug: bool,
     verbose: bool,
     remove_cache: bool,
 ):
@@ -812,17 +810,16 @@ def serve(
             fg="red",
         )
         return
-    previous_debug: str | None = os.environ.get("DEBUG")
-    if debug:
-        os.environ["DEBUG"] = "1"
+
     if remove_cache:
         try:
-            shutil.rmtree(project_path / ".cache-juvix-mkdocs")
+            if (project_path / ".cache-juvix-mkdocs").exists():
+                shutil.rmtree(project_path / ".cache-juvix-mkdocs")
+            else:
+                click.secho("Cache folder not found.", fg="yellow")
         except Exception:
             click.secho("Failed to remove .cache-juvix-mkdocs folder.", fg="red")
-            if previous_debug:
-                os.environ["DEBUG"] = previous_debug
-            return
+
     mkdocs_serve_cmd = ["poetry", "run", "mkdocs", "serve", "--clean"]
     if not no_open:
         mkdocs_serve_cmd.append("--open")
@@ -833,18 +830,14 @@ def serve(
     if config_file:
         mkdocs_serve_cmd.append(f"--config-file={config_file}")
     try:
+        click.secho(f"> Running command: {' '.join(mkdocs_serve_cmd)}", fg="yellow")
         subprocess.run(mkdocs_serve_cmd, cwd=project_path, check=True)
     except subprocess.CalledProcessError as e:
         click.secho("Failed to start the server.", fg="red")
         click.secho(f"Error: {e}", fg="red")
-        if previous_debug:
-            os.environ["DEBUG"] = previous_debug
     except FileNotFoundError:
         click.secho("Failed to start the server.", fg="red")
         click.secho("Make sure Poetry is installed and in your system PATH.", fg="red")
-
-    if previous_debug:
-        os.environ["DEBUG"] = previous_debug
 
 
 @cli.command()
@@ -863,7 +856,6 @@ def serve(
     help="Path to the mkdocs configuration file",
     show_default=True,
 )
-@click.option("--debug", is_flag=True, help="Set the environment variable DEBUG to 1")
 @click.option(
     "--remove-cache", "-r", is_flag=True, help="Remove the cache before building"
 )
@@ -874,7 +866,6 @@ def serve(
 def build(
     project_path: Path,
     config_file: Path,
-    debug: bool,
     remove_cache: bool,
     quiet: bool,
     verbose: bool,
@@ -889,9 +880,6 @@ def build(
             fg="red",
         )
         return
-    previous_debug: str | None = os.environ.get("DEBUG")
-    if debug:
-        os.environ["DEBUG"] = "1"
     mkdocs_build_cmd = ["poetry", "run", "mkdocs", "build"]
     if config_file:
         mkdocs_build_cmd.append(f"--config-file={config_file}")
@@ -904,16 +892,12 @@ def build(
             shutil.rmtree(project_path / ".cache-juvix-mkdocs")
         except Exception:
             click.secho("Failed to remove .cache-juvix-mkdocs folder.", fg="red")
-            if previous_debug:
-                os.environ["DEBUG"] = previous_debug
             return
     try:
         subprocess.run(mkdocs_build_cmd, cwd=project_path, check=True)
     except subprocess.CalledProcessError as e:
         click.secho("Failed to build the project.", fg="red")
         click.secho(f"Error: {e}", fg="red")
-    if previous_debug:
-        os.environ["DEBUG"] = previous_debug
 
 
 if __name__ == "__main__":
