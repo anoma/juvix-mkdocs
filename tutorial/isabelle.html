@@ -7,7 +7,7 @@
 <meta content="width=device-width,initial-scale=1" name="viewport"/>
 <meta content="Documentation project with support for Juvix code blocks syntax highlighting." name="description"/>
 <meta content="Tara" name="author"/>
-<link href="https://anoma.github.io/juvix-mkdocs/tutorial/isabelle.html" rel="canonical"/>
+<link href="/tutorial/isabelle.html" rel="canonical"/>
 <link href="../everything.html" rel="prev"/>
 <link href="../isabelle.html" rel="next"/>
 <link href="../assets/logo.svg" rel="icon"/>
@@ -423,9 +423,7 @@
 </span></code></pre></div>
 <h2 id="including-generated-files">Including Generated Files<a class="headerlink" href="#including-generated-files" title="Permanent link">¶</a></h2>
 <p>Include the generated Isabelle theory as a snippet using the <code>!thy</code> suffix:</p>
-<div class="language-markdown highlight"><pre><span></span><code><span id="__ispan-2-1">fun add :: "Nat \&lt;Rightarrow&gt; Nat \&lt;Rightarrow&gt; Nat" where
-</span><span id="__ispan-2-2">  "add zero n = n" |
-</span><span id="__ispan-2-3">  "add (succ m) n = (succ (add m n))"
+<div class="language-markdown highlight"><pre><span></span><code><span id="__ispan-2-1">--8&lt;-- "docs/isabelle.juvix.md!thy:isabelle-add-def"
 </span></code></pre></div>
 <p>This provides the following output:</p>
 <div class="language-isabelle highlight"><span class="filename">isabelle.thy from isabelle.juvix.md</span><pre><span></span><code><span id="__ispan-3-1"><span class="k">fun</span><span class="w"> </span><span class="n">add</span><span class="w"> </span><span class="o">::</span><span class="w"> </span><span class="s">"Nat </span><span class="ss">\&lt;Rightarrow&gt;</span><span class="s"> Nat </span><span class="ss">\&lt;Rightarrow&gt;</span><span class="s"> Nat"</span><span class="w"> </span><span class="kp">where</span>
@@ -447,8 +445,8 @@
 <div class="md-footer-meta__inner md-grid">
 <div class="md-copyright">
 <div class="md-copyright__highlight">
-    © 2024 <a href="https://github.com/anoma/juvix-mkdocs">juvix-mkdocs</a> - Last updated: November 24, 2024
-    at 04:24 AM UTC - Powered by Mkdocs, Material for Mkdocs, Juvix, and
+    © 2024 <a href="https://github.com/anoma/juvix-mkdocs">juvix-mkdocs</a> - Last updated: November 25, 2024
+    at 07:18 AM UTC - Powered by Mkdocs, Material for Mkdocs, Juvix, and
     Juvix-Mkdocs.
   </div>
 </div>
