@@ -69,6 +69,9 @@ jobs:
       - name: Create MkDocs Project
         run: |
           juvix-mkdocs new -f -n -D --no-run-server --no-open --project-name my-juvix-project --anoma-setup
+        env:
+          SITE_URL: https://anoma.github.io/juvix-mkdocs/
+          SITE_NAME: Juvix MkDocs
       - name: Build MkDocs Project
         run: juvix-mkdocs build -p my-juvix-project
         env:
