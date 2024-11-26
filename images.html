@@ -7,11 +7,12 @@
 <meta content="width=device-width,initial-scale=1" name="viewport"/>
 <meta content="Documentation project with support for Juvix code blocks syntax highlighting." name="description"/>
 <meta content="Tara" name="author"/>
-<link href="https://anoma.github.io/juvix-mkdocs/index.html" rel="canonical"/>
-<link href="tutorial/installation.html" rel="next"/>
+<link href="https://anoma.github.io/juvix-mkdocs/images.html" rel="canonical"/>
+<link href="tutorial/snippets.html" rel="prev"/>
+<link href="tutorial/wikilinks.html" rel="next"/>
 <link href="assets/logo.svg" rel="icon"/>
 <meta content="mkdocs-1.6.1, mkdocs-material-9.5.46" name="generator"/>
-<title>Juvix MkDocs</title>
+<title>Tutorial Images - Juvix MkDocs</title>
 <link href="assets/stylesheets/main.6f8fc17f.min.css" rel="stylesheet"/>
 <link href="assets/stylesheets/palette.06af60db.min.css" rel="stylesheet"/>
 <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
@@ -26,7 +27,7 @@
 <input autocomplete="off" class="md-toggle" data-md-toggle="search" id="__search" type="checkbox"/>
 <label class="md-overlay" for="__drawer"></label>
 <div data-md-component="skip">
-<a class="md-skip" href="#support-for-juvix-in-mkdocs">
+<a class="md-skip" href="#support-for-including-images">
           Skip to content
         </a>
 </div>
@@ -74,7 +75,7 @@
 <div class="md-header__topic" data-md-component="header-topic">
 <span class="md-ellipsis">
             
-              Home
+              Tutorial Images
             
           </span>
 </div>
@@ -162,7 +163,7 @@
 <nav aria-label="Tabs" class="md-tabs" data-md-component="tabs">
 <div class="md-grid">
 <ul class="md-tabs__list">
-<li class="md-tabs__item md-tabs__item--active">
+<li class="md-tabs__item">
 <a class="md-tabs__link" href="index.html">
         
   
@@ -212,7 +213,7 @@
 
       </a>
 </li>
-<li class="md-tabs__item">
+<li class="md-tabs__item md-tabs__item--active">
 <a class="md-tabs__link" href="images.html">
         
   
@@ -290,45 +291,12 @@
 </a>
 </div>
 <ul class="md-nav__list" data-md-scrollfix="">
-<li class="md-nav__item md-nav__item--active">
-<input class="md-nav__toggle md-toggle" id="__toc" type="checkbox"/>
-<label class="md-nav__link md-nav__link--active" for="__toc">
-<span class="md-ellipsis">
-    Home
-  </span>
-<span class="md-nav__icon md-icon"></span>
-</label>
-<a class="md-nav__link md-nav__link--active" href="index.html">
+<li class="md-nav__item">
+<a class="md-nav__link" href="index.html">
 <span class="md-ellipsis">
     Home
   </span>
 </a>
-<nav aria-label="Table of contents" class="md-nav md-nav--secondary">
-<label class="md-nav__title" for="__toc">
-<span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-<ul class="md-nav__list" data-md-component="toc" data-md-scrollfix="">
-<li class="md-nav__item">
-<a class="md-nav__link" href="#installation">
-<span class="md-ellipsis">
-      Installation
-    </span>
-</a>
-<nav aria-label="Installation" class="md-nav">
-<ul class="md-nav__list">
-<li class="md-nav__item">
-<a class="md-nav__link" href="#quick-start">
-<span class="md-ellipsis">
-      Quick Start
-    </span>
-</a>
-</li>
-</ul>
-</nav>
-</li>
-</ul>
-</nav>
 </li>
 <li class="md-nav__item">
 <a class="md-nav__link" href="tutorial/installation.html">
@@ -360,12 +328,45 @@
   </span>
 </a>
 </li>
-<li class="md-nav__item">
-<a class="md-nav__link" href="images.html">
+<li class="md-nav__item md-nav__item--active">
+<input class="md-nav__toggle md-toggle" id="__toc" type="checkbox"/>
+<label class="md-nav__link md-nav__link--active" for="__toc">
+<span class="md-ellipsis">
+    Tutorial Images
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<a class="md-nav__link md-nav__link--active" href="images.html">
 <span class="md-ellipsis">
     Tutorial Images
   </span>
 </a>
+<nav aria-label="Table of contents" class="md-nav md-nav--secondary">
+<label class="md-nav__title" for="__toc">
+<span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+<ul class="md-nav__list" data-md-component="toc" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#syntax">
+<span class="md-ellipsis">
+      Syntax
+    </span>
+</a>
+<nav aria-label="Syntax" class="md-nav">
+<ul class="md-nav__list">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#displayed-image-example">
+<span class="md-ellipsis">
+      Displayed Image Example
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+</ul>
+</nav>
 </li>
 <li class="md-nav__item">
 <a class="md-nav__link" href="tutorial/wikilinks.html">
@@ -403,41 +404,32 @@
 </div>
 <div class="md-content" data-md-component="content">
 <article class="md-content__inner md-typeset">
-<h1 id="support-for-juvix-in-mkdocs">Support for Juvix in MkDocs<a class="headerlink" href="#support-for-juvix-in-mkdocs" title="Permanent link">¶</a></h1>
-<h2 id="installation">Installation<a class="headerlink" href="#installation" title="Permanent link">¶</a></h2>
-<p>This is a testing website for the <code>juvix-mkdocs</code> plugin, a MkDocs plugin that
-can render Juvix code blocks in Markdown files, generating Isabelle theories
-from Juvix Markdown files, all this with support for snippets and wiki links.</p>
-<h3 id="quick-start">Quick Start<a class="headerlink" href="#quick-start" title="Permanent link">¶</a></h3>
-<p>To install it, run:</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__ispan-0-1">pip3<span class="w"> </span>install<span class="w"> </span>mkdocs-juvix-plugin
+<h1 id="support-for-including-images">Support for including images<a class="headerlink" href="#support-for-including-images" title="Permanent link">¶</a></h1>
+<p>Images should be stored in the <code>docs/images</code> folder.</p>
+<div class="admonition warning">
+<p class="admonition-title">Image handling in Markdown</p>
+<p>Use standard Markdown image syntax (<code>![Alt text](image.png)</code>) rather than HTML image tags.
+HTML image tags are not processed by MkDocs, are not validated, and may not work as expected.
+In particular, their <code>src</code> attribute is not processed by our image processing script.</p>
+</div>
+<h2 id="syntax">Syntax<a class="headerlink" href="#syntax" title="Permanent link">¶</a></h2>
+<p>To add an image, apply the following syntax:</p>
+<div class="language-markdown highlight"><pre><span></span><code><span id="__ispan-0-1">![<span class="nt">Alt Text</span>](<span class="na">logo.svg</span>){: width="200"}
 </span></code></pre></div>
-<p>If you already have a project, add the plugin and add the following to your
-<code>mkdocs.yml</code> file:</p>
-<div class="language-yaml highlight"><span class="filename">mkdocs.yml</span><pre><span></span><code><span id="__ispan-1-1"><span class="nt">plugins</span><span class="p">:</span>
-</span><span id="__ispan-1-2"><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">juvix</span>
-</span><span id="__ispan-1-3"><span class="w">  </span><span class="c1"># - todos</span>
+<h4 id="displayed-image-example">Displayed Image Example<a class="headerlink" href="#displayed-image-example" title="Permanent link">¶</a></h4>
+<p>The syntax above will render the image in your document like so:</p>
+<p><img alt="Alt Text" src="/images/logo.svg" width="200"/></p>
+<div class="admonition tip">
+<p class="admonition-title">Enhanced Image Display</p>
+<p>Use an HTML <code>&lt;figure&gt;</code> element with a <code>&lt;figcaption&gt;</code> for a refined presentation with captions. Markdown can also be used within the caption:</p>
+<div class="language-html highlight"><pre><span></span><code><span id="__ispan-1-1"><span class="p">&lt;</span><span class="nt">figure</span> <span class="na">markdown</span><span class="o">=</span><span class="s">"1"</span><span class="p">&gt;</span>
+</span><span id="__ispan-1-2">
+</span><span id="__ispan-1-3">  ![Alt Text](image-name.png)
+</span><span id="__ispan-1-4">
+</span><span id="__ispan-1-5">  <span class="p">&lt;</span><span class="nt">figcaption</span> <span class="na">markdown</span><span class="o">=</span><span class="s">"span"</span><span class="p">&gt;</span>Image caption text can include *Markdown*!<span class="p">&lt;/</span><span class="nt">figcaption</span><span class="p">&gt;</span>
+</span><span id="__ispan-1-6"><span class="p">&lt;/</span><span class="nt">figure</span><span class="p">&gt;</span>
 </span></code></pre></div>
-<p>Front-matter options can be added to any file to customize the behavior of the
-plugin. For example, to generate Isabelle theories from Juvix Markdown files,
-add the following to the front-matter of the file:</p>
-<div class="language-yaml highlight"><pre><span></span><code><span id="__ispan-2-1"><span class="nn">---</span>
-</span><span id="__ispan-2-2"><span class="nt">preprocess</span><span class="p">:</span>
-</span><span id="__ispan-2-3"><span class="w">  </span><span class="nt">juvix</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
-</span><span id="__ispan-2-4"><span class="w">  </span><span class="nt">isabelle</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
-</span><span id="__ispan-2-5"><span class="w">  </span><span class="nt">isabelle_at_bottom</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
-</span><span id="__ispan-2-6"><span class="nn">---</span>
-</span></code></pre></div>
-<p>For more information, here are some tutorials:</p>
-<ul>
-<li><a href="/tutorial/juvix_markdown.html">Juvix Markdown file structure</a></li>
-<li><a href="/tutorial/isabelle.html">Generate Isabelle theories for inclusion in the documentation</a></li>
-<li><a href="/tutorial/snippets.html">Snippet support for inclusion of content from external files</a></li>
-<li><a href="/tutorial/wikilinks.html">Support for Wiki Links</a></li>
-<li><a href="/tutorial/bibliography.html">Bibliography support</a></li>
-<li><a href="/tutorial/todos.html">To-do Plugin</a></li>
-<li><a href="/tutorial/diagrams_using_kroki.html">Diagrams using Kroki</a></li>
-</ul>
+</div>
 <!-- list_wikilinks -->
 </article>
 </div>
