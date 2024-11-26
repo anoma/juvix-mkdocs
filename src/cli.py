@@ -18,10 +18,11 @@ JUVIX_BIN = os.getenv("JUVIX_BIN", "juvix")
 POETRY_BIN = os.getenv("POETRY_BIN", "poetry")
 
 SRC_PATH = Path(__file__).parent
+assert SRC_PATH.exists(), f"SRC_PATH {SRC_PATH} does not exist"
 ROOT_PATH = SRC_PATH.parent
+assert ROOT_PATH.exists(), f"ROOT_PATH {ROOT_PATH} does not exist"
 
 FIXTURES_PATH = SRC_PATH / "fixtures"
-
 
 def version_from_toml():
     toml_path = SRC_PATH.parent / "pyproject.toml"
@@ -241,7 +242,7 @@ def new(
             return
 
     if project_path.exists() and force:
-        click.secho("Removing existing directory...", nl=False)
+        click.secho("Removing existing directory... ", nl=False)
         try:
             shutil.rmtree(project_path)
             click.secho("Done.", fg="green")
@@ -249,7 +250,7 @@ def new(
             click.secho(f"Failed. Error: {e}", fg="red")
             return
     try:
-        click.secho(f"Creating {project_path}.", nl=False)
+        click.secho(f"Creating {project_path}... ", nl=False)
         project_path.mkdir(exist_ok=True, parents=True)
         click.secho("Done.", fg="green")
     except Exception as e:
@@ -260,14 +261,14 @@ def new(
 
     if not docs_path.exists():
         docs_path.mkdir(exist_ok=True, parents=True)
-        click.secho(f"Creating {docs_path}.", nl=False)
+        click.secho(f"Creating {docs_path}... ", nl=False)
         click.secho("Done.", fg="green")
     else:
         click.secho(f"Folder {docs_path} already exists.", fg="yellow")
 
     # Check if juvix is installed and retrieve the version
     try:
-        click.secho("Checking Juvix version...", nl=False)
+        click.secho("Checking Juvix version... ", nl=False)
         juvix_version_output = (
             subprocess.check_output(
                 [JUVIX_BIN, "--numeric-version"], stderr=subprocess.STDOUT
@@ -330,7 +331,8 @@ def new(
     test_file = docs_path / "test.juvix.md"
     isabelle_file = docs_path / "isabelle.juvix.md"
     diagrams_file = docs_path / "diagrams.juvix.md"
-    juvix_md_files = [index_file, test_file, isabelle_file, diagrams_file]
+    images_file = docs_path / "images.md"
+    juvix_md_files = [index_file, test_file, isabelle_file, diagrams_file, images_file]
 
     # this file is a bit special, as goes separately
     everything_file = docs_path / "everything.juvix.md"
@@ -402,6 +404,16 @@ def new(
                 return
         else:
             click.secho("Skipping.", fg="yellow")
+
+        # copy the images folder
+        try:
+            click.secho("Copying images folder... ", nl=False)
+            shutil.copytree(
+                FIXTURES_PATH / "images", docs_path / "images", dirs_exist_ok=force
+            )
+            click.secho("Done.", fg="green")
+        except Exception as e:
+            click.secho(f"Failed to copy images folder. Error: {e}", fg="red")
 
         click.secho("Updating `extra_css` section in mkdocs.yml... ", nl=False)
         valid_css_files = ["juvix-highlighting.css", "juvix_codeblock_footer.css"]

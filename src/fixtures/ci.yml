@@ -9,6 +9,7 @@ env:
   PYTHON_VERSION: 3.x
   POETRY_VERSION: 1.8.3
   JUVIX_VERSION: {juvix_version}
+  JUVIX_ENABLED: true
   GIT_COMMITTER_EMAIL: {site_author_email}
   GIT_COMMITTER_NAME: {site_author}
   BRANCH_NAME: ${{{{ github.head_ref || github.ref_name }}}}
@@ -78,3 +79,8 @@ jobs:
           token: ${{{{ secrets.GITHUB_TOKEN }}}}
           git-config-name: ${{{{ env.GIT_COMMITTER_NAME }}}}
           git-config-email: ${{{{ env.GIT_COMMITTER_EMAIL }}}}
+
+      - if: env.JUVIX_ENABLED == 'true'
+        run: |
+          cd docs
+          juvix typecheck everything.juvix.md

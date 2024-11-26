@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "mkdocs-juvix-plugin"
-version = "0.4.3"
+version = "0.4.10"
 description = "MkDocs documentation with support for Juvix Markdown files"
 authors = ["Jonathan Prieto-Cubides, and GitHub contributors"]
 license = "MIT"
@@ -17,6 +17,7 @@ juvix-mkdocs = "src.cli:cli"
 [tool.poetry.plugins."mkdocs.plugins"]
 juvix = "mkdocs_juvix.main:JuvixPlugin"
 # extra plugins
+images = "mkdocs_juvix.images:ImagesPlugin"
 todos = "mkdocs_juvix.todos:TodosPlugin"
 
 [tool.poetry.dependencies]
@@ -24,7 +25,7 @@ python = ">=3.10,<3.14"
 mkdocs = "^1.6.1"
 click = "^8.1.7"
 semver = "^3.0.2"
-mkdocs-material = "^9.5.45"
+mkdocs-material = "^9.5.46"
 questionary = "^2.0.1"
 python-dotenv = "^1.0.1"
 bs4 = "^0.0.2"

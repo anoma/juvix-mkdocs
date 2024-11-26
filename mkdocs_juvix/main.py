@@ -328,7 +328,7 @@ class EnhancedMarkdownFile:
                 self.generate_isabelle_theories(
                     save_markdown=save_markdown, force=force
                 )
-            self.generate_images(save_markdown=save_markdown, force=force)
+            # self.generate_images(save_markdown=save_markdown, force=force)
             self.replaces_wikilinks_by_markdown_links(
                 save_markdown=save_markdown, force=force
             )
@@ -1119,21 +1119,21 @@ class EnhancedMarkdownFile:
         Modify the markdown output by adding the images. This requires the
         preprocess of Juvix and Isabelle to be ocurred before.
         """
-        # if result := self.skip_and_use_cache_for_process(
-        #     force=force,
-        #     processed_tag="images",
-        # ):
-        #     log.debug(
-        #         f"> Skipping images generation for {Fore.GREEN}{self.relative_filepath}{Style.RESET_ALL} using cached output"
-        #     )
-        #     return result
+        if self._processed_images and not force and not self.changed_since_last_run():
+            log.debug(
+                f"> Skipping images generation for {Fore.GREEN}{self.relative_filepath}{Style.RESET_ALL} using cached output"
+            )
+            return None
 
+
+        log.info(f"{Fore.MAGENTA}Generating images for {self.relative_filepath}{Style.RESET_ALL}")
+        exit(1)
         _output = None
         _markdown_output = self.cache_filepath.read_text()
         metadata = parse_front_matter(_markdown_output) or {}
         preprocess = metadata.get("preprocess", {})
         needs_images = preprocess.get("images", True)
-        if needs_images and (not self._processed_images or force):
+        if needs_images:
             _output = process_images(
                 self.env,
                 _markdown_output,
@@ -1392,22 +1392,23 @@ class EnhancedMarkdownCollection:
                     pbar.update(1)
             clear_line()
 
-        # clear_line()
-        # if generate_images:
-        #     with tqdm(total=len(files_to_process), desc="> processing images") as pbar:
-        #         for file in files_to_process:
-        #             file.generate_images()
-        #             current_file = file.relative_filepath
-        #             pbar.set_postfix_str(
-        #                 f"{Fore.MAGENTA}{current_file}{Style.RESET_ALL}"
-        #             )
-        #             pbar.update(1)
+        clear_line()
+        if generate_images:
+            with sync_tqdm(
+                total=len(files_to_process), desc="> processing images"
+            ) as pbar:
+                for file in files_to_process:
+                    file.generate_images()
+                    current_file = file.relative_filepath
+                    pbar.set_postfix_str(
+                        f"{Fore.MAGENTA}{current_file}{Style.RESET_ALL}"
+                    )
+                    pbar.update(1)
 
         if generate_wikilinks:
 
             @time_spent(message="> processing wikilinks")
             async def process_wikilinks():
-                # if mkdocs
                 flist = (
                     files_to_process
                     if not self.force_wikilinks_generation
@@ -1556,9 +1557,6 @@ class JuvixPlugin(BasePlugin):
     enhanced_collection: EnhancedMarkdownCollection
     wikilinks_plugin: WikilinksPlugin
     first_run: bool = True
-    response: Optional[str] = None
-    use_juvix_question: Optional[questionary.Question] = None
-   
 
     def on_startup(self, *, command: str, dirty: bool) -> None:
         clear_screen()
@@ -1569,17 +1567,8 @@ class JuvixPlugin(BasePlugin):
 
         self.env.SITE_DIR = config.get("site_dir", getenv("SITE_DIR", None))
 
-        if not os.environ.get("CI") or os.getenv("NO_INTERACTION"):
-            self.use_juvix_question = questionary.select(
-                "Do you want to process Juvix Markdown files (this will take longer)?",
-            choices=["yes", "no", "always", "never"],
-                default="no",
-            )
-            self.response = self.use_juvix_question.ask()
-            if self.response == "never":
-                self.env.JUVIX_ENABLED = False
-            elif self.response == "always":
-                self.env.JUVIX_ENABLED = True
+        if os.getenv("SKIP_JUVIX"):
+            self.env.JUVIX_ENABLED = False
 
         if self.env.JUVIX_ENABLED and not self.env.JUVIX_AVAILABLE:
             log.error(
