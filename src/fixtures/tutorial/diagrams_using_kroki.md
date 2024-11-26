@@ -11,7 +11,6 @@ plugins:
         - svg
       FileTypeOverrides:
         mermaid: png
-      FailFast: !ENV CI
 ```
 
 See the [[diagrams|Diagrams using Kroki]] page for examples.

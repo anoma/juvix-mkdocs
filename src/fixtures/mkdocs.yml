@@ -18,11 +18,13 @@ nav:
   - Juvix Code Blocks:
     - Tutorial Juvix Markdown: tutorial/juvix_markdown.md
     - Test Juvix Markdown: test.juvix.md
+    - Hello World: tutorial/hello.juvix.md
     - Everything: everything.juvix.md
   - Generate Isabelle theories:
     - Tutorial Isabelle: tutorial/isabelle.md
     - Test Isabelle: isabelle.juvix.md
   - Snippets: tutorial/snippets.md
+  - Tutorial Images: images.md
   - Wiki Links: tutorial/wikilinks.md
   - Bibliography: tutorial/bibliography.md
   - Diagrams:
@@ -41,7 +43,6 @@ plugins:
         - svg
       FileTypeOverrides:
         mermaid: png
-      FailFast: !ENV CI
 
 {bibtex}
 theme:

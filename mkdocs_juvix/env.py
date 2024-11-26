@@ -130,6 +130,8 @@ class ENV:
 
         self.DIFF_ENABLED: bool = bool(getenv("DIFF_ENABLED", False))
 
+        if not self.SITE_URL.endswith("/"):
+            self.SITE_URL = self.SITE_URL + "/"
         self.DIFF_BIN: str = getenv("DIFF_BIN", "diff")
         self.DIFF_AVAILABLE = shutil.which(self.DIFF_BIN) is not None
 
@@ -187,7 +189,7 @@ class ENV:
             and not config.get("env_init", False)
         ):
             try:
-                log.info(
+                log.debug(
                     f"{Fore.YELLOW}Removing directory {self.CACHE_ABSPATH}{Style.RESET_ALL}"
                 )
                 shutil.rmtree(self.CACHE_ABSPATH, ignore_errors=True)
