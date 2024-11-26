@@ -1129,7 +1129,7 @@ class EnhancedMarkdownFile:
             )
             return None
 
-        log.info(
+        log.debug(
             f"{Fore.MAGENTA}Generating images for {self.relative_filepath}{Style.RESET_ALL}"
         )
         _output = None
@@ -1330,7 +1330,7 @@ class EnhancedMarkdownCollection:
         if self.files is None:
             log.debug("> no files to process")
             return
-
+        clear_screen()
         log.info(
             f"> running pipeline on {Fore.GREEN}{len(self.files)}{Style.RESET_ALL} files"
         )
