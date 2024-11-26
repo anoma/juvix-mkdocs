@@ -24,6 +24,7 @@ assert ROOT_PATH.exists(), f"ROOT_PATH {ROOT_PATH} does not exist"
 
 FIXTURES_PATH = SRC_PATH / "fixtures"
 
+
 def version_from_toml():
     toml_path = SRC_PATH.parent / "pyproject.toml"
     if toml_path.exists():

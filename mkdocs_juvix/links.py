@@ -57,6 +57,7 @@ class WLExtension(Extension):
 
 TOKEN_LIST_WIKILINKS: str = "<!-- list_wikilinks -->"
 
+
 class WikilinksPlugin:
     env: Optional[ENV] = None
 

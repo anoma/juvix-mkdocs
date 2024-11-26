@@ -9,8 +9,7 @@ from os import getenv
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, TypeVar
 from urllib.parse import urljoin
-from rich.console import Console  # type: ignore
-from rich.markdown import Markdown  # type: ignore
+
 import pathspec
 import questionary
 import yaml  # type:ignore
@@ -21,6 +20,8 @@ from mkdocs.config.defaults import MkDocsConfig
 from mkdocs.plugins import BasePlugin
 from mkdocs.structure.files import Files
 from mkdocs.structure.pages import Page
+from rich.console import Console  # type: ignore
+from rich.markdown import Markdown  # type: ignore
 from semver import Version
 from tqdm import tqdm as sync_tqdm  # type: ignore
 from tqdm.asyncio import tqdm as async_tqdm  # type: ignore
@@ -1128,7 +1129,9 @@ class EnhancedMarkdownFile:
             )
             return None
 
-        log.info(f"{Fore.MAGENTA}Generating images for {self.relative_filepath}{Style.RESET_ALL}")
+        log.info(
+            f"{Fore.MAGENTA}Generating images for {self.relative_filepath}{Style.RESET_ALL}"
+        )
         _output = None
         _markdown_output = self.cache_filepath.read_text()
         metadata = parse_front_matter(_markdown_output) or {}

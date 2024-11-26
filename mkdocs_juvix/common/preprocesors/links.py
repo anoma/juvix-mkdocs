@@ -4,8 +4,8 @@ from pathlib import Path
 from typing import Any, List, Optional, Tuple
 from urllib.parse import urljoin
 
-from colorama import Fore, Style
 import numpy as np  # type: ignore
+from colorama import Fore, Style
 from fuzzywuzzy import fuzz  # type: ignore
 from markdown.preprocessors import Preprocessor  # type: ignore
 from ncls import NCLS  # type: ignore
@@ -163,6 +163,7 @@ def process_wikilink(config, full_text, match, md_filepath) -> Optional[WikiLink
 
     return link
 
+
 class WLPreprocessor(Preprocessor):
     absolute_path: Optional[Path] = None
     relative_path: Optional[Path] = None
@@ -188,10 +189,11 @@ class WLPreprocessor(Preprocessor):
             and self.url is None
         ):
             raise ValueError("No absolute path, relative path, or URL provided")
-        
+
         # Find all code blocks, HTML comments, and script tags in a single pass
         ignore_blocks = re.compile(
-            r"((`{1,3})(?:[\s\S]*?)(\2)|<!--[\s\S]*?-->|<script>[\s\S]*?</script>)", re.DOTALL
+            r"((`{1,3})(?:[\s\S]*?)(\2)|<!--[\s\S]*?-->|<script>[\s\S]*?</script>)",
+            re.DOTALL,
         )
         intervals = []
         try:
@@ -219,20 +221,28 @@ class WLPreprocessor(Preprocessor):
             if intervals_where_not_to_look and not list(
                 intervals_where_not_to_look.find_overlap(start, end)
             ):
-                log.debug(f"{Fore.YELLOW}Processing wikilink: {m.group(0)}{Style.RESET_ALL}")
+                log.debug(
+                    f"{Fore.YELLOW}Processing wikilink: {m.group(0)}{Style.RESET_ALL}"
+                )
                 link: Optional[WikiLink] = process_wikilink(
                     self.config, content, m, self.absolute_path
                 )
-                replacement = (start, end, link.markdown()) if link is not None else None
+                replacement = (
+                    (start, end, link.markdown()) if link is not None else None
+                )
                 if replacement is not None:
                     replacements.append(replacement)
-                    log.debug(f"{Fore.YELLOW}Processed replacement: {replacement}{Style.RESET_ALL}")
+                    log.debug(
+                        f"{Fore.YELLOW}Processed replacement: {replacement}{Style.RESET_ALL}"
+                    )
                 else:
                     log.debug(
                         f"{Fore.YELLOW}Link was not processed: {m.group(0)}{Style.RESET_ALL}"
                     )
             else:
-                log.debug(f"{Fore.YELLOW}Skipping wikilink: {m.group(0)}{Style.RESET_ALL}")
+                log.debug(
+                    f"{Fore.YELLOW}Skipping wikilink: {m.group(0)}{Style.RESET_ALL}"
+                )
         for start, end, new_text in reversed(replacements):
             content = content[:start] + new_text + content[end:]
         return content
