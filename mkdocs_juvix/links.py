@@ -57,7 +57,6 @@ class WLExtension(Extension):
 
 TOKEN_LIST_WIKILINKS: str = "<!-- list_wikilinks -->"
 
-
 class WikilinksPlugin:
     env: Optional[ENV] = None
 
@@ -223,7 +222,7 @@ class WikilinksPlugin:
 
             if page.meta.get("list_wikilinks", False):
                 # Creat a bullet list of links
-                wrapped_links = "<details class='quote'><summary>Wiki links on this page</summary><ul>"
+                wrapped_links = "<details class='quote'><summary>Relevant internal links on this page</summary><ul>"
                 unique_links = {
                     link["url"]: (link["path"], link["name"]) for link in links_number
                 }

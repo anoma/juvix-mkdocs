@@ -9,7 +9,8 @@ from os import getenv
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, TypeVar
 from urllib.parse import urljoin
-
+from rich.console import Console  # type: ignore
+from rich.markdown import Markdown  # type: ignore
 import pathspec
 import questionary
 import yaml  # type:ignore
@@ -42,6 +43,8 @@ from mkdocs_juvix.utils import time_spent as time_spent_decorator
 warnings.filterwarnings("ignore", category=DeprecationWarning)
 
 load_dotenv()
+console = Console()
+
 
 # os.environ["DEBUG"] = "true"
 
@@ -694,7 +697,7 @@ class EnhancedMarkdownFile:
             if update_assets:
                 self._update_assets()
             else:
-                log.info("HTML generation completed but not saved to disk.")
+                log.debug("HTML generation completed but not saved to disk.")
         except subprocess.CalledProcessError as e:
             self.save_error_message(e.stderr, "html")
         except Exception as e:
@@ -1125,14 +1128,13 @@ class EnhancedMarkdownFile:
             )
             return None
 
-
         log.info(f"{Fore.MAGENTA}Generating images for {self.relative_filepath}{Style.RESET_ALL}")
-        exit(1)
         _output = None
         _markdown_output = self.cache_filepath.read_text()
         metadata = parse_front_matter(_markdown_output) or {}
         preprocess = metadata.get("preprocess", {})
         needs_images = preprocess.get("images", True)
+        log.debug(f"Needs images: {needs_images}")
         if needs_images:
             _output = process_images(
                 self.env,

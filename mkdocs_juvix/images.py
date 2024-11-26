@@ -46,38 +46,49 @@ def time_spent(message: Optional[Any] = None, print_result: bool = False):
 def process_images(
     env: ENV, md: Optional[str], md_filepath: Optional[Path] = None
 ) -> Optional[str]:
+    log.debug(f"{Fore.CYAN}Starting process_images function{Style.RESET_ALL}")
+    
     def create_ignore_tree(text: str) -> Optional[Any]:
         """Create NCLS tree of regions to ignore (code blocks, comments, divs)"""
+        log.debug(f"{Fore.CYAN}Creating ignore tree for text regions{Style.RESET_ALL}")
         ignore_pattern = re.compile(
-            r"(```(?:[\s\S]*?)```|<!--[\s\S]*?-->|<div>[\s\S]*?</div>)", re.DOTALL
+            r"((`{1,3})(?:[\s\S]*?)\2|<!--[\s\S]*?-->|<div>[\s\S]*?</div>)", re.DOTALL
         )
         intervals = [(m.start(), m.end(), 1) for m in ignore_pattern.finditer(text)]
 
         if intervals:
             starts, ends, ids = map(np.array, zip(*intervals))
+            log.debug(f"{Fore.CYAN}Ignore tree created with {len(intervals)} intervals{Style.RESET_ALL}")
             return NCLS(starts, ends, ids)
+        log.debug(f"{Fore.CYAN}No intervals found for ignore tree{Style.RESET_ALL}")
         return None
 
     def should_process_match(tree: Optional[Any], start: int, end: int) -> bool:
         """Check if match should be processed based on ignore regions"""
-        return not tree or not list(tree.find_overlap(start, end))
+        result = not tree or not list(tree.find_overlap(start, end))
+        log.debug(f"{Fore.CYAN}Match processing check: {result} for range ({start}, {end}){Style.RESET_ALL}")
+        return result
 
     def process_image_url(new_url, match: re.Match, html: bool = False) -> str:
         url_str = match.group("url")
         if not url_str:
+            log.debug(f"{Fore.CYAN}No URL found in match{Style.RESET_ALL}")
             return ""
 
         if html:
             img_rest = match.group("rest") or "<img"
+            log.debug(f"{Fore.CYAN}Processing HTML image URL: {new_url}{Style.RESET_ALL}")
             return f'{img_rest} src="{new_url}"'
 
         caption = match.group("caption") or ""
+        log.debug(f"{Fore.CYAN}Processing Markdown image URL: {new_url}{Style.RESET_ALL}")
         return f"![{caption}]({new_url})"
 
     def find_replacements(
         text: str, ignore_tree: Optional[Any], html: bool = False
     ) -> List[Tuple[int, int, str]]:
         """Find all image references that need to be replaced"""
+        log.debug(f"{Fore.CYAN}Finding replacements for image references{Style.RESET_ALL}")
         replacements = []
 
         if html:
@@ -100,12 +111,21 @@ def process_images(
                     and not url.is_absolute()
                     and url.parent == Path(".")
                 ):
+                    log.debug(f"{Fore.YELLOW}Processing image URL: {url}{Style.RESET_ALL}")
+                    log.debug(f"{Fore.YELLOW}env.SITE_URL: {env.SITE_URL}{Style.RESET_ALL}")
+                    log.debug(f"{Fore.YELLOW}env.IMAGES_PATH: {env.IMAGES_PATH}{Style.RESET_ALL}")
+                    log.debug(f"{Fore.YELLOW}url.name: {url.name}{Style.RESET_ALL}")
+                    log.debug(f"{Fore.YELLOW}env.DOCS_ABSPATH: {env.DOCS_ABSPATH}{Style.RESET_ALL}")
+                    _image_url = env.IMAGES_PATH / url.name
+                    if _image_url.exists() and _image_url.is_relative_to(env.DOCS_ABSPATH):
+                        _image_url = _image_url.relative_to(env.DOCS_ABSPATH)
+                    log.debug(f"{Fore.YELLOW}_image_url: {_image_url}{Style.RESET_ALL}")
+
                     image_url = urljoin(
-                        env.SITE_URL,
-                        (env.IMAGES_PATH / url.name)
-                        .relative_to(env.DOCS_ABSPATH)
-                        .as_posix(),
+                        env.SITE_URL or "/" ,
+                        _image_url.as_posix()
                     )
+                    log.debug(f"{Fore.YELLOW}image_url: {image_url}{Style.RESET_ALL}")
 
                     new_text = process_image_url(
                         image_url,
@@ -113,26 +133,37 @@ def process_images(
                         html=html,
                     )
                     replacements.append((start, end, new_text))
+        log.debug(f"{Fore.CYAN}Found {len(replacements)} replacements{Style.RESET_ALL}")
         return replacements
 
     if md is None:
         if md_filepath is None:
+            log.debug(f"{Fore.CYAN}No markdown content or filepath provided{Style.RESET_ALL}")
             return None
+        log.debug(f"{Fore.CYAN}Reading markdown content from file: {md_filepath}{Style.RESET_ALL}")
         markdown_text = Path(md_filepath).read_text()
     else:
+        log.debug(f"{Fore.CYAN}Using provided markdown content{Style.RESET_ALL}")
         markdown_text = md
 
     ignore_tree = create_ignore_tree(markdown_text)
+    log.debug(f"{Fore.CYAN}Created ignore tree{Style.RESET_ALL}")
+    log.debug(f"{Fore.CYAN}Ignore tree: {ignore_tree}{Style.RESET_ALL}")
     replacements = find_replacements(markdown_text, ignore_tree, html=False)
+    for start, end, new_text in replacements:
+            log.debug(f"{Fore.CYAN}Replacement: {new_text}{Style.RESET_ALL}")
+    log.debug(f"{Fore.CYAN}Found {len(replacements)} replacements{Style.RESET_ALL}")
     for start, end, new_url in reversed(replacements):
         markdown_text = markdown_text[:start] + new_url + markdown_text[end:]
 
     if "<img" in markdown_text:
+        log.debug(f"{Fore.CYAN}Processing HTML image tags in markdown content{Style.RESET_ALL}")
         ignore_tree = create_ignore_tree(markdown_text)
         replacements = find_replacements(markdown_text, ignore_tree, html=True)
         for start, end, new_url in reversed(replacements):
             markdown_text = markdown_text[:start] + new_url + markdown_text[end:]
 
+    log.debug(f"{Fore.CYAN}Finished processing images{Style.RESET_ALL}")
     return markdown_text
 
 
@@ -209,7 +240,7 @@ class ImagesPlugin(BasePlugin):
                 if cond:
                     await self._generate_dot_svg(dot_file)
                     if svg_file.exists():
-                        log.info(
+                        log.debug(
                             f"Requested SVG for {Fore.GREEN}{dot_file.relative_to(self.env.DOCS_PATH)}{Style.RESET_ALL} "
                             f"agenerated: {Fore.GREEN}{svg_file.relative_to(self.env.DOCS_PATH)}{Style.RESET_ALL}"
                         )
@@ -230,7 +261,7 @@ class ImagesPlugin(BasePlugin):
             time_start = time.time()
             trio.run(run_in_parallel, dot_files)
             time_end = time.time()
-            log.info(
+            log.debug(
                 f"SVG generation took {Fore.GREEN}{time_end - time_start:.5f}{Style.RESET_ALL} seconds"
             )
             self.env.FIRST_RUN = False
