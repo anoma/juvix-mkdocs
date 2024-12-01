@@ -1209,6 +1209,7 @@ class EnhancedMarkdownCollection:
     env: ENV
     config: MkDocsConfig
     force_wikilinks_generation: bool = False
+    cached_hash: Optional[str] = None
 
     # @time_spent(message="> initializing enhanced markdown collection")
     def __init__(self, config, env: ENV, docs: Optional[Path] = None):

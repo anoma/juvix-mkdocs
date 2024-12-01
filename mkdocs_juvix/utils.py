@@ -9,7 +9,7 @@ from typing import Any, Iterable, Optional
 from colorama import Fore, Style  # type: ignore
 from mkdocs.config.defaults import MkDocsConfig
 
-from mkdocs_juvix.logger import Logger, log
+from mkdocs_juvix.logger import log
 
 EXCLUDED_DIRS = {
     ".git",
@@ -155,7 +155,7 @@ def get_filepath_for_cached_hash_for(
 
 
 def time_spent(
-    log: Logger,
+    log: Any,
     message: Optional[Any] = None,
     print_result: bool = False,
 ):
