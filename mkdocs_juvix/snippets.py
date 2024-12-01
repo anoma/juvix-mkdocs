@@ -330,6 +330,7 @@ class SnippetPreprocessor(Preprocessor):
     def get_snippet_path(self, path: Path | str):
         """Get snippet path."""
         log.debug(f"{Fore.CYAN}> getting snippet path for {path}{Style.RESET_ALL}")
+
         if isinstance(path, str):
             path = Path(path)
         base_paths = self.base_path
@@ -367,6 +368,9 @@ class SnippetPreprocessor(Preprocessor):
         if path.is_relative_to("./docs"):
             log.debug(f"Path is relative to ./docs: {path}")
             path = path.relative_to("./docs")
+            
+        if self.env.DOCS_ABSPATH not in base_paths:
+            base_paths.append(self.env.DOCS_ABSPATH)
 
         if path.is_relative_to(self.env.ISABELLE_OUTPUT_PATH):
             log.debug(f"Path is relative to Isabelle output path: {path}")
