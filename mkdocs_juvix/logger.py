@@ -1,5 +1,6 @@
 import os
 import logging
+from typing import Any, MutableMapping
 from colorama import Fore, Style  # type: ignore
 
 DEBUG = os.getenv("DEBUG", "false").lower() == "true"
@@ -24,40 +25,10 @@ class Logger(logging.Logger):
         else:
             super().debug(msg, *args, **kwargs)
 
-    def process(self, msg: str, kwargs: MutableMapping[str, Any]) -> tuple[str, Any]:
-        """
-        Process the message.
-
-        Arguments:
-            msg: The message:
-            kwargs: Remaining arguments.
-
-        Returns:
-            The processed message.
-        """
-        return f"{self.prefix}: {msg}", kwargs
-def get_plugin_logger(name: str) -> PrefixedLogger:
-    """
-    Return a logger for plugins.
-
-    Arguments:
-        name: The name to use with `logging.getLogger`.
-
-    Returns:
-        A logger configured to work well in MkDocs,
-            prefixing each message with the plugin package name.
-
-    Example:
-        ```python
-        from mkdocs.plugins import get_plugin_logger
-
-        log = get_plugin_logger(__name__)
-        log.info("My plugin message")
-        ```
-    """
+def get_plugin_logger(name: str) -> Logger:
     logger = logging.getLogger(f"mkdocs.plugins.{name}")
     setattr(logger, "info", lambda msg: getattr(logger, "info")(msg))
-    return PrefixedLogger(name.split(".", 1)[0], logger)
+    return Logger(logger)
 
 log = get_plugin_logger(f"{Fore.BLUE}juvix_mkdocs{Style.RESET_ALL}")
 

@@ -1673,7 +1673,6 @@ class JuvixPlugin(BasePlugin):
         List of the files to be included in the final build. These are copied to
         the site directory.
         """
-        clear_screen()
         log.debug(f"{Fore.GREEN}on_files...{Style.RESET_ALL}")
         self.wikilinks_plugin.on_files(files, config)
         Files(
