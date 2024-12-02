@@ -4,13 +4,12 @@ Support for wiki-style links in MkDocs in tandem of pydownx_snippets.
 
 import json
 import re
-from concurrent.futures import ThreadPoolExecutor
 from os import getenv
 from pathlib import Path
 from typing import Dict, List, Optional
 from urllib.parse import urljoin
 
-from colorama import Fore, Style  # type: ignore
+from tqdm import tqdm as sync_tqdm  # type: ignore
 from markdown.extensions import Extension  # type: ignore
 from mkdocs.config.defaults import MkDocsConfig
 from mkdocs.structure.files import File, Files
@@ -21,7 +20,7 @@ from mkdocs_juvix.common.models.entry import ResultEntry
 from mkdocs_juvix.common.preprocesors.links import WLPreprocessor
 from mkdocs_juvix.common.utils import fix_site_url, get_page_title
 from mkdocs_juvix.env import ENV
-from mkdocs_juvix.logger import log
+from mkdocs_juvix.logger import clear_line, clear_screen, log
 
 files_relation: List[ResultEntry] = []
 EXCLUDED_DIRS = [
@@ -56,7 +55,6 @@ class WLExtension(Extension):
 
 
 TOKEN_LIST_WIKILINKS: str = "<!-- list_wikilinks -->"
-
 
 class WikilinksPlugin:
     env: Optional[ENV] = None
@@ -100,35 +98,40 @@ class WikilinksPlugin:
         config["wikilinks_issues"] = 0
         config["nodes"] = {}
         node_index = 0
+        nav_items = list(_extract_aliases_from_nav(config["nav"]))
 
-        for _url, page in _extract_aliases_from_nav(config["nav"]):
-            url = urljoin(config["site_url"], _url)
+        with sync_tqdm(total=len(nav_items), desc="> processing nav items") as pbar:
+            for _url, page in nav_items:
+                url = urljoin(config["site_url"], _url)
+                config["aliases_for"][url] = [page]
+                config["url_for"].setdefault(page, [])
+                config["url_for"][page].append(url)
 
-            config["aliases_for"][url] = [page]
-            config["url_for"].setdefault(page, [])
-            config["url_for"][page].append(url)
-
-            # Create a new entry if the URL is not already present in config["nodes"]
-            if url not in config["nodes"]:
-                config["nodes"][url] = {
-                    "index": node_index,
-                    "page": {"names": [], "path": _url.replace("./", "")},
-                }
-            # Append the page to the "names" list
-            config["nodes"][url]["page"]["names"].append(page)
-            node_index += 1
+                # Create a new entry if the URL is not already present in config["nodes"]
+                if url not in config["nodes"]:
+                    config["nodes"][url] = {
+                        "index": node_index,
+                        "page": {"names": [], "path": _url.replace("./", "")},
+                    }
+                # Append the page to the "names" list
+                config["nodes"][url]["page"]["names"].append(page)
+                node_index += 1
+                pbar.update(1)
+        clear_line()   
 
         if self.NODES_JSON.exists():
             self.NODES_JSON.unlink()
-
-        with open(self.NODES_JSON, "w") as f:
-            json.dump(
+        try:    
+            with open(self.NODES_JSON, "w") as f:
+                json.dump(
                 {
                     "nodes": config.get("nodes", {}),
                 },
                 f,
                 indent=2,
             )
+        except Exception as e:
+            log.error(f"Error writing nodes.json: {e}")
         config["current_page"] = None  # current page being processed
         return
 
@@ -161,18 +164,17 @@ class WikilinksPlugin:
                             _title = _title.strip()
                             _title = re.sub(r'^[\'"`]|["\'`]$', "", _title)
 
-                            if _title not in config["url_for"]:
-                                url = urljoin(config["site_url"], file.url)
+                            if _title not in config.get("url_for", {}):
+                                url = urljoin(config.get("site_url", ""), file.url)
                                 config["url_for"][_title] = [url]
                                 config["aliases_for"][url] = [_title]
-
-        with ThreadPoolExecutor() as executor:
-            list(
-                executor.map(
-                    process_file, filter(lambda f: f.is_documentation_page(), files)
-                )
-            )
-            executor.shutdown(wait=True)
+        clear_screen()
+        with sync_tqdm(total=len(files), desc="> processing files") as pbar:
+            for file in files:
+                if file.is_documentation_page():
+                    process_file(file)
+                    pbar.update(1)
+        clear_line()
 
         if self.LINKS_JSON.exists():
             self.LINKS_JSON.unlink()
@@ -201,16 +203,20 @@ class WikilinksPlugin:
         frontmatter has the `list_wikilinks` flag set to true.
         """
         if "current_page" not in config or "nodes" not in config:
+            log.debug("No current_page or nodes in config")
             return html
         current_page = config["current_page"]
         url = current_page.canonical_url.replace(".html", ".md")
         if url not in config["nodes"]:
+            log.debug(f"URL {url} not found in nodes. It's probably ignored because it's not in the mkdocs.yml file.")
             return html
 
         if url not in config["nodes"] or "index" not in config["nodes"][url]:
+            log.debug(f"URL {url} not found in nodes or no index for URL")
             return html
         links_number: List[Dict[str, int]] = config.get("links_number", [])
         if len(links_number) > 0:
+            log.debug(f"Processing {len(links_number)} links for {url}")
             actualindex = config["nodes"][url]["index"]
             result_entry = ResultEntry(
                 file=current_page.url,
@@ -222,6 +228,7 @@ class WikilinksPlugin:
             files_relation.append(result_entry)
 
             if page.meta.get("list_wikilinks", False):
+                log.debug(f"Generating wikilinks list for {url}")
                 # Creat a bullet list of links
                 wrapped_links = "<details class='quote'><summary>Relevant internal links on this page</summary><ul>"
                 unique_links = {

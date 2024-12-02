@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "mkdocs-juvix-plugin"
-version = "0.4.5"
+version = "0.4.6"
 description = "MkDocs documentation with support for Juvix Markdown files"
 authors = ["Jonathan Prieto-Cubides, and GitHub contributors"]
 license = "MIT"

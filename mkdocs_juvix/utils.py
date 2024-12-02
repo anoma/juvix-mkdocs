@@ -9,7 +9,7 @@ from typing import Any, Iterable, Optional
 from colorama import Fore, Style  # type: ignore
 from mkdocs.config.defaults import MkDocsConfig
 
-from mkdocs_juvix.logger import PrefixedLogger, log
+from mkdocs_juvix.logger import log
 
 EXCLUDED_DIRS = {
     ".git",
@@ -155,7 +155,7 @@ def get_filepath_for_cached_hash_for(
 
 
 def time_spent(
-    log: PrefixedLogger,
+    log: Any,
     message: Optional[Any] = None,
     print_result: bool = False,
 ):
@@ -167,8 +167,7 @@ def time_spent(
             exception = None
             if message:
                 log_message = f"{Fore.YELLOW}{message} ...{Style.RESET_ALL}"
-                if os.getenv("DEBUG", False):
-                    log.info(log_message)
+                log.debug(log_message)
             try:
                 result = func(*args, **kwargs)
             except Exception as e:
@@ -183,8 +182,7 @@ def time_spent(
                 log_message = f"`{func.__name__} =>` {result} - {log_message}"
             if not print_result:
                 log_message = f"`{func.__name__}` - {log_message}"
-            if os.getenv("DEBUG", False):
-                log.info(log_message)
+                log.debug(log_message)
             if exception:
                 raise exception
             return result

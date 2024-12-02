@@ -5,7 +5,7 @@ from typing import Any, List, Optional, Tuple
 from urllib.parse import urljoin
 
 import numpy as np  # type: ignore
-from colorama import Fore, Style
+from colorama import Fore, Style  # type: ignore
 from fuzzywuzzy import fuzz  # type: ignore
 from markdown.preprocessors import Preprocessor  # type: ignore
 from ncls import NCLS  # type: ignore
@@ -101,10 +101,9 @@ def process_wikilink(config, full_text, match, md_filepath) -> Optional[WikiLink
     )
 
     link_page = link.page
-    # print white space with "X"
 
-    if len(config["url_for"].get(link_page, [])) > 1 and link_page in config["url_for"]:
-        possible_pages = config["url_for"][link_page]
+    if len(config.get("url_for", {}).get(link_page, [])) > 1 and link_page in config.get("url_for", {}):
+        possible_pages = config.get("url_for", {}).get(link_page, [])
         hint = link.hint if link.hint else ""
         token = hint + link_page
         coefficients = {p: fuzz.WRatio(fun_normalise(p), token) for p in possible_pages}
@@ -121,8 +120,8 @@ def process_wikilink(config, full_text, match, md_filepath) -> Optional[WikiLink
                 Our choice: {link.html_path}"""
         )
 
-    elif link_page in config["url_for"]:
-        link.html_path = config["url_for"].get(link_page, [""])[0]
+    elif link_page in config.get("url_for", {}):
+        link.html_path = config.get("url_for", {}).get(link_page, [""])[0]
         log.debug(f"Single page found. html_path: {link.html_path}")
     else:
         log.debug("Link page not in config['url_for']")
@@ -135,11 +134,11 @@ def process_wikilink(config, full_text, match, md_filepath) -> Optional[WikiLink
 
         # Update links_found TODO: move this to the model
         try:
-            url_page = config["url_for"][link_page][0]
-            if url_page in config["nodes"]:
-                actuallink = config["nodes"][url_page]
+            url_page = config.get("url_for", {}).get(link_page, [""])[0]
+            if url_page in config.get("nodes", {}):
+                actuallink = config.get("nodes", {}).get(url_page, {})
                 if actuallink:
-                    pageName = actuallink["page"].get("names", [""])[0]
+                    pageName = actuallink.get("page", {}).get("names", [""])[0]
                     html_path: str = link.html_path if link.html_path else ""
                     config.get("links_found", []).append(
                         {
@@ -192,7 +191,8 @@ class WLPreprocessor(Preprocessor):
 
         # Find all code blocks, HTML comments, and script tags in a single pass
         ignore_blocks = re.compile(
-            r"((`{1,3})(?:[\s\S]*?)(\2)|<!--[\s\S]*?-->|<script>[\s\S]*?</script>)",
+            # r"((`{1,3})(?:[\s\S]*?)(\2)|<!--[\s\S]*?-->|<script>[\s\S]*?</script>)",
+            r"((`{1,3})(?:[\s\S]*?)(\2))",
             re.DOTALL,
         )
         intervals = []
@@ -205,10 +205,12 @@ class WLPreprocessor(Preprocessor):
         except Exception as e:
             log.error(f"Error occurred while processing ignore patterns: {str(e)}")
             return content
-        intervals_where_not_to_look = None
-        if intervals:
-            starts, ends, ids = map(np.array, zip(*intervals))
-            intervals_where_not_to_look = NCLS(starts, ends, ids)
+        
+        # Review this for later improvements
+        # intervals_where_not_to_look = None
+        # if intervals:
+        #     starts, ends, ids = map(np.array, zip(*intervals))
+        #     intervals_where_not_to_look = NCLS(starts, ends, ids)
 
         # Find all wikilinks
         str_wikilinks = list(WIKILINK_PATTERN.finditer(content))
@@ -218,9 +220,7 @@ class WLPreprocessor(Preprocessor):
             start, end = m.start(), m.end()
 
             # TODO: review this
-            if intervals_where_not_to_look and not list(
-                intervals_where_not_to_look.find_overlap(start, end)
-            ):
+            if True:
                 log.debug(
                     f"{Fore.YELLOW}Processing wikilink: {m.group(0)}{Style.RESET_ALL}"
                 )

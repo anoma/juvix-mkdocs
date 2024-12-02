@@ -14,14 +14,13 @@ from typing import List, Optional, Tuple
 
 from colorama import Fore, Style  # type: ignore
 from mkdocs.config.defaults import MkDocsConfig
-from mkdocs.plugins import get_plugin_logger
 from semver import Version
 
 import mkdocs_juvix.utils as utils
 from mkdocs_juvix.juvix_version import MIN_JUVIX_VERSION
 from mkdocs_juvix.utils import is_juvix_markdown_file
 
-log = get_plugin_logger(f"{Fore.BLUE}[juvix_mkdocs] (env) {Style.RESET_ALL}")
+from mkdocs_juvix.logger import log
 
 BASE_PATH = Path(__file__).parent
 FIXTURES_PATH = BASE_PATH / "fixtures"
@@ -181,6 +180,12 @@ class ENV:
                 "Expected documentation directory %s not found.", self.DOCS_ABSPATH
             )
             exit(1)
+
+        if not self.CACHE_ABSPATH.exists():
+            log.info(
+                f"{Fore.YELLOW}Creating cache directory {self.CACHE_ABSPATH}{Style.RESET_ALL}"
+            )
+            self.CACHE_ABSPATH.mkdir(parents=True, exist_ok=True)
 
         if (
             self.CACHE_ABSPATH.exists()

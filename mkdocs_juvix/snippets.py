@@ -330,6 +330,7 @@ class SnippetPreprocessor(Preprocessor):
     def get_snippet_path(self, path: Path | str):
         """Get snippet path."""
         log.debug(f"{Fore.CYAN}> getting snippet path for {path}{Style.RESET_ALL}")
+
         if isinstance(path, str):
             path = Path(path)
         base_paths = self.base_path
@@ -367,6 +368,10 @@ class SnippetPreprocessor(Preprocessor):
         if path.is_relative_to("./docs"):
             log.debug(f"Path is relative to ./docs: {path}")
             path = path.relative_to("./docs")
+            
+        if self.env.DOCS_ABSPATH not in base_paths:
+            base_paths.append(self.env.DOCS_ABSPATH)
+            base_paths.append(self.env.ROOT_ABSPATH)
 
         if path.is_relative_to(self.env.ISABELLE_OUTPUT_PATH):
             log.debug(f"Path is relative to Isabelle output path: {path}")
@@ -495,7 +500,7 @@ class SnippetPreprocessor(Preprocessor):
 
                 if found_snippet is None:
                     if self.check_paths:
-                        msg = f"Error type 3. Snippet at path '{Fore.MAGENTA}{path}{Style.RESET_ALL}' could not be found"
+                        msg = f"Wrong snippet path: '{Fore.MAGENTA}{path}{Style.RESET_ALL}' could not be found. {Fore.YELLOW}Check the path, perhaps you forgot e.g., adding the prefix './' to the path or ./docs/{Style.RESET_ALL}"
                         return SnippetMissingError(msg)
 
                 log.debug(f"{Fore.GREEN}Snippet found:{found_snippet}{Style.RESET_ALL}")
@@ -568,7 +573,7 @@ class SnippetPreprocessor(Preprocessor):
                         except SnippetMissingError:
                             if self.check_paths:
                                 return SnippetMissingError(
-                                    f"Error type 2 while processing {Fore.MAGENTA}{file_name}{Style.RESET_ALL} when trying to extract snippet: {snippet}"
+                                    f"Error while processing {Fore.MAGENTA}{file_name}{Style.RESET_ALL} when trying to extract snippet: {snippet}"
                                 )
                             s_lines = []
 
