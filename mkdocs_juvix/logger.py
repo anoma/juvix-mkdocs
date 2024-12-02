@@ -1,25 +1,28 @@
 import os
 import logging
-from typing import Any, MutableMapping
 from colorama import Fore, Style  # type: ignore
 
 DEBUG = os.getenv("DEBUG", "false").lower() == "true"
 print(f"{Fore.GREEN}DEBUG: {DEBUG}")
 
+class Logger(logging.Logger):
+    def __init__(self, logger: logging.Logger):
+        self.logger = logger
+        super().__init__(logger.name, logger.level)
+        
+    def info(self, msg, *args, **kwargs):
+        if DEBUG:
+            self.debug(msg, *args, **kwargs)
+        else:
+            super().info(msg, *args, **kwargs)
 
-class PrefixedLogger(logging.LoggerAdapter):
-    """A logger adapter to prefix log messages."""
-
-    def __init__(self, prefix: str, logger: logging.Logger) -> None:
-        """
-        Initialize the logger adapter.
-
-        Arguments:
-            prefix: The string to insert in front of every message.
-            logger: The logger instance.
-        """
-        super().__init__(logger, {})
-        self.prefix = prefix
+    def debug(self, msg, *args, **kwargs):
+        if DEBUG:
+            print("-"*100)
+            print(msg, *args, **kwargs)
+            clear_line(2)
+        else:
+            super().debug(msg, *args, **kwargs)
 
     def process(self, msg: str, kwargs: MutableMapping[str, Any]) -> tuple[str, Any]:
         """
@@ -57,7 +60,6 @@ def get_plugin_logger(name: str) -> PrefixedLogger:
     return PrefixedLogger(name.split(".", 1)[0], logger)
 
 log = get_plugin_logger(f"{Fore.BLUE}juvix_mkdocs{Style.RESET_ALL}")
-
 
 def clear_screen():
     if os.getenv("DEBUG", "false").lower() != "true":

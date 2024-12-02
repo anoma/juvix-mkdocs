@@ -4,14 +4,12 @@ Support for wiki-style links in MkDocs in tandem of pydownx_snippets.
 
 import json
 import re
-from concurrent.futures import ThreadPoolExecutor
 from os import getenv
 from pathlib import Path
 from typing import Dict, List, Optional
 from urllib.parse import urljoin
 
-from tqdm import tqdm as sync_tqdm
-from colorama import Fore, Style  # type: ignore
+from tqdm import tqdm as sync_tqdm  # type: ignore
 from markdown.extensions import Extension  # type: ignore
 from mkdocs.config.defaults import MkDocsConfig
 from mkdocs.structure.files import File, Files
@@ -176,6 +174,7 @@ class WikilinksPlugin:
                 if file.is_documentation_page():
                     process_file(file)
                     pbar.update(1)
+        clear_line()
 
         if self.LINKS_JSON.exists():
             self.LINKS_JSON.unlink()
