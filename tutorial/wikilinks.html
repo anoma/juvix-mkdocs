@@ -11,7 +11,7 @@
 <link href="../images.html" rel="prev"/>
 <link href="bibliography.html" rel="next"/>
 <link href="../assets/logo.svg" rel="icon"/>
-<meta content="mkdocs-1.6.1, mkdocs-material-9.5.46" name="generator"/>
+<meta content="mkdocs-1.6.1, mkdocs-material-9.5.47" name="generator"/>
 <title>Wiki Links - Juvix MkDocs</title>
 <link href="../assets/stylesheets/main.6f8fc17f.min.css" rel="stylesheet"/>
 <link href="../assets/stylesheets/palette.06af60db.min.css" rel="stylesheet"/>
@@ -446,7 +446,7 @@ linking to other pages</strong> in the documentation, so please use them wheneve
 possible.</p>
 <h3 id="basic-syntax">Basic Syntax<a class="headerlink" href="#basic-syntax" title="Permanent link">¶</a></h3>
 <p>The basic syntax for a wiki link is:</p>
-<div class="language-text highlight"><pre><span></span><code><span id="__ispan-0-1">[[page]]
+<div class="language-text highlight"><pre><span></span><code><span id="__ispan-0-1">page
 </span></code></pre></div>
 <p>Where:</p>
 <ul>
@@ -454,7 +454,7 @@ possible.</p>
 </ul>
 <h3 id="full-syntax">Full Syntax<a class="headerlink" href="#full-syntax" title="Permanent link">¶</a></h3>
 <p>The full syntax for a wiki link is:
-<div class="language-markdown highlight"><span class="filename">Wiki Link Syntax</span><pre><span></span><code><span id="__ispan-1-1">  [[hintpath/to:page#anchor|Custom caption]]
+<div class="language-markdown highlight"><span class="filename">Wiki Link Syntax</span><pre><span></span><code><span id="__ispan-1-1">  Custom caption
 </span></code></pre></div></p>
 <p>When resolving a wiki link, the system follows these rules:</p>
 <h4 id="page-title">Page Title<a class="headerlink" href="#page-title" title="Permanent link">¶</a></h4>
@@ -465,11 +465,11 @@ specified in the <code>nav</code> attribute of the <code>mkdocs.yml</code> file.
 </span><span id="__ispan-2-3"><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">MyRef X</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">reference.md</span>
 </span></code></pre></div>
 <p>provides the following wiki link:</p>
-<div class="language-markdown highlight"><pre><span></span><code><span id="__ispan-3-1">[[MyRef X]]
+<div class="language-markdown highlight"><pre><span></span><code><span id="__ispan-3-1">MyRef X
 </span></code></pre></div>
 <h4 id="path-hints">Path Hints<a class="headerlink" href="#path-hints" title="Permanent link">¶</a></h4>
 <p>(<strong>Optional</strong>) You can use path hints to specify the location of the file. The syntax is:</p>
-<div class="language-markdown highlight"><span class="filename">Path Hints</span><pre><span></span><code><span id="__ispan-4-1">[[hintpath/to:page]]
+<div class="language-markdown highlight"><span class="filename">Path Hints</span><pre><span></span><code><span id="__ispan-4-1">page
 </span></code></pre></div>
 <p>Where:</p>
 <ul>
@@ -480,7 +480,7 @@ specified in the <code>nav</code> attribute of the <code>mkdocs.yml</code> file.
 <p>(<strong>Optional</strong>) Use anchors to link to specific sections within a page. If the
 page does not have an anchor, the link would render as the caption provided,
 and you'll find a warning in the build process.</p>
-<div class="language-markdown highlight"><span class="filename">Anchors</span><pre><span></span><code><span id="__ispan-5-1">[[page#anchor]]
+<div class="language-markdown highlight"><span class="filename">Anchors</span><pre><span></span><code><span id="__ispan-5-1">page
 </span></code></pre></div>
 <p>Where:</p>
 <ul>
@@ -489,7 +489,7 @@ and you'll find a warning in the build process.</p>
 </ul>
 <h4 id="custom-captions">Custom captions<a class="headerlink" href="#custom-captions" title="Permanent link">¶</a></h4>
 <p>(<strong>Optional</strong>) Provide custom text to display for the link instead of the page title.</p>
-<div class="language-markdown highlight"><span class="filename">Custom Captions</span><pre><span></span><code><span id="__ispan-6-1">[[page#anchor|Custom caption]]
+<div class="language-markdown highlight"><span class="filename">Custom Captions</span><pre><span></span><code><span id="__ispan-6-1">Custom caption
 </span></code></pre></div>
 <p>Where:</p>
 <ul>
@@ -500,7 +500,7 @@ and you'll find a warning in the build process.</p>
 <div class="tabbed-set tabbed-alternate" data-tabs="1:2"><input checked="checked" id="markdown" name="__tabbed_1" type="radio"><input id="preview" name="__tabbed_1" type="radio"><div class="tabbed-labels"><label for="markdown">Markdown</label><label for="preview">Preview</label></div>
 <div class="tabbed-content">
 <div class="tabbed-block">
-<div class="language-markdown highlight"><pre><span></span><code><span id="__ispan-7-1">[[index | :material-link: this is a caption with an icon ]]
+<div class="language-markdown highlight"><pre><span></span><code><span id="__ispan-7-1">:material-link: this is a caption with an icon
 </span></code></pre></div>
 </div>
 <div class="tabbed-block">
@@ -533,8 +533,8 @@ matter of the page.</p>
 <div class="md-footer-meta__inner md-grid">
 <div class="md-copyright">
 <div class="md-copyright__highlight">
-    © 2024 <a href="https://github.com/anoma/juvix-mkdocs">juvix-mkdocs</a> - Last updated: November 26, 2024
-    at 09:53 PM UTC - Powered by Mkdocs, Material for Mkdocs, Juvix, and
+    © 2024 <a href="https://github.com/anoma/juvix-mkdocs">juvix-mkdocs</a> - Last updated: December 02, 2024
+    at 04:03 PM UTC - Powered by Mkdocs, Material for Mkdocs, Juvix, and
     Juvix-Mkdocs.
   </div>
 </div>
