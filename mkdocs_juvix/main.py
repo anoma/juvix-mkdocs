@@ -318,7 +318,7 @@ class EnhancedMarkdownFile:
 
     @time_spent(message="> running pipeline per individual file")
     def run_pipeline(self, save_markdown: bool = True, force: bool = False) -> None:
-        """11
+        """
         Run the pipeline of tasks to generate the markdown output of the file.
         Be aware that this may get the wrong output if the snippets in the file
         are not cached.
