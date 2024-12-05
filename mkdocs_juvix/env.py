@@ -30,7 +30,7 @@ class ENV:
     ROOT_PATH: Path
     DOCS_DIRNAME: str = getenv("DOCS_DIRNAME", "docs")
     DOCS_PATH: Path
-    CACHE_DIRNAME: str = getenv("CACHE_DIRNAME", ".cache-juvix-mkdocs")
+    CACHE_DIRNAME: str
     CACHE_PATH: Path
     DIFF_ENABLED: bool
     DIFF_BIN: str
@@ -49,7 +49,6 @@ class ENV:
     TIMELIMIT: int = int(getenv("TIMELIMIT", 10))
 
     REMOVE_CACHE: bool = bool(getenv("REMOVE_CACHE", False))
-
     PROCESS_JUVIX: bool = bool(getenv("PROCESS_JUVIX", False))
     JUVIX_FULL_VERSION: str
     JUVIX_BIN_NAME: str = getenv("JUVIX_BIN", "juvix")
@@ -118,6 +117,10 @@ class ENV:
             self.ROOT_PATH = Path(".").resolve()
 
         self.ROOT_ABSPATH = self.ROOT_PATH.absolute()
+        if self.PROCESS_JUVIX:
+            self.CACHE_DIRNAME = getenv("CACHE_DIRNAME", ".cache-mkdocs-with-juvix-processing")
+        else:
+            self.CACHE_DIRNAME = getenv("CACHE_DIRNAME", ".cache-mkdocs-without-juvix-processing")
         self.CACHE_ABSPATH = self.ROOT_ABSPATH / self.CACHE_DIRNAME
 
         self.DOCS_PATH = self.ROOT_PATH / self.DOCS_DIRNAME
@@ -366,12 +369,18 @@ class ENV:
             return processed_path
 
     def unqualified_module_name(self, filepath: Path) -> Optional[str]:
+        log.debug(f"Computing unqualified module name for {filepath}")
+        if not self.juvix_enabled:
+            log.debug("Juvix is not enabled, returning None")
+            return None
         fposix: str = filepath.as_posix()
         if not fposix.endswith(".juvix.md"):
             return None
         return os.path.basename(fposix).replace(".juvix.md", "")
 
     def qualified_module_name(self, filepath: Path) -> Optional[str]:
+        if not self.juvix_enabled:
+            return None
         absolute_path = filepath.absolute()
         cmd = [self.JUVIX_BIN, "dev", "root", absolute_path.as_posix()]
         pp = subprocess.run(cmd, cwd=self.DOCS_ABSPATH, capture_output=True)
