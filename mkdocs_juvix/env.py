@@ -370,7 +370,7 @@ class ENV:
 
     def unqualified_module_name(self, filepath: Path) -> Optional[str]:
         log.debug(f"Computing unqualified module name for {filepath}")
-        if not self.juvix_enabled:
+        if not self.JUVIX_AVAILABLE:
             log.debug("Juvix is not enabled, returning None")
             return None
         fposix: str = filepath.as_posix()
@@ -379,7 +379,7 @@ class ENV:
         return os.path.basename(fposix).replace(".juvix.md", "")
 
     def qualified_module_name(self, filepath: Path) -> Optional[str]:
-        if not self.juvix_enabled:
+        if not self.JUVIX_AVAILABLE:
             return None
         absolute_path = filepath.absolute()
         cmd = [self.JUVIX_BIN, "dev", "root", absolute_path.as_posix()]
