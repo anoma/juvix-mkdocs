@@ -21,7 +21,6 @@ class Logger(logging.Logger):
         if DEBUG:
             print("-"*100)
             print(msg, *args, **kwargs)
-            clear_line(2)
         else:
             super().debug(msg, *args, **kwargs)
 

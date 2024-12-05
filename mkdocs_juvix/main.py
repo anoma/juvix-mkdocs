@@ -29,7 +29,7 @@ from mkdocs_juvix.common.preprocesors.links import WLPreprocessor
 from mkdocs_juvix.env import ENV, FIXTURES_PATH
 from mkdocs_juvix.images import process_images
 from mkdocs_juvix.links import TOKEN_LIST_WIKILINKS, WikilinksPlugin
-from mkdocs_juvix.logger import clear_line, clear_screen, log
+from mkdocs_juvix.logger import log
 from mkdocs_juvix.snippets import RE_SNIPPET_SECTION, SnippetPreprocessor
 from mkdocs_juvix.utils import (
     compute_sha_over_folder,
@@ -952,7 +952,7 @@ class EnhancedMarkdownFile:
             )
             return None
 
-        log.debug(f"> Generating Juvix markdown for {self.relative_filepath}")   
+        log.debug(f"> Generating Juvix markdown for {self.relative_filepath}")
         if self.changed_since_last_run():
             log.debug("> File has changed since last run, generating markdown")
         if (
@@ -964,7 +964,7 @@ class EnhancedMarkdownFile:
                 f"> Skipping markdown generation for {Fore.GREEN}{self.relative_filepath}{Style.RESET_ALL} using cached output"
             )
             return None
-        
+
         log.debug(
             f"> Reading cached markdown for {Fore.GREEN}{self.relative_filepath}{Style.RESET_ALL}"
         )
@@ -1093,7 +1093,7 @@ class EnhancedMarkdownFile:
             self.env.CACHE_PROCESSED_MARKDOWN_PATH.resolve().absolute(),
         ]
         snippet_preprocessor.check_paths = check_paths
-        
+
 
         if content:
             try:
@@ -1155,7 +1155,7 @@ class EnhancedMarkdownFile:
         content: str,
         modify_markdown_output: bool = True,
     ) -> str:
-        
+
         assert "url_for" in self.config, "url_for is not in the config"
         assert "nodes" in self.config, "nodes is not in the config"
 
@@ -1248,6 +1248,7 @@ class EnhancedMarkdownCollection:
             log.error(f"Error initializing JuvixMarkdownCollection: {e}")
             raise
 
+    @time_spent(message="> scanning originals")
     def scanning_originals(self) -> List[EnhancedMarkdownFile]:
         """
         Cache the original Juvix Markdown files in the cache folder for faster
@@ -1277,6 +1278,7 @@ class EnhancedMarkdownCollection:
                     log.debug(f"Creating EnhancedMarkdownFile for {file}")
                     enhanced_file = EnhancedMarkdownFile(file, self.env, self.config)
                     self.files.append(enhanced_file)
+
                     log.debug(f"Creating parent directory for {enhanced_file.original_in_cache_filepath}")
                     enhanced_file.original_in_cache_filepath.parent.mkdir(
                         parents=True, exist_ok=True
@@ -1286,7 +1288,6 @@ class EnhancedMarkdownCollection:
                     )
                     shutil.copy(file, enhanced_file.original_in_cache_filepath)
                     pbar.update(1)
-            clear_line()  
             return self.files
 
         except Exception as e:
@@ -1393,7 +1394,7 @@ class EnhancedMarkdownCollection:
         if self.files is None:
             log.debug(f"{Fore.YELLOW}> no files to process{Style.RESET_ALL}")
             return
-        
+
         log.debug(
             f"> running pipeline on {Fore.GREEN}{len(self.files)}{Style.RESET_ALL} files"
         )
@@ -1426,11 +1427,13 @@ class EnhancedMarkdownCollection:
             )
         asyncio.run(process_original_markdowns())
 
-        juvix_files = [
-            file
-            for file in files_to_process
-            if is_juvix_markdown_file(file.absolute_filepath)
-        ]
+        juvix_files = []
+        if (generate_juvix_markdown or generate_juvix_isabelle) and self.env.juvix_enabled:
+            juvix_files = [
+                file
+                for file in files_to_process
+                if is_juvix_markdown_file(file.absolute_filepath)
+            ]
 
         if generate_juvix_markdown and self.env.juvix_enabled:
             with sync_tqdm(
@@ -1467,23 +1470,22 @@ class EnhancedMarkdownCollection:
                         f"{Fore.MAGENTA}{current_file}{Style.RESET_ALL}"
                     )
                     pbar.update(1)
+        if generate_wikilinks:
+            @time_spent(message="> processing wikilinks")
+            def process_wikilinks():
+                flist = self.files
+                with sync_tqdm(
+                    total=len(flist), desc="> processing wikilinks"
+                ) as pbar:
+                    for file in flist:
+                        pbar.set_postfix_str(
+                            f"{Fore.MAGENTA}{file.relative_filepath}{Style.RESET_ALL}"
+                        )
+                        file.replaces_wikilinks_by_markdown_links()
+                        pbar.update(1)
 
-        @time_spent(message="> processing wikilinks")
-        def process_wikilinks():
-            flist = self.files
-            with sync_tqdm(
-                total=len(flist), desc="> processing wikilinks"
-            ) as pbar:
-                for file in flist:
-                    pbar.set_postfix_str(
-                        f"{Fore.MAGENTA}{file.relative_filepath}{Style.RESET_ALL}"
-                    )
-                    file.replaces_wikilinks_by_markdown_links()
-                    pbar.update(1)
-            clear_line()
-
-        process_wikilinks()
-        log.debug(f"{Fore.GREEN}finished wikilinks{Style.RESET_ALL}")
+            process_wikilinks()
+            log.debug(f"{Fore.GREEN}finished wikilinks{Style.RESET_ALL}")
 
         if generate_snippets:
             async def process_snippets():
@@ -1495,7 +1497,6 @@ class EnhancedMarkdownCollection:
 
             asyncio.run(process_snippets())
             log.debug(f"{Fore.GREEN}finished snippets{Style.RESET_ALL}")
-            clear_line()
 
         self.update_cached_hash()
         self.save_juvix_modules_json()
@@ -1515,7 +1516,7 @@ class EnhancedMarkdownCollection:
         all the Juvix Markdown files. Otherwise, we generate the HTML output for
         every Juvix Markdown file individually (not recommended).
         """
-        if not self.env.JUVIX_ENABLED:
+        if not self.env.juvix_enabled:
             log.info(
                 f"{Fore.YELLOW}Juvix is not enabled, skipping HTML generation{Style.RESET_ALL}"
             )
@@ -1566,6 +1567,12 @@ class EnhancedMarkdownCollection:
         Clean the Juvix dependencies. This is necessary to avoid typechecking
         errors when the Juvix compiler version changes.
         """
+        if not self.env.juvix_enabled:
+            log.info(
+                f"{Fore.YELLOW}Juvix is not enabled, skipping Juvix dependencies cleaning{Style.RESET_ALL}"
+            )
+            return
+
         if not self.env.CLEAN_DEPS:
             log.info(
                 f"Skipping Juvix dependencies cleaning because "
@@ -1594,6 +1601,12 @@ class EnhancedMarkdownCollection:
         """
         Update the Juvix dependencies.
         """
+        if not self.env.juvix_enabled:
+            log.info(
+                f"{Fore.YELLOW}Juvix is not enabled, skipping Juvix dependencies updating{Style.RESET_ALL}"
+            )
+            return False
+
         update_command = [self.env.JUVIX_BIN, "dependencies", "update"]
         res = subprocess.run(
             update_command,
@@ -1619,25 +1632,20 @@ class JuvixPlugin(BasePlugin):
     first_run: bool = True
 
     def on_startup(self, *, command: str, dirty: bool) -> None:
-        log.debug(f"{Fore.GREEN}on_startup...{Style.RESET_ALL}")
+        log.info(f"{Fore.GREEN}Starting up...{Style.RESET_ALL}")
 
     def on_config(self, config: MkDocsConfig) -> MkDocsConfig:
-        clear_screen()
+        log.info(f"{Fore.GREEN}Configuring...{Style.RESET_ALL}")
         self.env = ENV(config)
         config = fix_site_url(config)
 
         self.env.SITE_DIR = config.get("site_dir", getenv("SITE_DIR", None))
 
-        if os.getenv("SKIP_JUVIX"):
-            self.env.JUVIX_ENABLED = False
-
-        if self.env.JUVIX_ENABLED and not self.env.JUVIX_AVAILABLE:
-            log.error(
-                "You have requested Juvix but it is not available. Check your configuration."
-                "\nEnvironment variables relevant to the build process:"
-                "\n- JUVIX_ENABLED"
-                "\n- JUVIX_BIN"
-                "\n- JUVIX_PATH"
+        if self.env.JUVIX_AVAILABLE and not self.env.PROCESS_JUVIX:
+            log.info(
+                f"{Fore.YELLOW}The Juvix compiler is available but Juvix is not enabled. "
+                f"Enable it by setting the environment variable "
+                f"{Fore.GREEN}PROCESS_JUVIX{Style.RESET_ALL} to true."
             )
 
         if self.first_run:
@@ -1764,23 +1772,23 @@ class JuvixPlugin(BasePlugin):
         for a in soup.find_all("a"):
             a["href"] = a["href"].replace(".juvix.html", ".html")
         return str(soup)
-    
+
     def get_context(self, context, page, config, nav):
         log.info(f"{Fore.GREEN}Processing context...{Style.RESET_ALL}")
         return context
-    
+
     def get_template(self, template, context):
         log.info(f"{Fore.GREEN}Processing template...{Style.RESET_ALL}")
         return template, context
-    
+
     def render(self, template, context):
         log.info(f"{Fore.GREEN}Rendering template...{Style.RESET_ALL}")
         return template, context
-    
+
 
     def on_post_build(self, config: MkDocsConfig) -> None:
         log.info(f"{Fore.GREEN}on_post_build...{Style.RESET_ALL}")
-        if self.env.JUVIX_ENABLED:
+        if self.env.PROCESS_JUVIX:
             log.debug(f"{Fore.GREEN}generating HTML...{Style.RESET_ALL}")
             self.enhanced_collection.generate_html()
             log.debug(f"{Fore.GREEN}moving HTML cache to site directory...{Style.RESET_ALL}")
@@ -1795,7 +1803,7 @@ class JuvixPlugin(BasePlugin):
         )
         for file in files_to_check:
             file.load_and_print_saved_error_messages()
-        
+
         files = self.enhanced_collection.files if self.enhanced_collection.files else []
         files_to_process: List[EnhancedMarkdownFile] = [
             file
@@ -1874,8 +1882,6 @@ class JuvixPlugin(BasePlugin):
                 ):
                     return
 
-                # clear the console
-                clear_screen()
                 fpath = Path(fpathstr)
                 if fpath.is_relative_to(self.env.DOCS_ABSPATH):
                     log.info(

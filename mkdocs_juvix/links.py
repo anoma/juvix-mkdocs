@@ -20,7 +20,7 @@ from mkdocs_juvix.common.models.entry import ResultEntry
 from mkdocs_juvix.common.preprocesors.links import WLPreprocessor
 from mkdocs_juvix.common.utils import fix_site_url, get_page_title
 from mkdocs_juvix.env import ENV
-from mkdocs_juvix.logger import clear_line, clear_screen, log
+from mkdocs_juvix.logger import log
 
 files_relation: List[ResultEntry] = []
 EXCLUDED_DIRS = [
@@ -117,7 +117,6 @@ class WikilinksPlugin:
                 config["nodes"][url]["page"]["names"].append(page)
                 node_index += 1
                 pbar.update(1)
-        clear_line()   
 
         if self.NODES_JSON.exists():
             self.NODES_JSON.unlink()
@@ -168,13 +167,11 @@ class WikilinksPlugin:
                                 url = urljoin(config.get("site_url", ""), file.url)
                                 config["url_for"][_title] = [url]
                                 config["aliases_for"][url] = [_title]
-        clear_screen()
         with sync_tqdm(total=len(files), desc="> processing files") as pbar:
             for file in files:
                 if file.is_documentation_page():
                     process_file(file)
                     pbar.update(1)
-        clear_line()
 
         if self.LINKS_JSON.exists():
             self.LINKS_JSON.unlink()
