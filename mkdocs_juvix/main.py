@@ -1684,7 +1684,9 @@ class JuvixPlugin(BasePlugin):
         the site directory.
         """
         log.debug(f"{Fore.GREEN}on_files...{Style.RESET_ALL}")
-        self.wikilinks_plugin.on_files(files, config)
+        if self.enhanced_collection.has_changes():
+            self.wikilinks_plugin.on_files(files, config)
+
         Files(
             [
                 file
@@ -1715,7 +1717,7 @@ class JuvixPlugin(BasePlugin):
             return None
 
         abs_src_path: Path = Path(abs_src_str)
-        log.info(f"Mkdocs is processing file (on_page_read_source): {Fore.MAGENTA}{abs_src_path}{Style.RESET_ALL}")
+        log.info(f"Mkdocs (on_page_read_source): {Fore.MAGENTA}{abs_src_path}{Style.RESET_ALL}")
         try:
             file: Optional[EnhancedMarkdownFile] = (
                 self.enhanced_collection.get_enhanced_file_entry(abs_src_path)
@@ -1754,7 +1756,7 @@ class JuvixPlugin(BasePlugin):
 
         if not abs_src_str:
             return markdown
-        log.info(f"Mkdocs is processing file (on_page_markdown): {Fore.MAGENTA}{abs_src_str}{Style.RESET_ALL}")
+        log.info(f"Mkdocs (on_page_markdown): {Fore.MAGENTA}{abs_src_str}{Style.RESET_ALL}")
 
         page.file.name = page.file.name.replace(".juvix", "")
         page.file.url = page.file.url.replace(".juvix", "")
@@ -1767,14 +1769,14 @@ class JuvixPlugin(BasePlugin):
     def on_page_content(
         self, html: str, page: Page, config: MkDocsConfig, files: Files
     ) -> Optional[str]:
-        log.info(f"Mkdocs is processing file (on_page_content): {Fore.MAGENTA}{page.file.abs_src_path}{Style.RESET_ALL}")
+        log.info(f"Mkdocs (on_page_content): {Fore.MAGENTA}{page.file.abs_src_path}{Style.RESET_ALL}")
         return html
 
     def on_post_page(self, output: str, page: Page, config: MkDocsConfig) -> str:
         soup = BeautifulSoup(output, "html.parser")
         for a in soup.find_all("a"):
             a["href"] = a["href"].replace(".juvix.html", ".html")
-        log.info(f"{Fore.CYAN}Mkdocs is processing file (on_post_page): {page.file.abs_src_path}{Style.RESET_ALL}")
+        log.info(f"Mkdocs (on_post_page): {Fore.MAGENTA}{page.file.abs_src_path}{Style.RESET_ALL}")
         return str(soup)
 
     def get_context(self, context, page, config, nav):
@@ -1791,7 +1793,7 @@ class JuvixPlugin(BasePlugin):
 
 
     def on_post_build(self, config: MkDocsConfig) -> None:
-        log.info("Mkdocs is processing files (on_post_build)")
+        log.info("Mkdocss (on_post_build)")
         if self.env.PROCESS_JUVIX:
             log.debug(f"{Fore.GREEN}generating HTML...{Style.RESET_ALL}")
             self.enhanced_collection.generate_html()
@@ -1814,10 +1816,10 @@ class JuvixPlugin(BasePlugin):
             for file in files
             if files and file.has_error_message()
         ]
-        log.info(f"{Fore.YELLOW}Files with errors: {Fore.GREEN}{len(files_to_process)}{Style.RESET_ALL}")
-        log.info("Based on the previous errors, we are forced to process the following files, next time:")
+        log.info(f"{Fore.YELLOW}Files with some processing errors or warnings: {len(files_to_process)}{Style.RESET_ALL}")
+        log.info("Based on the previous run, we are forced to process the following files, next time:")
         for file in files_to_process:
-            log.info(f"{Fore.MAGENTA}{file.relative_filepath}{Style.RESET_ALL}")
+            log.info(f"> {Fore.MAGENTA}{file.relative_filepath}{Style.RESET_ALL}")
         log.debug(f"{Fore.GREEN}finished on_post_build...{Style.RESET_ALL}")
 
     def move_html_cache_to_site_dir(self) -> None:
