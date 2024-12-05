@@ -338,6 +338,12 @@ class SnippetPreprocessor(Preprocessor):
         search_for_juvix_isabelle_output = False
 
         if path and path.as_posix().endswith(".juvix.md!thy"):
+            if not self.env.PROCESS_JUVIX:
+                log.info(
+                    f"{Fore.YELLOW}Juvix is not enabled, skipping Juvix snippets{Style.RESET_ALL}"
+                )
+                return None
+
             search_for_juvix_isabelle_output = True
             log.debug(
                 f"Path ends with .juvix.md!thy: {Fore.MAGENTA}{path}{Style.RESET_ALL}"
@@ -463,10 +469,10 @@ class SnippetPreprocessor(Preprocessor):
                 end = None
                 start = None
                 section = None
-                log.debug(f"{Fore.YELLOW}>>>>>> path: {path}{Style.RESET_ALL}")
+                log.debug(f"{Fore.YELLOW}> path: {path}{Style.RESET_ALL}")
                 m = RE_SNIPPET_FILE.match(path)
                 if m is None:
-                    log.debug(f"{Fore.YELLOW}>>>>>> m is None{Style.RESET_ALL}")
+                    log.debug(f"{Fore.YELLOW}> RE_SNIPPET_FILE match is None{Style.RESET_ALL}")
                     continue
 
                 path = m.group(1).strip()
@@ -500,7 +506,9 @@ class SnippetPreprocessor(Preprocessor):
 
                 if found_snippet is None:
                     if self.check_paths:
-                        msg = f"Wrong snippet path: '{Fore.MAGENTA}{path}{Style.RESET_ALL}' could not be found. {Fore.YELLOW}Check the path, perhaps you forgot e.g., adding the prefix './' to the path or ./docs/{Style.RESET_ALL}"
+                        msg = f"Wrong snippet path: '{Fore.MAGENTA}{path}{Style.RESET_ALL}' "
+                        msg += f"could not be found. {Fore.YELLOW}Check the path, perhaps you"
+                        msg += f"forgot e.g., adding the prefix './' to the path or ./docs/{Style.RESET_ALL}"
                         return SnippetMissingError(msg)
 
                 log.debug(f"{Fore.GREEN}Snippet found:{found_snippet}{Style.RESET_ALL}")

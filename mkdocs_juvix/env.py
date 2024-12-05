@@ -50,7 +50,7 @@ class ENV:
 
     REMOVE_CACHE: bool = bool(getenv("REMOVE_CACHE", False))
 
-    JUVIX_ENABLED: bool = bool(getenv("JUVIX_ENABLED", True))
+    PROCESS_JUVIX: bool = bool(getenv("PROCESS_JUVIX", False))
     JUVIX_FULL_VERSION: str
     JUVIX_BIN_NAME: str = getenv("JUVIX_BIN", "juvix")
     JUVIX_BIN_PATH: str = getenv("JUVIX_PATH", "")
@@ -243,7 +243,7 @@ class ENV:
             log.debug(
                 "Juvix version not found. Make sure Juvix is installed, for now support for Juvix Markdown is disabled."
             )
-            self.JUVIX_ENABLED = False
+            self.PROCESS_JUVIX = False
             self.JUVIX_AVAILABLE = False
 
             return
@@ -264,7 +264,7 @@ class ENV:
 
     @property
     def juvix_enabled(self) -> bool:
-        return self.JUVIX_ENABLED and self.JUVIX_AVAILABLE
+        return self.PROCESS_JUVIX and self.JUVIX_AVAILABLE
 
     @staticmethod
     def when_juvix_enabled(func):

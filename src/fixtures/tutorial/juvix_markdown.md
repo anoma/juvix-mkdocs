@@ -1,5 +1,20 @@
 # Juvix Markdown Structure
 
+The Juvix Markdown processor can turn Juvix code blocks into HTML.
+The syntax highlighted is semantic, not lexical. This brings a more clear
+understanding of the code. However, at the moment, processing Juvix
+Markdown takes two seconds per file, on average. Therefore it is disabled by
+default.
+
+To enable it, set the `PROCESS_JUVIX` environment variable to `true`.
+So, next time you run `mkdocs build`, Juvix Markdown will be processed. For
+example, you can run the command in the following way:
+
+```bash
+PROCESS_JUVIX=true poetry run mkdocs serve
+```
+
+
 ## File Structure
 
 A Juvix Markdown file (`.juvix.md`) must follow these rules:
