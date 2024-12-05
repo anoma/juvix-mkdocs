@@ -167,12 +167,12 @@ class WikilinksPlugin:
                                 url = urljoin(config.get("site_url", ""), file.url)
                                 config["url_for"][_title] = [url]
                                 config["aliases_for"][url] = [_title]
+
         with sync_tqdm(total=len(files), desc="> processing files") as pbar:
             for file in files:
                 if file.is_documentation_page():
                     process_file(file)
                     pbar.update(1)
-
         if self.LINKS_JSON.exists():
             self.LINKS_JSON.unlink()
 

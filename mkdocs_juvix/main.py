@@ -1643,9 +1643,11 @@ class JuvixPlugin(BasePlugin):
 
         if self.env.JUVIX_AVAILABLE and not self.env.PROCESS_JUVIX:
             log.info(
-                f"{Fore.YELLOW}The Juvix compiler is available but Juvix is not enabled. "
-                f"Enable it by setting the environment variable "
-                f"{Fore.GREEN}PROCESS_JUVIX{Style.RESET_ALL} to true."
+                f"The Juvix compiler is available but Juvix is not enabled by default. "
+                f"Therefore, the output of the Juvix Markdown processor will be "
+                f"the same as the original markdown. If you want to process "
+                f"Juvix Markdown, run: {Fore.GREEN}`PROCESS_JUVIX=true poetry "
+                f"run mkdocs build`{Style.RESET_ALL}."
             )
 
         if self.first_run:
@@ -1696,7 +1698,7 @@ class JuvixPlugin(BasePlugin):
         mkdocs_config_filepath = self.env.ROOT_ABSPATH / "mkdocs.yml"
         if mkdocs_config_filepath in [file.abs_src_path for file in files]:
             self.enhanced_collection.force_wikilinks_generation = True
-        log.debug(f"{Fore.GREEN}finished on_files...{Style.RESET_ALL}")
+        log.info("> Now is the time for MkDocs to finish")
         return files
 
     def on_nav(self, nav, config: MkDocsConfig, files: Files):
@@ -1713,7 +1715,7 @@ class JuvixPlugin(BasePlugin):
             return None
 
         abs_src_path: Path = Path(abs_src_str)
-        log.debug(f"{Fore.CYAN}Processing file: {abs_src_path}{Style.RESET_ALL}")
+        log.info(f"Mkdocs is processing file (on_page_read_source): {Fore.MAGENTA}{abs_src_path}{Style.RESET_ALL}")
         try:
             file: Optional[EnhancedMarkdownFile] = (
                 self.enhanced_collection.get_enhanced_file_entry(abs_src_path)
@@ -1752,6 +1754,7 @@ class JuvixPlugin(BasePlugin):
 
         if not abs_src_str:
             return markdown
+        log.info(f"Mkdocs is processing file (on_page_markdown): {Fore.MAGENTA}{abs_src_str}{Style.RESET_ALL}")
 
         page.file.name = page.file.name.replace(".juvix", "")
         page.file.url = page.file.url.replace(".juvix", "")
@@ -1764,13 +1767,14 @@ class JuvixPlugin(BasePlugin):
     def on_page_content(
         self, html: str, page: Page, config: MkDocsConfig, files: Files
     ) -> Optional[str]:
-        # html = self.wikilinks_plugin.on_page_content(html, page, config, files)
+        log.info(f"Mkdocs is processing file (on_page_content): {Fore.MAGENTA}{page.file.abs_src_path}{Style.RESET_ALL}")
         return html
 
     def on_post_page(self, output: str, page: Page, config: MkDocsConfig) -> str:
         soup = BeautifulSoup(output, "html.parser")
         for a in soup.find_all("a"):
             a["href"] = a["href"].replace(".juvix.html", ".html")
+        log.info(f"{Fore.CYAN}Mkdocs is processing file (on_post_page): {page.file.abs_src_path}{Style.RESET_ALL}")
         return str(soup)
 
     def get_context(self, context, page, config, nav):
@@ -1787,7 +1791,7 @@ class JuvixPlugin(BasePlugin):
 
 
     def on_post_build(self, config: MkDocsConfig) -> None:
-        log.info(f"{Fore.GREEN}on_post_build...{Style.RESET_ALL}")
+        log.info("Mkdocs is processing files (on_post_build)")
         if self.env.PROCESS_JUVIX:
             log.debug(f"{Fore.GREEN}generating HTML...{Style.RESET_ALL}")
             self.enhanced_collection.generate_html()
@@ -1810,10 +1814,10 @@ class JuvixPlugin(BasePlugin):
             for file in files
             if files and file.has_error_message()
         ]
-        log.info(f"{Fore.GREEN}Files with errors: {len(files_to_process)}{Style.RESET_ALL}")
-        log.info("Next time, we will process the following files:")
+        log.info(f"{Fore.YELLOW}Files with errors: {Fore.GREEN}{len(files_to_process)}{Style.RESET_ALL}")
+        log.info("Based on the previous errors, we are forced to process the following files, next time:")
         for file in files_to_process:
-            log.info(f"{Fore.GREEN}{file.relative_filepath}{Style.RESET_ALL}")
+            log.info(f"{Fore.MAGENTA}{file.relative_filepath}{Style.RESET_ALL}")
         log.debug(f"{Fore.GREEN}finished on_post_build...{Style.RESET_ALL}")
 
     def move_html_cache_to_site_dir(self) -> None:
