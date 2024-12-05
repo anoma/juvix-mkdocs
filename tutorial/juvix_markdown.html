@@ -463,6 +463,16 @@
 <div class="md-content" data-md-component="content">
 <article class="md-content__inner md-typeset">
 <h1 id="juvix-markdown-structure">Juvix Markdown Structure<a class="headerlink" href="#juvix-markdown-structure" title="Permanent link">¶</a></h1>
+<p>The Juvix Markdown processor can turn Juvix code blocks into HTML.
+The syntax highlighted is semantic, not lexical. This brings a more clear
+understanding of the code. However, at the moment, processing Juvix
+Markdown takes two seconds per file, on average. Therefore it is disabled by
+default.</p>
+<p>To enable it, set the <code>PROCESS_JUVIX</code> environment variable to <code>true</code>.
+So, next time you run <code>mkdocs build</code>, Juvix Markdown will be processed. For
+example, you can run the command in the following way:</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__ispan-0-1"><span class="nv">PROCESS_JUVIX</span><span class="o">=</span><span class="nb">true</span><span class="w"> </span>poetry<span class="w"> </span>run<span class="w"> </span>mkdocs<span class="w"> </span>serve
+</span></code></pre></div>
 <h2 id="file-structure">File Structure<a class="headerlink" href="#file-structure" title="Permanent link">¶</a></h2>
 <p>A Juvix Markdown file (<code>.juvix.md</code>) must follow these rules:</p>
 <ul>
@@ -471,13 +481,13 @@
 <li>Module names must follow folder structure</li>
 </ul>
 <p>Example:
-<div class="language-text highlight"><span class="filename">tutorial/basics.juvix.md</span><pre><span></span><code><span id="__ispan-0-1">module tutorial.basics;
-</span><span id="__ispan-0-2">-- ...
+<div class="language-text highlight"><span class="filename">tutorial/basics.juvix.md</span><pre><span></span><code><span id="__ispan-1-1">module tutorial.basics;
+</span><span id="__ispan-1-2">-- ...
 </span></code></pre></div></p>
 <h2 id="code-block-features">Code Block Features<a class="headerlink" href="#code-block-features" title="Permanent link">¶</a></h2>
 <p>Enable Juvix code blocks in <code>mkdocs.yml</code>:
-<div class="language-yaml highlight"><pre><span></span><code><span id="__ispan-1-1"><span class="nt">plugins</span><span class="p">:</span>
-</span><span id="__ispan-1-2"><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">juvix</span>
+<div class="language-yaml highlight"><pre><span></span><code><span id="__ispan-2-1"><span class="nt">plugins</span><span class="p">:</span>
+</span><span id="__ispan-2-2"><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">juvix</span>
 </span></code></pre></div></p>
 <h3 id="hiding-code-blocks">Hiding Code Blocks<a class="headerlink" href="#hiding-code-blocks" title="Permanent link">¶</a></h3>
 <p>Hide code blocks using the <code>hide</code> attribute:</p>
@@ -501,10 +511,10 @@ module C;
 ```</code></pre>
 <h2 id="disabling-processing">Disabling Processing<a class="headerlink" href="#disabling-processing" title="Permanent link">¶</a></h2>
 <p>Disable Juvix processing per file:
-<div class="language-yaml highlight"><pre><span></span><code><span id="__ispan-2-1"><span class="nn">---</span>
-</span><span id="__ispan-2-2"><span class="nt">preprocess</span><span class="p">:</span>
-</span><span id="__ispan-2-3"><span class="w">  </span><span class="nt">juvix</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">false</span>
-</span><span id="__ispan-2-4"><span class="nn">---</span>
+<div class="language-yaml highlight"><pre><span></span><code><span id="__ispan-3-1"><span class="nn">---</span>
+</span><span id="__ispan-3-2"><span class="nt">preprocess</span><span class="p">:</span>
+</span><span id="__ispan-3-3"><span class="w">  </span><span class="nt">juvix</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">false</span>
+</span><span id="__ispan-3-4"><span class="nn">---</span>
 </span></code></pre></div></p>
 <!-- list_wikilinks -->
 </article>
@@ -521,8 +531,8 @@ module C;
 <div class="md-footer-meta__inner md-grid">
 <div class="md-copyright">
 <div class="md-copyright__highlight">
-    © 2024 <a href="https://github.com/anoma/juvix-mkdocs">juvix-mkdocs</a> - Last updated: December 02, 2024
-    at 04:03 PM UTC - Powered by Mkdocs, Material for Mkdocs, Juvix, and
+    © 2024 <a href="https://github.com/anoma/juvix-mkdocs">juvix-mkdocs</a> - Last updated: December 05, 2024
+    at 11:52 AM UTC - Powered by Mkdocs, Material for Mkdocs, Juvix, and
     Juvix-Mkdocs.
   </div>
 </div>

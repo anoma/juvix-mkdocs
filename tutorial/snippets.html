@@ -402,7 +402,7 @@
 <article class="md-content__inner md-typeset">
 <h1 id="snippet-support">Snippet Support<a class="headerlink" href="#snippet-support" title="Permanent link">¶</a></h1>
 <p>To incorporate the excerpt elsewhere, specify its path and tag:</p>
-<div class="language-markdown highlight"><pre><span></span><code><span id="__ispan-0-1">--8&lt;-- "path/to/file.ext:TAG"
+<div class="language-markdown highlight"><pre><span></span><code><span id="__ispan-0-1">;--8&lt;-- "path/to/file.ext:TAG"
 </span></code></pre></div>
 <h3 id="snippets-of-juvix-code">Snippets of Juvix code<a class="headerlink" href="#snippets-of-juvix-code" title="Permanent link">¶</a></h3>
 <p>You can also include <strong>snippets of Juvix code</strong> in your Markdown files. This is
@@ -410,12 +410,12 @@ done by adding the <code>--8&lt;--</code> comment followed by the path to the fi
 optionally a snippet identifier.</p>
 <p>The following example shows how to include a snippet of Juvix code from the
 file <code>test.juvix.md</code> with the identifier <code>main</code>.</p>
-<div class="language-markdown highlight"><pre><span></span><code><span id="__ispan-1-1">--8&lt;-- "docs/test.juvix.md:main"
+<div class="language-markdown highlight"><pre><span></span><code><span id="__ispan-1-1">;--8&lt;-- "docs/test.juvix.md:main"
 </span></code></pre></div>
 <p>which provides the following output:</p>
-<pre class="highlight"><code class="juvix"><pre class="src-content"><span id="test:1"><span class="annot"><a class="ju-code-link ju-function" href="https://anoma.github.io/juvix-mkdocs/test.html#test:1"><span class="annot"><a class="ju-code-link ju-function" href="https://anoma.github.io/juvix-mkdocs/test.html#test:1"><span class="ju-function">main</span></a></span></a></span></span> <span class="ju-keyword">:</span> <span class="annot"><a class="ju-code-link ju-inductive" href="https://anoma.github.io/juvix-mkdocs/Juvix/Builtin/V1/String.html#Juvix.Builtin.V1.String:1"><span class="ju-axiom">String</span></a></span> <span class="ju-keyword">:=</span> <span class="ju-string">"Hello world!"</span><span class="ju-delimiter">;</span></pre></code></pre>
+<p>--8&lt;-- "docs/test.juvix.md:main"</p>
 <p>You can also include relative paths:</p>
-<pre class="highlight"><code class="juvix"><pre class="src-content"><span class="ju-keyword">axiom</span> <span id="tutorial.hello:1"><span class="annot"><a class="ju-code-link ju-axiom" href="https://anoma.github.io/juvix-mkdocs/tutorial/hello.html#tutorial.hello:1"><span class="annot"><a class="ju-code-link ju-axiom" href="https://anoma.github.io/juvix-mkdocs/tutorial/hello.html#tutorial.hello:1"><span class="ju-axiom">A</span></a></span></a></span></span> <span class="ju-keyword">:</span> <span class="ju-keyword">Type</span><span class="ju-delimiter">;</span></pre></code></pre>
+<p>--8&lt;-- "./hello.juvix.md:axiom"</p>
 <div class="admonition info">
 <p class="admonition-title">Info</p>
 <p>If the path of the file ends with <code>!</code>, the raw content of the file
@@ -425,8 +425,7 @@ included.</p>
 </div>
 <p>So if we would like to include the raw content of <code>test.juvix.md</code>, we can do
 this by specifying the path as <code>docs/test.juvix.md!:main</code>.</p>
-<div class="language-text highlight"><pre><span></span><code><span id="__ispan-2-1">main : String := "Hello world!";
-</span></code></pre></div>
+<p>--8&lt;-- "docs/test.juvix.md!:main"</p>
 <div class="admonition info">
 <p class="admonition-title">Snippet identifier</p>
 <p>To use a snippet identifier, you must wrap the Juvix code block with the syntax
@@ -437,12 +436,10 @@ use the standard <code>--8&lt;--</code> markers within the code and extract the 
 <h3 id="snippet-for-generated-isabelle-files">Snippet for generated Isabelle files<a class="headerlink" href="#snippet-for-generated-isabelle-files" title="Permanent link">¶</a></h3>
 <p>For including generated Isabelle files, the path of the file must end with
 <code>!thy</code>, the raw content of the Isabelle theory file will be included.</p>
-<div class="language-markdown highlight"><pre><span></span><code><span id="__ispan-3-1">--8&lt;-- "docs/isabelle.juvix.md!thy:isabelle-add-def"
+<div class="language-markdown highlight"><pre><span></span><code><span id="__ispan-2-1">;--8&lt;-- "docs/isabelle.juvix.md!thy:isabelle-add-def"
 </span></code></pre></div>
 <p>This provides the following output:</p>
-<div class="language-isabelle highlight"><span class="filename">isabelle.thy from isabelle.juvix.md</span><pre><span></span><code><span id="__ispan-4-1"><span class="k">fun</span><span class="w"> </span><span class="n">add</span><span class="w"> </span><span class="o">::</span><span class="w"> </span><span class="s">"Nat </span><span class="ss">\&lt;Rightarrow&gt;</span><span class="s"> Nat </span><span class="ss">\&lt;Rightarrow&gt;</span><span class="s"> Nat"</span><span class="w"> </span><span class="kp">where</span>
-</span><span id="__ispan-4-2"><span class="w">  </span><span class="s">"add zero n = n"</span><span class="w"> </span><span class="o">|</span>
-</span><span id="__ispan-4-3"><span class="w">  </span><span class="s">"add (succ m) n = (succ (add m n))"</span>
+<div class="language-isabelle highlight"><span class="filename">isabelle.thy from isabelle.juvix.md</span><pre><span></span><code><span id="__ispan-3-1"><span class="o">--</span><span class="n">8&lt;</span><span class="o">--</span><span class="w"> </span><span class="s">"docs/isabelle.juvix.md!thy:isabelle-add-def"</span>
 </span></code></pre></div>
 <!-- list_wikilinks -->
 </article>
@@ -459,8 +456,8 @@ use the standard <code>--8&lt;--</code> markers within the code and extract the 
 <div class="md-footer-meta__inner md-grid">
 <div class="md-copyright">
 <div class="md-copyright__highlight">
-    © 2024 <a href="https://github.com/anoma/juvix-mkdocs">juvix-mkdocs</a> - Last updated: December 02, 2024
-    at 04:03 PM UTC - Powered by Mkdocs, Material for Mkdocs, Juvix, and
+    © 2024 <a href="https://github.com/anoma/juvix-mkdocs">juvix-mkdocs</a> - Last updated: December 05, 2024
+    at 11:52 AM UTC - Powered by Mkdocs, Material for Mkdocs, Juvix, and
     Juvix-Mkdocs.
   </div>
 </div>
